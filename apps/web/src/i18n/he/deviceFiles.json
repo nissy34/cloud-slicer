@@ -1,0 +1,23 @@
+{
+  "deviceFiles": {
+    "print": "הדפסה…",
+    "deleteName": "מחיקת {{name}}",
+    "delete": "מחיקה",
+    "title": "קבצים במדפסת",
+    "upload": "העלאת G-code…",
+    "timelapses": "טיימלאפסים",
+    "none": "עדיין אין קובצי G-code.",
+    "searchN_one": "חיפוש בקובץ אחד",
+    "searchN_two": "חיפוש בשני קבצים",
+    "searchN_other": "חיפוש ב-{{count}} קבצים",
+    "search": "חיפוש קבצים",
+    "noMatch": "אין קובץ שמתאים ל״{{query}}״.",
+    "deleteFile": "מחיקת הקובץ",
+    "deleteText": "למחוק את {{name}} מהמדפסת?",
+    "deleted": "נמחק",
+    "pages": "עמודי הקבצים",
+    "newer": "חדשים יותר",
+    "older": "ישנים יותר",
+    "range": "{{from}}–{{to}} מתוך {{total}}"
+  }
+}

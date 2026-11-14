@@ -1,5 +1,6 @@
+import { useTranslation } from 'react-i18next';
 import { printableLabel } from '../lib/printable';
-import { KIND_CODES, KIND_COLOURS, KIND_LABELS } from '../lib/volumes';
+import { KIND_CODES, KIND_COLOURS, kindLabel } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { ObjectSettings } from './ObjectSettings';
 import { Boxes, Ellipsis } from 'lucide-react';
@@ -9,6 +10,7 @@ import { filamentChoices } from '../lib/filament-choices';
 
 /** Objects on the current plate, their filament, and the selected one's settings. */
 export function ObjectList() {
+  const { t } = useTranslation();
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
@@ -25,7 +27,7 @@ export function ObjectList() {
   const filaments = presetNames ?? [];
   const filamentSelect = (o: number, v: number, value: number, label: string) => {
     const options: PickerOption[] = [
-      ...(v >= 0 ? [{ value: '0', label: 'Object', swatch: colours[Math.max(0, (project.objects[o].extruder || 1) - 1)], hint: 'Same as the object' }] : []),
+      ...(v >= 0 ? [{ value: '0', label: t('objectList.object'), swatch: colours[Math.max(0, (project.objects[o].extruder || 1) - 1)], hint: t('objectList.sameAsObject') }] : []),
       ...filamentChoices(colours, filaments, physical, value),
     ];
     return <Picker field label={label} className="filament-pick" value={String(value)} options={options} onChange={(next) => void setObjectFilament(o, v, Number(next))} />;
@@ -36,7 +38,7 @@ export function ObjectList() {
     <section className="group">
       <h2>
         <Boxes aria-hidden />
-        Objects
+        {t('objectList.objects')}
       </h2>
       <ul className="objects">
         {onPlate.map((o) => {
@@ -60,19 +62,19 @@ export function ObjectList() {
                     }
                     select(active && !group.length ? null : { object: o, instance: Math.max(0, instance) });
                   }}
-                  title={skipped ? `${obj.name}: ${skipped.toLowerCase()}. Slicing leaves it out; tick Printable in its ⋯ menu to print it.` : obj.name}
+                  title={skipped ? t('objectList.skippedTip', { name: obj.name, why: skipped.toLowerCase() }) : obj.name}
                 >
-                  {obj.name || `Object ${o + 1}`}
+                  {obj.name || t('objectList.objectN', { n: o + 1 })}
                   {obj.instances.length > 1 && <span className="muted"> ×{obj.instances.length}</span>}
                   {skipped && <span className="muted"> · {skipped}</span>}
                 </button>
-                {filamentSelect(o, -1, obj.extruder || 1, `Filament for ${obj.name}`)}
+                {filamentSelect(o, -1, obj.extruder || 1, t('objectList.filamentFor', { name: obj.name }))}
                 <IconButton
                   icon={Ellipsis}
                   className="object-more"
-                  label="More"
-                  aria-label={`More for ${obj.name}`}
-                  title="More: clone, rename, mirror, export… (or right-click the object)"
+                  label={t('objectList.more')}
+                  aria-label={t('objectList.moreFor', { name: obj.name })}
+                  title={t('objectList.moreTip')}
                   onClick={(e) => {
                     const r = e.currentTarget.getBoundingClientRect();
                     const i = Math.max(0, instance);
@@ -90,22 +92,22 @@ export function ObjectList() {
                       <li key={i} className={picked ? 'object-row volume active' : 'object-row volume'}>
                         <button
                           className="volume-name"
-                          title={`${KIND_LABELS[v.kind]}: ${v.name}`}
+                          title={`${kindLabel(v.kind)}: ${v.name}`}
                           aria-pressed={picked}
                           onClick={() => select({ object: o, instance: Math.max(0, instance), volume: picked ? undefined : i })}
                         >
                           {tint && <span className="volume-kind" style={{ background: tint.colour }} aria-hidden="true" />}
                           {v.name}
-                          {v.kind !== 'part' && <span className="muted"> · {KIND_LABELS[v.kind]}</span>}
-                          {v.painted && <span className="muted"> (painted)</span>}
+                          {v.kind !== 'part' && <span className="muted"> · {kindLabel(v.kind)}</span>}
+                          {v.painted && <span className="muted"> {t('objectList.painted')}</span>}
                         </button>
-                        {(v.kind === 'part' || v.kind === 'modifier') && filamentSelect(o, i, v.extruder, `Filament for ${v.name}`)}
+                        {(v.kind === 'part' || v.kind === 'modifier') && filamentSelect(o, i, v.extruder, t('objectList.filamentFor', { name: v.name }))}
                         <IconButton
                           icon={Ellipsis}
                           className="object-more"
-                          label="More"
-                          aria-label={`More for part ${v.name}`}
-                          title="Rename, change type, settings, delete"
+                          label={t('objectList.more')}
+                          aria-label={t('objectList.moreForPart', { name: v.name })}
+                          title={t('objectList.partMoreTip')}
                           onClick={(e) => {
                             const r = e.currentTarget.getBoundingClientRect();
                             const inst = Math.max(0, instance);
@@ -125,9 +127,9 @@ export function ObjectList() {
       {group.length > 1 && (
         <div className="transform">
           <p className="group-chosen">
-            <strong>{group.length} objects chosen</strong>
+            <strong>{t('objectList.chosen', { count: group.length })}</strong>
           </p>
-          <p className="hint">Move, rotate and scale work on all of them. Right-click a chosen model, or long press it on a phone, for the rest.</p>
+          <p className="hint">{t('objectList.groupHint')}</p>
           <div className="transform-row actions">
             <button
               className="secondary"
@@ -136,10 +138,10 @@ export function ObjectList() {
                 openGroupMenu({ x: r.left, y: r.bottom + 2 });
               }}
             >
-              More
+              {t('objectList.more')}
             </button>
-            <button className="secondary danger" title="Delete them all (Del)" onClick={() => void groupAction({ op: 'delete' })}>
-              Delete
+            <button className="secondary danger" title={t('objectList.deleteAllTip')} onClick={() => void groupAction({ op: 'delete' })}>
+              {t('objectList.delete')}
             </button>
           </div>
         </div>
@@ -149,8 +151,9 @@ export function ObjectList() {
           {selected.volume !== undefined && project.objects[selected.object].volumes[selected.volume] ? (
             project.objects[selected.object].volumes[selected.volume].kind.startsWith('support') ? (
               <p className="hint">
-                {KIND_LABELS[project.objects[selected.object].volumes[selected.volume].kind]}: supports {project.objects[selected.object].volumes[selected.volume].kind === 'supportBlocker' ? "don't grow" : 'grow'} where it
-                overlaps the object, when supports are on. Move it with the Move tool.
+                {t(project.objects[selected.object].volumes[selected.volume].kind === 'supportBlocker' ? 'objectList.blockerHint' : 'objectList.enforcerHint', {
+                  kind: kindLabel(project.objects[selected.object].volumes[selected.volume].kind),
+                })}
               </p>
             ) : (
               <ObjectSettings key={selected.volume} object={selected.object} volume={selected.volume} />
@@ -159,22 +162,22 @@ export function ObjectList() {
             <ObjectSettings object={selected.object} />
           )}
           <div className="transform-row actions">
-            <button className="secondary" title="One more copy of it, beside it (+). Ctrl+C and Ctrl+V paste it as a new object." onClick={() => void copyInstance(selected.object, selected.instance)}>
-              Add instance
+            <button className="secondary" title={t('objectList.addInstanceTip')} onClick={() => void copyInstance(selected.object, selected.instance)}>
+              {t('objectList.addInstance')}
             </button>
             <button
               className="secondary"
               disabled={project.objects[selected.object].instances.length < 2}
-              title="Remove this copy, keeping the others (-)"
+              title={t('objectList.removeInstanceTip')}
               onClick={() => void removeInstance(selected.object, selected.instance)}
             >
-              Remove instance
+              {t('objectList.removeInstance')}
             </button>
-            <button className="secondary" title="Fewer triangles, like desktop's Simplify model" onClick={() => setTool('simplify')}>
-              Simplify
+            <button className="secondary" title={t('objectList.simplifyTip')} onClick={() => setTool('simplify')}>
+              {t('objectList.simplify')}
             </button>
-            <button className="secondary danger" title="The object with all its copies (Del removes only the picked copy)" onClick={() => void deleteObject(selected.object)}>
-              Delete
+            <button className="secondary danger" title={t('objectList.deleteTip')} onClick={() => void deleteObject(selected.object)}>
+              {t('objectList.delete')}
             </button>
           </div>
         </div>

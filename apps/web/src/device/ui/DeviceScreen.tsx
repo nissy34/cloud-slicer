@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Picker } from '../../components/Picker';
 import { Settings } from 'lucide-react';
 import { useAccount } from '../../state/account';
-import { BRIDGE_SIGN_IN, useDevice } from '../../state/device';
+import { bridgeSignIn, useDevice } from '../../state/device';
 import '../../state/alerts';
 import { takesCommands } from '../addons';
 import { isTestRelay } from '../config';
@@ -19,6 +20,7 @@ import { WorksWith } from './WorksWith';
 import { Empty } from '../../components/Empty';
 
 export function DeviceScreen() {
+  const { t } = useTranslation();
   useEffect(() => useDevice.getState().start(), []);
   const printers = useDevice((s) => s.printers);
   const activeId = useDevice((s) => s.activeId);
@@ -38,16 +40,16 @@ export function DeviceScreen() {
   const { confirm, dialog } = useConfirm();
   const [arranging, setArranging] = useState(false);
 
-  const model = addons[0]?.model ?? (facts ? 'Klipper printer' : '');
+  const model = addons[0]?.model ?? (facts ? t('deviceScreen.klipperPrinter') : '');
   const agentOffline = active?.kind === 'bridge' && bridge?.agent === 'offline';
   const pill =
     conn.state === 'online' && !agentOffline
-      ? { cls: 'online', text: 'Connected' }
+      ? { cls: 'online', text: t('deviceScreen.connected') }
       : conn.state === 'connecting'
-        ? { cls: 'connecting', text: 'Connecting' }
+        ? { cls: 'connecting', text: t('deviceScreen.connecting') }
         : agentOffline
-          ? { cls: 'offline', text: 'Bridge offline' }
-          : { cls: 'offline', text: 'Offline' };
+          ? { cls: 'offline', text: t('deviceScreen.bridgeOffline') }
+          : { cls: 'offline', text: t('deviceScreen.offline') };
 
   return (
     <div className="device" data-testid="device-screen">
@@ -55,11 +57,11 @@ export function DeviceScreen() {
         <Empty
           icon={Printer}
           className="dv-empty"
-          title="Your printers"
-          text="Watch your printers, control them and send prints from the slicer."
+          title={t('deviceScreen.yourPrinters')}
+          text={t('deviceScreen.emptyText')}
           action={
             <button className="primary" onClick={() => void openEditor({ mode: 'add' })} data-testid="add-printer">
-              Add a printer
+              {t('deviceScreen.addPrinter')}
             </button>
           }
         >
@@ -69,14 +71,14 @@ export function DeviceScreen() {
               onClick={() => (accountStatus === 'signedIn' ? void openEditor({ mode: 'add', newBridge: true }) : void useAccount.getState().signIn('google'))}
               data-testid="add-bridge-button"
             >
-              {accountStatus === 'signedIn' ? 'Add a bridge' : 'Sign in to add a bridge'}
+              {accountStatus === 'signedIn' ? t('deviceScreen.addBridge') : t('deviceScreen.signInToAddBridge')}
             </button>
           )}
-          {send && <p className="muted">Add your printer first, then send the plate again.</p>}
+          {send && <p className="muted">{t('deviceScreen.addFirst')}</p>}
           <WorksWith />
           {bridges.length > 0 && (
             <button className="quiet" onClick={() => openManage(true)} data-testid="manage-open">
-              Printers &amp; bridges
+              {t('deviceScreen.printersAndBridges')}
             </button>
           )}
         </Empty>
@@ -86,17 +88,17 @@ export function DeviceScreen() {
             <div className="dv-printer">
               {/* The printer list ends with Printers & bridges, where printers and bridges are added, edited and removed. */}
               <Picker
-                label="Printer"
+                label={t('deviceScreen.printer')}
                 value={activeId}
-                options={printers.map((p) => ({ value: p.id, label: p.name + (p.kind === 'bridge' && isTestRelay(p.relay) ? ' (test)' : '') }))}
+                options={printers.map((p) => ({ value: p.id, label: p.name + (p.kind === 'bridge' && isTestRelay(p.relay) ? ` ${t('deviceScreen.testSuffix')}` : '') }))}
                 onChange={select}
-                actions={[{ id: 'manage', label: 'Printers & bridges…', icon: Settings, testId: 'manage-open' }]}
+                actions={[{ id: 'manage', label: t('deviceScreen.printersAndBridgesMenu'), icon: Settings, testId: 'manage-open' }]}
                 onAction={() => openManage(true)}
                 className="dv-printer-picker"
                 testId="printer-select"
               />
               <span className="muted dv-model">
-                {[model, active.kind === 'bridge' ? (isTestRelay(active.relay) ? 'through the test bridge' : 'through the bridge') : facts?.hostname].filter(Boolean).join(' · ')}
+                {[model, active.kind === 'bridge' ? (isTestRelay(active.relay) ? t('deviceScreen.throughTestBridge') : t('deviceScreen.throughBridge')) : facts?.hostname].filter(Boolean).join(' · ')}
               </span>
             </div>
             <span className={`dv-pill ${pill.cls}`} data-testid="connection" title={conn.message}>
@@ -106,12 +108,12 @@ export function DeviceScreen() {
               {/* Only the cards' layout here; the printer itself is managed from the printer list. */}
               {arranging ? (
                 <button className="primary" onClick={() => setArranging(false)} data-testid="arrange-done">
-                  Done arranging
+                  {t('deviceScreen.doneArranging')}
                 </button>
               ) : (
                 <button className="quiet" onClick={() => setArranging(true)} data-testid="arrange-open">
                   <Icon name="arrange" />
-                  Arrange cards
+                  {t('deviceScreen.arrangeCards')}
                 </button>
               )}
               {takesCommands(addons) && (
@@ -120,14 +122,14 @@ export function DeviceScreen() {
                   disabled={conn.state !== 'online'}
                   onClick={() =>
                     confirm({
-                      action: 'Emergency stop',
-                      text: 'Stop all motors and heaters right now? The printer firmware will need a restart afterwards.',
+                      action: t('deviceScreen.emergencyStop'),
+                      text: t('deviceScreen.emergencyStopText'),
                       danger: true,
-                      run: () => void call('Emergency stop sent', (s) => s.emergencyStop()),
+                      run: () => void call(t('deviceScreen.emergencyStopSent'), (s) => s.emergencyStop()),
                     })
                   }
                 >
-                  Emergency stop
+                  {t('deviceScreen.emergencyStop')}
                 </button>
               )}
             </div>
@@ -135,13 +137,13 @@ export function DeviceScreen() {
           {conn.state !== 'online' && conn.message && (
             <div className="dv-banner" role="status">
               <span>{conn.message}</span>
-              {conn.message === BRIDGE_SIGN_IN ? (
+              {conn.message === bridgeSignIn() ? (
                 <button className="quiet" onClick={() => void useAccount.getState().signIn('google')}>
-                  Sign in
+                  {t('deviceScreen.signIn')}
                 </button>
               ) : (
                 <button className="quiet" onClick={retry}>
-                  Try again
+                  {t('deviceScreen.tryAgain')}
                 </button>
               )}
             </div>

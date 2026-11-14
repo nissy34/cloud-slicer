@@ -3,6 +3,7 @@
 // from there, so a project never passes through Cloud Slicer and isn't held to
 // Cloudflare's 100 MB request limit. With the drive.file permission the app
 // only sees files it made: the "Cloud Slicer" folder and the projects in it.
+import { i18n } from '../i18n';
 import { api, ApiError, driveLost } from './api';
 import { Cancelled, fetchWithin, TimedOut, unlessCancelled } from '../lib/time-limit';
 
@@ -19,8 +20,8 @@ const CALL_MS = 30_000;
 /** One 4 MB piece: about 270 kbit/s at the slowest. */
 const PIECE_MS = 120_000;
 /** Where the person fixes it: the account menu (their name, top right) has Connect Google Drive then. */
-export const RECONNECT = 'Google Drive needs connecting again. Open the account menu (top right) and press Connect Google Drive.';
-const noAnswer = () => new ApiError(504, "Google Drive didn't answer. Check your connection, then save again.", { code: 'timeout' });
+const reconnect = () => i18n.t('accountErrors.driveReconnect');
+const noAnswer = () => new ApiError(504, i18n.t('accountErrors.driveNoAnswer'), { code: 'timeout' });
 
 let token: { accessToken: string; expiresAt: number } | null = null;
 const folders = new Map<string, string>();
@@ -42,11 +43,11 @@ async function key(signal?: AbortSignal): Promise<string> {
 async function driveError(res: Response): Promise<ApiError> {
   const body = (await res.json().catch(() => ({}))) as { error?: { message?: string; errors?: { reason?: string }[] } };
   const reason = body.error?.errors?.[0]?.reason;
-  if (reason === 'storageQuotaExceeded') return new ApiError(res.status, 'Your Google Drive is full. Free some space in Drive, then save again.', { code: 'drive-full' });
+  if (reason === 'storageQuotaExceeded') return new ApiError(res.status, i18n.t('accountErrors.driveFull'), { code: 'drive-full' });
   if (res.status === 401) {
     token = null;
     driveLost();
-    return new ApiError(403, RECONNECT, { code: 'drive-connect' });
+    return new ApiError(403, reconnect(), { code: 'drive-connect' });
   }
   return new ApiError(res.status, `Google Drive: ${body.error?.message ?? res.statusText}`, {});
 }
@@ -129,7 +130,7 @@ async function upload(file: Blob, name: string, parent: string, opts: UploadOpti
     signal,
   );
   const session = start.headers.get('Location');
-  if (!session) throw new ApiError(502, "Google Drive didn't start the upload", {});
+  if (!session) throw new ApiError(502, i18n.t('accountErrors.driveNoUpload'), {});
   const total = file.size;
   let sent = 0;
   let tries = 0;
@@ -211,7 +212,7 @@ export async function downloadFromDrive(
   onProgress?: (loaded: number, total: number) => void,
   size = 0,
 ): Promise<ArrayBuffer> {
-  const gone = () => new ApiError(404, 'This project is no longer in your Google Drive', { code: 'drive-gone' });
+  const gone = () => new ApiError(404, i18n.t('accountErrors.driveGone'), { code: 'drive-gone' });
   if (!fileId) throw gone();
   let res: Response;
   try {

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { IconButton } from './IconButton';
 
 /**
@@ -34,6 +35,7 @@ export function Dialog({
   testId?: string;
   describedBy?: string;
 }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => {
@@ -64,7 +66,7 @@ export function Dialog({
         <header className="win-head">
           <h2 id={titleId}>{title}</h2>
           {head}
-          <IconButton icon={X} label="Close" aria-label="Close window" onClick={onClose} />
+          <IconButton icon={X} label={t('common.close')} aria-label={t('uiParts.closeWindow')} onClick={onClose} />
         </header>
         <div className="win-content">{children}</div>
         {footer && <footer className="win-foot">{footer}</footer>}

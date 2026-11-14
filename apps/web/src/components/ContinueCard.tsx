@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { projectThumbnailUrl } from '../account/api';
 import { yourDevice } from '../lib/autosave';
 import { formatWhen } from '../lib/projects';
@@ -6,6 +7,7 @@ import { Notice } from './Notice';
 
 /** On opening the app with nothing loaded: continue the work kept in this browser, the project open here last, or a project changed on another device. */
 export function ContinueCard() {
+  const { t } = useTranslation();
   const offer = useProjects((s) => s.offer);
   const busy = useProjects((s) => Boolean(s.busy));
   if (!offer || busy) return null;
@@ -15,15 +17,15 @@ export function ContinueCard() {
       <Notice
         testId="continue-card"
         icon={<span className="project-thumb small">3MF</span>}
-        title="Continue where you left off?"
-        text={`${offer.copy.name}, changed ${formatWhen(offer.copy.savedAt)}. Kept in this browser, not saved.`}
+        title={t('continue.title')}
+        text={t('continue.local', { name: offer.copy.name, when: formatWhen(offer.copy.savedAt) })}
         actions={
           <>
             <button className="secondary" onClick={() => void dismissOffer(true)}>
-              Discard
+              {t('continue.discard')}
             </button>
             <button className="primary" onClick={() => void acceptOffer()}>
-              Continue
+              {t('continue.continue')}
             </button>
           </>
         }
@@ -34,15 +36,15 @@ export function ContinueCard() {
     <Notice
       testId="continue-card"
       icon={<span className="project-thumb small">{p.hasThumbnail ? <img src={projectThumbnailUrl(p)} alt="" /> : '3MF'}</span>}
-      title={offer.kind === 'here' ? `Continue ${p.name}?` : `Continue ${p.name}`}
-      text={offer.kind === 'here' ? `You had it open here, edited ${formatWhen(p.updatedAt)}` : `Edited ${formatWhen(p.updatedAt)} on ${yourDevice(p.deviceName)}`}
+      title={offer.kind === 'here' ? t('continue.projectAsk', { name: p.name }) : t('continue.project', { name: p.name })}
+      text={offer.kind === 'here' ? t('continue.openHere', { when: formatWhen(p.updatedAt) }) : t('continue.editedOn', { when: formatWhen(p.updatedAt), device: yourDevice(p.deviceName) })}
       actions={
         <>
           <button className="secondary" onClick={() => void dismissOffer(false)}>
-            Not now
+            {t('continue.notNow')}
           </button>
           <button className="primary" onClick={() => void acceptOffer()}>
-            Continue
+            {t('continue.continue')}
           </button>
         </>
       }
@@ -52,6 +54,7 @@ export function ContinueCard() {
 
 /** The project was taken over by another device: this tab only views it. */
 export function ViewOnlyBanner() {
+  const { t } = useTranslation();
   const elsewhere = useProjects((s) => s.elsewhere);
   const name = useProjects((s) => s.current.name);
   if (!elsewhere) return null;
@@ -60,17 +63,17 @@ export function ViewOnlyBanner() {
     <Notice
       tone="warn"
       testId="view-only-banner"
-      title={`${name} is being edited on ${yourDevice(elsewhere.project.deviceName)}`}
-      text={`This tab is view only.${elsewhere.unsaved ? ' Changes you made here aren’t in it.' : ''}`}
+      title={t('continue.editedElsewhere', { name, device: yourDevice(elsewhere.project.deviceName) })}
+      text={elsewhere.unsaved ? t('continue.viewOnlyUnsaved') : t('continue.viewOnly')}
       actions={
         <>
           {elsewhere.unsaved && (
             <button className="secondary" onClick={() => void keepMineAsCopy()}>
-              Save mine as a copy
+              {t('continue.saveMineAsCopy')}
             </button>
           )}
           <button className="primary" onClick={() => void editHere()}>
-            Edit here instead
+            {t('continue.editHere')}
           </button>
         </>
       }

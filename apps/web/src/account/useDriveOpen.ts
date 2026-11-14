@@ -1,11 +1,13 @@
 // Open from Google Drive, for the Project menu and the empty plate: whether it
 // can be used here, why not, and the click that opens Google's file window.
+import { useTranslation } from 'react-i18next';
 import { useAccount } from '../state/account';
 import { useProjects } from '../state/projects';
 import type { OpenMode } from '../state/store';
 import { pickFromDrive } from './drive-picker';
 
 export function useDriveOpen() {
+  const { t } = useTranslation();
   const status = useAccount((s) => s.status);
   const user = useAccount((s) => s.user);
   const signedIn = status === 'signedIn';
@@ -15,13 +17,13 @@ export function useDriveOpen() {
     status === 'loading'
       ? ' '
       : !signedIn
-        ? 'Sign in with Google to open files from your Google Drive.'
+        ? t('accountErrors.driveSignIn')
         : !drive
           ? user?.projects === false
-            ? 'Online projects are turned off for your account.'
-            : 'Connect Google Drive in the account menu first.'
+            ? t('projectMenu.projectsOff')
+            : t('accountErrors.driveConnectFirst')
           : !user?.drivePicker
-            ? "Open from Google Drive isn't set up on this site yet."
+            ? t('accountErrors.pickerNotSetUp')
             : '';
   return {
     /** The site has accounts at all (not a local build without them): otherwise there is nothing to show. */

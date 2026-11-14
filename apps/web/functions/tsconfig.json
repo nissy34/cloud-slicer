@@ -10,7 +10,8 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": []
+    // vite/client: some shared src/lib files the functions import types from use import.meta.glob (src/i18n).
+    "types": ["vite/client"]
   },
   "include": ["**/*.ts"]
 }

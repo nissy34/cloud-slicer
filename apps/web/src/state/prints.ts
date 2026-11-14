@@ -14,7 +14,19 @@ import { create } from 'zustand';
 import { api } from '../account/api';
 import { job } from '../device/status';
 import { printedObjects } from '../lib/outside';
-import { changesBetween, nextStatus, OPEN_STATUSES, plateMarks, progressOf, type PlateMark, type PlateSummary, type PrintOrigin, type PrintRecord } from '../lib/prints';
+import { i18n } from '../i18n';
+import {
+  changesBetween,
+  nextStatus,
+  OPEN_STATUSES,
+  plateMarks,
+  progressOf,
+  type ChangeKind,
+  type PlateMark,
+  type PlateSummary,
+  type PrintOrigin,
+  type PrintRecord,
+} from '../lib/prints';
 import { useAccount } from './account';
 import { onFileSent, useDevice } from './device';
 import { useProjects } from './projects';
@@ -156,12 +168,25 @@ export function usePrintProgress() {
   return progressOf(marks, (p) => !printedObjects(project, p).length);
 }
 
+const CHANGE_WORDS: Record<ChangeKind, string> = {
+  added: 'printHistory.changeAdded',
+  removed: 'printHistory.changeRemoved',
+  copies: 'printHistory.changeCopies',
+  moved: 'printHistory.changeMoved',
+  reshaped: 'printHistory.changeShape',
+  objectSettings: 'printHistory.changeObjectSettings',
+  paint: 'printHistory.changePaint',
+  plate: 'printHistory.changePlate',
+  settings: 'printHistory.changeSettings',
+  settingsMore: 'printHistory.changeSettingsMore',
+};
+
 /** What changed on a plate since it was printed, in words. */
 export function changesSince(plate: number, record: PrintRecord): string[] {
   const now = usePrints.getState().summaries[plate];
   if (!record.summary || !now) return [];
   const options = useSlicer.getState().options;
-  return changesBetween(record.summary, now, (k) => options[k]?.label);
+  return changesBetween(record.summary, now, (k) => options[k]?.label, (kind, v) => i18n.t(CHANGE_WORDS[kind], { list: v.list, more: v.count }));
 }
 
 // What each plate prints now: worked out a moment after anything changed, for

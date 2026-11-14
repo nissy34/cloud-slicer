@@ -1,5 +1,6 @@
 import { type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { PAINTED } from '../lib/brim';
 import { useSlicer } from '../state/store';
@@ -59,6 +60,7 @@ const fmt = (n: number) => (Math.round(n * 10) / 10).toString();
 
 /** Desktop's Brim ears panel for the selected object. */
 export function BrimPanel({ object }: { object: number }) {
+  const { t } = useTranslation();
   const brim = useSlicer((s) => (s.brim?.object === object ? s.brim : null));
   const picked = useSlicer((s) => s.brimPicked);
   const diameter = useSlicer((s) => s.brimDiameter);
@@ -74,65 +76,62 @@ export function BrimPanel({ object }: { object: number }) {
   const size = diameter ?? brim?.defaultDiameter ?? 8;
   const loose = brim?.ears.filter((e) => !e.attached).length ?? 0;
   return (
-    <section className="tool-panel brim-panel" aria-label="Brim ears">
+    <section className="tool-panel brim-panel" aria-label={t('brimEars.title')}>
       <div className="tool-panel-head">
-        <strong>Brim ears</strong>
+        <strong>{t('brimEars.title')}</strong>
         <button className="ghost" onClick={() => setTool(null)}>
-          Done
+          {t('brimEars.done')}
         </button>
       </div>
       <p className="muted hint">
-        Round pads of brim under the corners keep them from lifting, with far less brim to clean off than a full brim.{' '}
-        {touch
-          ? 'Tap the model or the bed next to it to add an ear. Tap an ear to pick it, then Remove picked.'
-          : 'Click the model or the bed next to it to add an ear. Click an ear to pick it (Shift adds more), or right-click it to remove it.'}
+        {t('brimEars.intro')} {touch ? t('brimEars.howTouch') : t('brimEars.howMouse')}
       </p>
       {!brim ? (
-        <p className="muted hint">Reading the ears…</p>
+        <p className="muted hint">{t('brimEars.reading')}</p>
       ) : (
         <>
           {brim.brimType !== PAINTED && (
             <Note tone="warn" className="brim-warning">
-              <span>The ears only print when this object's brim type is Painted (brim ears).</span>
+              <span>{t('brimEars.notPainted')}</span>
               <button className="secondary" onClick={() => void setObjectSettings(object, -1, { brim_type: PAINTED })}>
-                Use brim ears for this object
+                {t('brimEars.usePainted')}
               </button>
             </Note>
           )}
-          <div className="brim-summary" aria-label="Ears">
-            {brim.ears.length} {brim.ears.length === 1 ? 'ear' : 'ears'}
-            {loose > 0 && <span className="brim-loose"> · {loose} not touching the object</span>}
-            {picked.length > 0 && <span> · {picked.length} picked</span>}
+          <div className="brim-summary" aria-label={t('brimEars.ears')}>
+            {t('brimEars.count', { count: brim.ears.length })}
+            {loose > 0 && <span className="brim-loose"> · {t('brimEars.loose', { count: loose })}</span>}
+            {picked.length > 0 && <span> · {t('brimEars.picked', { count: picked.length })}</span>}
           </div>
           <label className="transform-row">
-            <span>Ear size</span>
-            <Slider aria-label="Ear size" min={5} max={20} step={0.5} value={size} onChange={(e) => setBrimDiameter(Number(e.target.value))} />
+            <span>{t('brimEars.size')}</span>
+            <Slider aria-label={t('brimEars.size')} min={5} max={20} step={0.5} value={size} onChange={(e) => setBrimDiameter(Number(e.target.value))} />
             <span className="unit">{fmt(size)} mm</span>
           </label>
           <div className="brim-op">
             <button className="secondary" onClick={() => void editBrim({ op: 'auto', diameter: size, maxAngle, detection })}>
-              Add ears on the corners
+              {t('brimEars.auto')}
             </button>
-            <label className="transform-row" title="Corners sharper than this get an ear">
-              <span>Max angle</span>
-              <Slider aria-label="Max angle" min={0} max={180} step={1} value={maxAngle} onChange={(e) => setMaxAngle(Number(e.target.value))} />
+            <label className="transform-row" title={t('brimEars.maxAngleTip')}>
+              <span>{t('brimEars.maxAngle')}</span>
+              <Slider aria-label={t('brimEars.maxAngle')} min={0} max={180} step={1} value={maxAngle} onChange={(e) => setMaxAngle(Number(e.target.value))} />
               <span className="unit">{maxAngle}°</span>
             </label>
-            <label className="transform-row" title="Small bumps shorter than this are smoothed out first, so they don't get ears">
-              <span>Detection length</span>
-              <Slider aria-label="Detection length" min={0} max={10} step={0.1} value={detection} onChange={(e) => setDetection(Number(e.target.value))} />
+            <label className="transform-row" title={t('brimEars.detectionTip')}>
+              <span>{t('brimEars.detection')}</span>
+              <Slider aria-label={t('brimEars.detection')} min={0} max={10} step={0.1} value={detection} onChange={(e) => setDetection(Number(e.target.value))} />
               <span className="unit">{fmt(detection)} mm</span>
             </label>
           </div>
           <div className="tool-row">
             <button className="secondary" disabled={!picked.length} onClick={() => void editBrim({ op: 'resize', indices: picked, diameter: size })}>
-              Resize picked
+              {t('brimEars.resize')}
             </button>
             <button className="secondary" disabled={!picked.length} onClick={() => void editBrim({ op: 'remove', indices: picked })}>
-              Remove picked
+              {t('brimEars.remove')}
             </button>
             <button className="secondary" disabled={!brim.ears.length} onClick={() => (pickEar(-1), void editBrim({ op: 'clear' }))}>
-              Remove all
+              {t('brimEars.removeAll')}
             </button>
           </div>
         </>

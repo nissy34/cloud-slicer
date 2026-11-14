@@ -9,6 +9,7 @@
 // OrcaSlicer keeps a block per nozzle and a flush_multiplier per nozzle;
 // Snapmaker Orca one block and one multiplier. The purge printed is the table
 // value times the multiplier, and the window shows that product, as desktop does.
+import { i18n } from '../i18n';
 
 /** What the engine said about the selected printer's flushing (presetsSelect "flush"). */
 export interface FlushInfo {
@@ -108,7 +109,7 @@ export const flushShown = (info: FlushInfo | null, filaments: number) => !!info?
 export function flushNote(config: { purge_in_prime_tower?: string; prime_volume?: string }, info: FlushInfo): string {
   if (info.bambu) return '';
   if (config.purge_in_prime_tower === '0')
-    return `"Purge in prime tower" is off in this printer's settings (Multimaterial page), so each filament change purges the prime volume (${config.prime_volume ?? '?'} mm³) instead of these amounts. They still set the flush length the printer's change G-code gets.`;
+    return i18n.t('flushVolumes.towerOff', { volume: config.prime_volume ?? '?' });
   return '';
 }
 

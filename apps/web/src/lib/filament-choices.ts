@@ -1,3 +1,4 @@
+import { i18n } from '../i18n';
 import { shortName } from './presets';
 import type { PickerOption } from '../components/Picker';
 
@@ -36,9 +37,9 @@ export function filamentChoices(colours: readonly string[], presets: readonly st
   const count = Math.max(colours.length, physical, upTo);
   return Array.from({ length: count }, (_, i) => ({
     value: String(i + 1),
-    label: i < physical ? shortName(presets[i] ?? '') || `Filament ${i + 1}` : 'Mix',
+    label: i < physical ? shortName(presets[i] ?? '') || i18n.t('optionField.filamentN', { n: i + 1 }) : i18n.t('optionField.mix'),
     swatch: colours[i] ?? '#888888',
     swatchNumber: String(i + 1),
-    group: i < physical ? undefined : 'Mixes',
+    group: i < physical ? undefined : i18n.t('optionField.mixes'),
   }));
 }

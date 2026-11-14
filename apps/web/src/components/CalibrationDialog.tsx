@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CALIBRATIONS,
   calibrationHint,
+  calibrationTitle,
   changeChoice,
   checkCalibration,
   defaultValues,
@@ -14,6 +16,7 @@ import { Picker } from './Picker';
 
 /** Desktop Orca's Calibration menu: pick a test, set its range, and it replaces the plate. */
 export function CalibrationDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const startCalibration = useSlicer((s) => s.startCalibration);
   const hasProject = useSlicer((s) => !!s.project?.objects.length);
   const [mode, setMode] = useState(CALIBRATIONS[0].mode);
@@ -26,13 +29,13 @@ export function CalibrationDialog({ onClose }: { onClose: () => void }) {
   const numbers = fields.filter((f) => (f.kind ?? 'number') === 'number');
   return (
     <Dialog
-      title="Calibration"
+      title={t('calibration.title')}
       onClose={onClose}
       className="calib-dialog"
       footer={
         <>
           <button className="secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             className="primary"
@@ -42,24 +45,24 @@ export function CalibrationDialog({ onClose }: { onClose: () => void }) {
               void startCalibration(mode, v);
             }}
           >
-            Create test
+            {t('calibration.create')}
           </button>
         </>
       }
     >
       <label className="field">
-        <span>Test</span>
-        <Picker field label="Calibration test" value={mode} options={CALIBRATIONS.map((c) => ({ value: c.mode, label: c.title }))} onChange={(m) => setMode(m as typeof mode)} />
+        <span>{t('calibration.test')}</span>
+        <Picker field label={t('calibration.testLabel')} value={mode} options={CALIBRATIONS.map((c) => ({ value: c.mode, label: calibrationTitle(c.title) }))} onChange={(m) => setMode(m as typeof mode)} />
       </label>
       <p className="muted small">{calibrationHint(test, v)}</p>
       {test.choices?.map((c) => (
         <label key={c.key} className="field">
-          <span>{c.label}</span>
+          <span>{t(c.label)}</span>
           <Picker
             field
-            label={c.label}
+            label={t(c.label)}
             value={String(v[c.key])}
-            options={c.options.map((o) => ({ value: String(o.value), label: o.label }))}
+            options={c.options.map((o) => ({ value: String(o.value), label: t(o.label) }))}
             onChange={(next) => setValues({ ...values, [mode]: changeChoice(test, v, c.key, next) })}
           />
         </label>
@@ -69,7 +72,7 @@ export function CalibrationDialog({ onClose }: { onClose: () => void }) {
           {numbers.map((f) => (
             <label key={f.key} className="field">
               <span>
-                {f.label}
+                {t(f.label)}
                 {f.unit && ` (${f.unit})`}
               </span>
               <input type="number" inputMode="decimal" step={f.step ?? 1} value={String(v[f.key])} onChange={(e) => change(f.key, e.target.value)} />
@@ -82,16 +85,16 @@ export function CalibrationDialog({ onClose }: { onClose: () => void }) {
         .map((f) => (
           <label key={f.key} className="field calib-list">
             <span>
-              {f.label}
+              {t(f.label)}
               {f.unit && ` (${f.unit})`}
             </span>
             <input
               type="text"
-              placeholder="Empty: from your settings"
+              placeholder={t('calibration.emptyFromSettings')}
               value={String(v[f.key])}
               onChange={(e) => change(f.key, e.target.value.replace(/[^\d,\s]/g, ''))}
             />
-            {f.hint && <small className="muted">{f.hint}</small>}
+            {f.hint && <small className="muted">{t(f.hint)}</small>}
           </label>
         ))}
       {fields
@@ -99,13 +102,13 @@ export function CalibrationDialog({ onClose }: { onClose: () => void }) {
         .map((f) => (
           <label key={f.key} className="chip">
             <input type="checkbox" checked={v[f.key] !== false} onChange={(e) => change(f.key, e.target.checked)} />
-            {f.label}
+            {t(f.label)}
           </label>
         ))}
       {problem && <p className="hint warn">{problem}</p>}
       <p className="muted small">
-        {hasProject ? 'This replaces what is on the plate. ' : ''}
-        The test changes the settings it needs; they show as changed in Settings until you end the test.
+        {hasProject ? `${t('calibration.replacesPlate')} ` : ''}
+        {t('calibration.changesSettings')}
       </p>
     </Dialog>
   );
@@ -113,16 +116,17 @@ export function CalibrationDialog({ onClose }: { onClose: () => void }) {
 
 /** Shown while a calibration test is on the plate. */
 export function CalibrationBanner() {
+  const { t } = useTranslation();
   const calibration = useSlicer((s) => s.calibration);
   const endCalibration = useSlicer((s) => s.endCalibration);
   if (!calibration) return null;
   return (
-    <section className="calib-banner" aria-label="Calibration test">
+    <section className="calib-banner" aria-label={t('calibration.testLabel')}>
       <span>
-        <b>{calibration.title} test</b> on the plate. Slice and print it, then end the test to get your settings back.
+        <b>{t('calibration.bannerTest', { title: calibrationTitle(calibration.title) })}</b> {t('calibration.bannerText')}
       </span>
       <button className="secondary" onClick={() => void endCalibration()}>
-        End test
+        {t('calibration.endTest')}
       </button>
     </section>
   );

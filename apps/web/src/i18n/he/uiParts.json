@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "סגירת החלון",
+    "moreAboutThis": "עוד על זה",
+    "plannedForPhase": "מתוכנן לשלב {{phase}}.",
+    "saving": "שומר",
+    "loadedOf": "{{loaded}} מתוך {{total}}"
+  }
+}

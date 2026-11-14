@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BOOLEAN_OPS, defaultPair, pickerLabels, type BooleanOp } from '../lib/boolean';
-import { KIND_LABELS } from '../lib/volumes';
+import { kindLabel } from '../lib/volumes';
 import { useSlicer } from '../state/store';
 import { Note } from './Note';
 import { Picker } from './Picker';
@@ -13,6 +14,7 @@ export function BooleanPanel({ object }: { object: number }) {
   const volumes = useSlicer((s) => s.project?.objects[object]?.volumes ?? []);
   const picked = useSlicer((s) => (s.selected?.object === object ? s.selected.volume : undefined));
   const { setTool, meshBoolean } = useSlicer.getState();
+  const { t } = useTranslation();
   const [op, setOp] = useState<BooleanOp>('union');
   const [[a, b], setPair] = useState(() => defaultPair(volumes, picked));
   const [deleteInput, setDeleteInput] = useState(false);
@@ -36,56 +38,55 @@ export function BooleanPanel({ object }: { object: number }) {
         field
         label={label}
         value={String(value)}
-        options={volumes.map((v, k) => ({ value: String(k), label: `${v.name} (${KIND_LABELS[v.kind].toLowerCase()})` }))}
+        options={volumes.map((v, k) => ({ value: String(k), label: t('booleanTool.partOption', { name: v.name, kind: kindLabel(v.kind).toLowerCase() }) }))}
         onChange={(v) => onChange(Number(v))}
       />
     </label>
   );
 
   return (
-    <section className="tool-panel" aria-label="Mesh boolean">
+    <section className="tool-panel" aria-label={t('booleanTool.title')}>
       <div className="tool-panel-head">
-        <strong>Mesh boolean</strong>
+        <strong>{t('booleanTool.title')}</strong>
         <button className="ghost" onClick={() => setTool(null)}>
-          Done
+          {t('booleanTool.done')}
         </button>
       </div>
-      <div className="chooser" role="radiogroup" aria-label="Operation">
+      <div className="chooser" role="radiogroup" aria-label={t('booleanTool.operation')}>
         {BOOLEAN_OPS.map(({ op: o, label }) => (
           <button key={o} role="radio" aria-checked={op === o} className={op === o ? 'on' : ''} onClick={() => setOp(o)}>
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
       {!enough ? (
         <p className="muted hint">
-          This works on two parts of one object. Add a part, negative part or modifier from the object's menu (right-click it, or the ⋯ button in the
-          object list), place it, then come back here.
+          {t('booleanTool.needTwo')}
         </p>
       ) : (
         <>
           <p className="muted hint">
             {op === 'union'
-              ? 'Joins the two into one part.'
+              ? t('booleanTool.unionHint')
               : op === 'difference'
-                ? 'Cuts the second one out of the first.'
-                : 'Keeps only where the two overlap.'}{' '}
-            The result takes the first one's place, type and settings. Undo brings both back.
+                ? t('booleanTool.differenceHint')
+                : t('booleanTool.intersectionHint')}{' '}
+            {t('booleanTool.resultHint')}
           </p>
           {picker(first, a, (v) => setPair([v, b]))}
           {picker(second, b, (v) => setPair([a, v]))}
-          {a === b && <Note tone="warn">Pick two different parts.</Note>}
+          {a === b && <Note tone="warn">{t('booleanTool.pickDifferent')}</Note>}
           {op !== 'union' && (
             <label className="switch-row">
               <input className="switch" type="checkbox" checked={deleteInput} onChange={(e) => setDeleteInput(e.target.checked)} />
-              Delete input (also remove the second one)
+              {t('booleanTool.deleteInput')}
             </label>
           )}
         </>
       )}
       <div className="tool-row">
         <button className="primary" disabled={!valid || working} onClick={() => void apply()}>
-          {working ? 'Working…' : BOOLEAN_OPS.find((x) => x.op === op)!.label}
+          {working ? t('booleanTool.working') : t(BOOLEAN_OPS.find((x) => x.op === op)!.label)}
         </button>
       </div>
     </section>

@@ -2,6 +2,7 @@
 // same for every printer whose add-on can read them (PrinterAddon.filaments):
 // "From printer" in the Filament section loads them into the project, and the
 // print dialog maps each filament in the file to one of them.
+import { i18n } from '../i18n';
 import { differenceCie76 } from 'culori';
 
 export type { FilamentSlot, MappedFilament, SlotWords, PrintOptions } from './slot-types';
@@ -26,8 +27,10 @@ export function materialMatches(fileMaterial: string, slot: Pick<FilamentSlot, '
 }
 
 /** Why a filament has no slot: none of the loaded ones is allowed. */
-export const noSlotReason = (f: MappedFilament, words: SlotWords) =>
-  `No ${words.noun} has ${f.material || 'a matching filament'}${f.nozzle ? ` with a ${f.nozzle} mm nozzle` : ''}. Load it, or change the filament in the slicer and slice again.`;
+export const noSlotReason = (f: MappedFilament, words: SlotWords) => {
+  const material = f.material || i18n.t('deviceSlots.matchingFilament');
+  return f.nozzle ? i18n.t('deviceSlots.noSlotNozzle', { noun: words.noun, material, nozzle: f.nozzle }) : i18n.t('deviceSlots.noSlot', { noun: words.noun, material });
+};
 
 /**
  * Whether a filament can go to a slot, with the same rules as the printer
@@ -37,14 +40,14 @@ export const noSlotReason = (f: MappedFilament, words: SlotWords) =>
  */
 export function slotCheck(f: MappedFilament, slot: FilamentSlot, words: SlotWords): { blocked: string | null; warning: string | null } {
   let blocked: string | null = null;
-  if (!slot.material) blocked = `${slot.label} has no filament type set. ${words.unset}`;
+  if (!slot.material) blocked = i18n.t('deviceSlots.noType', { slot: slot.label, unset: words.unset });
   else if (f.material && !materialMatches(f.material, slot))
-    blocked = `${slot.label} has ${[slot.material, slot.subType].filter(Boolean).join(' ')}, but this filament was sliced as ${f.material}.`;
+    blocked = i18n.t('deviceSlots.otherMaterial', { slot: slot.label, has: [slot.material, slot.subType].filter(Boolean).join(' '), material: f.material });
   else if (f.nozzle && slot.nozzle && Math.abs(f.nozzle - slot.nozzle.diameter) >= 0.001)
-    blocked = `${slot.label} has a ${slot.nozzle.diameter} mm nozzle, but the file was sliced for ${f.nozzle} mm.`;
+    blocked = i18n.t('deviceSlots.otherNozzle', { slot: slot.label, has: slot.nozzle.diameter, nozzle: f.nozzle });
   const warning =
     !blocked && f.highFlow && slot.nozzle && slot.nozzle.volumeType !== 'high_flow'
-      ? `The file was sliced for a high-flow nozzle, but ${slot.label} has a standard one.`
+      ? i18n.t('deviceSlots.highFlow', { slot: slot.label })
       : null;
   return { blocked, warning };
 }

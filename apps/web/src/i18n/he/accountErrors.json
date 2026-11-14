@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "לא התקבלה תשובה בזמן",
+    "noAccounts": "חשבונות לא זמינים בשרת הזה",
+    "siteNoAnswer": "Cloud Slicer לא ענה. בדקו את החיבור ונסו שוב.",
+    "driveReconnect": "צריך לחבר שוב את Google Drive. פתחו את תפריט החשבון (למעלה בפינה) ולחצו ״חיבור Google Drive״.",
+    "driveNoAnswer": "Google Drive לא ענה. בדקו את החיבור ושמרו שוב.",
+    "driveFull": "ה-Google Drive שלכם מלא. פנו מקום ב-Drive ושמרו שוב.",
+    "driveGone": "הפרויקט הזה כבר לא נמצא ב-Google Drive שלכם",
+    "driveNoUpload": "Google Drive לא התחיל את ההעלאה",
+    "pickerBlocked": "הדפדפן חסם את חלון Google Drive. אפשרו חלונות קופצים לאתר הזה ונסו שוב.",
+    "driveSignIn": "התחברו עם Google כדי לפתוח קבצים מ-Google Drive שלכם.",
+    "driveConnectFirst": "חברו קודם את Google Drive בתפריט החשבון.",
+    "pickerNotSetUp": "פתיחה מ-Google Drive עדיין לא הוגדרה באתר הזה."
+  }
+}

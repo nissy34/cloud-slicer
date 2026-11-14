@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PaintKind, PaintSettings, PaintTool } from '../engine/protocol';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { Swatch } from './Swatch';
@@ -8,12 +9,18 @@ import { filamentChoices } from '../lib/filament-choices';
 
 /** The card's title: the toolbar button that opened it says what is painted. */
 const TITLES: Record<PaintKind, string> = {
-  color: 'Colour painting',
-  support: 'Support painting',
-  seam: 'Seam painting',
-  fuzzy: 'Fuzzy skin painting',
+  color: 'paintTool.colourTitle',
+  support: 'paintTool.supportTitle',
+  seam: 'paintTool.seamTitle',
+  fuzzy: 'paintTool.fuzzyTitle',
 };
-const KIND_WORDS: Record<PaintKind, string> = { color: 'colour', support: 'support', seam: 'seam', fuzzy: 'fuzzy skin' };
+/** "Clear … paint on …", for each kind. */
+const CLEAR_WORDS: Record<PaintKind, string> = {
+  color: 'paintTool.clearColour',
+  support: 'paintTool.clearSupport',
+  seam: 'paintTool.clearSeam',
+  fuzzy: 'paintTool.clearFuzzy',
+};
 
 // Desktop's paint tool icons (resources/images, AGPL-3.0 like this app). Their
 // grey and teal become the page's text and accent colours.
@@ -26,13 +33,13 @@ const icon = (name: string) =>
 
 /** Each tool, its desktop icon, its name and what it does (the button shows the icon; the tip, the rest). */
 const TOOLS: [PaintTool, string, string, string][] = [
-  ['circle', 'circle_paint', 'Brush', 'Paints the faces you see under the circle'],
-  ['sphere', 'toolbar_modifier_sphere', 'Sphere', 'Paints everything inside the ball, front and back'],
-  ['fill', 'triangle_paint', 'Smart fill', 'Fills connected faces that meet at less than the angle'],
-  ['bucket', 'fill_paint', 'Bucket', 'Fills the painted area you click, up to the angle'],
-  ['height', 'height_range', 'Height range', 'Paints every part all round, from where you click up by the height'],
+  ['circle', 'circle_paint', 'paintTool.brush', 'paintTool.brushTip'],
+  ['sphere', 'toolbar_modifier_sphere', 'paintTool.sphere', 'paintTool.sphereTip'],
+  ['fill', 'triangle_paint', 'paintTool.smartFill', 'paintTool.smartFillTip'],
+  ['bucket', 'fill_paint', 'paintTool.bucket', 'paintTool.bucketTip'],
+  ['height', 'height_range', 'paintTool.heightRange', 'paintTool.heightRangeTip'],
 ];
-const SVGS = Object.fromEntries(TOOLS.map(([t, file]) => [t, icon(file)]));
+const SVGS = Object.fromEntries(TOOLS.map(([tool, file]) => [tool, icon(file)]));
 /** Tools desktop has only for colour painting. */
 const COLOUR_ONLY: PaintTool[] = ['bucket', 'height'];
 
@@ -53,6 +60,7 @@ export function PaintPanel() {
   // Desktop starts "Highlight overhangs" at the process's support threshold angle.
   const threshold = Number(useOption('support_threshold_angle')) || 30;
   const { setPaint, clearPaint } = useSlicer.getState();
+  const { t } = useTranslation();
   // The section view cuts down from the top of the plate's models.
   const top = useMemo(() => {
     let z = 0;
@@ -75,30 +83,30 @@ export function PaintPanel() {
   const overhangAngle = paint.overhangAngle ?? threshold;
   const states: [number, string][] =
     paint.kind === 'fuzzy'
-      ? [[1, 'Fuzzy skin']]
+      ? [[1, t('paintTool.fuzzySkin')]]
       : [
-          [1, paint.kind === 'support' ? 'Add supports' : 'Seam here'],
-          [2, paint.kind === 'support' ? 'Block supports' : 'Avoid seam'],
+          [1, paint.kind === 'support' ? t('paintTool.addSupports') : t('paintTool.seamHere')],
+          [2, paint.kind === 'support' ? t('paintTool.blockSupports') : t('paintTool.avoidSeam')],
         ];
 
   return (
-    <section className="paint-panel" aria-label="Paint">
+    <section className="paint-panel" aria-label={t('paintTool.paint')}>
       <div className="paint-head">
-        <strong>{TITLES[paint.kind]}</strong>
+        <strong>{t(TITLES[paint.kind])}</strong>
         <button className="primary" onClick={() => void setPaint(null)}>
-          Done
+          {t('paintTool.done')}
         </button>
       </div>
       {colour ? (
         // Desktop's filament squares, the number inside; mixes after the filaments.
-        <div className="paint-filaments" role="radiogroup" aria-label="Paint with">
+        <div className="paint-filaments" role="radiogroup" aria-label={t('paintTool.paintWith')}>
           {colours.map((c, i) => (
             <button
               key={i}
               role="radio"
               aria-checked={paint.state === i + 1}
-              aria-label={i < physical ? `Filament ${i + 1}` : `Mix ${i + 1}`}
-              title={i < physical ? `Filament ${i + 1}` : `Mix ${i + 1}`}
+              aria-label={i < physical ? t('paintTool.filament', { n: i + 1 }) : t('paintTool.mix', { n: i + 1 })}
+              title={i < physical ? t('paintTool.filament', { n: i + 1 }) : t('paintTool.mix', { n: i + 1 })}
               className={paint.state === i + 1 ? 'on' : ''}
               onClick={() => change({ state: i + 1 })}
             >
@@ -106,60 +114,60 @@ export function PaintPanel() {
             </button>
           ))}
           <button role="radio" aria-checked={paint.state === 0} className={paint.state === 0 ? 'paint-erase on' : 'paint-erase'} onClick={() => change({ state: 0 })}>
-            Erase
+            {t('paintTool.erase')}
           </button>
         </div>
       ) : (
-        <div className="paint-states" role="radiogroup" aria-label="Paint with">
+        <div className="paint-states" role="radiogroup" aria-label={t('paintTool.paintWith')}>
           {states.map(([value, label]) => (
             <button key={value} role="radio" aria-checked={paint.state === value} className={paint.state === value ? 'on' : ''} onClick={() => change({ state: value })}>
               {label}
             </button>
           ))}
           <button role="radio" aria-checked={paint.state === 0} className={paint.state === 0 ? 'on' : ''} onClick={() => change({ state: 0 })}>
-            Erase
+            {t('paintTool.erase')}
           </button>
         </div>
       )}
-      <div className="chooser paint-tools" role="radiogroup" aria-label="Tool">
-        {TOOLS.filter(([t]) => colour || !COLOUR_ONLY.includes(t)).map(([t, , label, what]) => (
+      <div className="chooser paint-tools" role="radiogroup" aria-label={t('paintTool.tool')}>
+        {TOOLS.filter(([tool]) => colour || !COLOUR_ONLY.includes(tool)).map(([tool, , label, what]) => (
           <button
-            key={t}
+            key={tool}
             role="radio"
-            aria-checked={paint.tool === t}
-            aria-label={label}
-            className={paint.tool === t ? 'on' : ''}
-            title={`${label}: ${what}`}
-            onClick={() => change({ tool: t })}
+            aria-checked={paint.tool === tool}
+            aria-label={t(label)}
+            className={paint.tool === tool ? 'on' : ''}
+            title={`${t(label)}: ${t(what)}`}
+            onClick={() => change({ tool })}
           >
-            <span className="paint-tool-icon" aria-hidden="true" dangerouslySetInnerHTML={{ __html: SVGS[t] }} />
+            <span className="paint-tool-icon" aria-hidden="true" dangerouslySetInnerHTML={{ __html: SVGS[tool] }} />
           </button>
         ))}
       </div>
       {brush ? (
         <label className="transform-row">
-          <span>Size</span>
-          <Slider aria-label="Brush radius" min={0.5} max={20} step={0.5} value={paint.radius} onChange={(e) => change({ radius: Number(e.target.value) })} />
+          <span>{t('paintTool.size')}</span>
+          <Slider aria-label={t('paintTool.brushRadius')} min={0.5} max={20} step={0.5} value={paint.radius} onChange={(e) => change({ radius: Number(e.target.value) })} />
           <span className="unit">{paint.radius} mm</span>
         </label>
       ) : paint.tool === 'height' ? (
         <label className="transform-row">
-          <span>Height</span>
-          <Slider aria-label="Height range" min={0.1} max={Math.max(1, top)} step={0.1} value={paint.height} onChange={(e) => change({ height: Number(e.target.value) })} />
+          <span>{t('paintTool.height')}</span>
+          <Slider aria-label={t('paintTool.heightRange')} min={0.1} max={Math.max(1, top)} step={0.1} value={paint.height} onChange={(e) => change({ height: Number(e.target.value) })} />
           <span className="unit">{paint.height} mm</span>
         </label>
       ) : (
         <label className="transform-row">
-          <span>Angle</span>
-          <Slider aria-label="Fill angle" min={0} max={90} step={1} value={paint.angle} onChange={(e) => change({ angle: Number(e.target.value) })} />
+          <span>{t('paintTool.angle')}</span>
+          <Slider aria-label={t('paintTool.fillAngle')} min={0} max={90} step={1} value={paint.angle} onChange={(e) => change({ angle: Number(e.target.value) })} />
           <span className="unit">{paint.angle}°</span>
         </label>
       )}
       {/* Desktop's section view: hides (and keeps the brush off) everything above the cut. */}
       <label className="transform-row">
-        <span>Section view</span>
+        <span>{t('paintTool.sectionView')}</span>
         <Slider
-          aria-label="Section view"
+          aria-label={t('paintTool.sectionView')}
           min={0}
           max={Math.max(top, 0.1)}
           step={0.1}
@@ -170,29 +178,29 @@ export function PaintPanel() {
             change({ clip: z >= top ? undefined : z });
           }}
         />
-        <span className="unit">{paint.clip === undefined ? 'Off' : `${paint.clip} mm`}</span>
+        <span className="unit">{paint.clip === undefined ? t('paintTool.off') : `${paint.clip} mm`}</span>
       </label>
       {paint.kind === 'support' && (
         <>
           <label className="switch-row">
             <input className="switch" type="checkbox" checked={!!paint.highlightOverhangs} onChange={(e) => change({ highlightOverhangs: e.target.checked, overhangAngle })} />
-            Highlight overhangs
+            {t('paintTool.highlightOverhangs')}
           </label>
           {(paint.highlightOverhangs || paint.overhangsOnly) && (
             <label className="transform-row">
-              <span>Overhang</span>
-              <Slider aria-label="Overhang angle" min={0} max={90} step={1} value={overhangAngle} onChange={(e) => change({ overhangAngle: Number(e.target.value) })} />
+              <span>{t('paintTool.overhang')}</span>
+              <Slider aria-label={t('paintTool.overhangAngle')} min={0} max={90} step={1} value={overhangAngle} onChange={(e) => change({ overhangAngle: Number(e.target.value) })} />
               <span className="unit">{overhangAngle}°</span>
             </label>
           )}
-          <label className="switch-row" title="The brush and fills paint only the faces highlighted as overhangs">
+          <label className="switch-row" title={t('paintTool.overhangsOnlyTip')}>
             <input className="switch" type="checkbox" checked={!!paint.overhangsOnly} onChange={(e) => change({ overhangsOnly: e.target.checked, overhangAngle })} />
-            On overhangs only
+            {t('paintTool.overhangsOnly')}
           </label>
         </>
       )}
       <p className="muted hint">
-        {brush ? 'Drag on a part to paint. Drag off the parts to turn the view.' : paint.tool === 'height' ? 'Tap a part where the band starts.' : 'Tap a part to fill.'} Esc finishes.
+        {brush ? t('paintTool.brushHint') : paint.tool === 'height' ? t('paintTool.heightHint') : t('paintTool.fillHint')} {t('paintTool.escFinishes')}
       </p>
       {colour && (
         <RemapFilaments
@@ -201,12 +209,12 @@ export function PaintPanel() {
           colours={colours}
           presets={presets}
           physical={physical}
-          where={object && selected ? object.name || 'this object' : 'the objects on this plate'}
+          where={object && selected ? object.name || t('paintTool.thisObject') : t('paintTool.plateObjects')}
         />
       )}
       {object && selected && (
         <button className="secondary paint-clear" title={object.name} onClick={() => void clearPaint(selected.object)}>
-          Clear {KIND_WORDS[paint.kind]} paint on {object.name || 'this object'}
+          {t(CLEAR_WORDS[paint.kind], { name: object.name || t('paintTool.thisObject') })}
         </button>
       )}
     </section>
@@ -231,45 +239,46 @@ type RemapProps = {
  */
 function RemapFilaments({ remap, setRemap, colours, presets, physical, where }: RemapProps) {
   const remapPaint = useSlicer((s) => s.remapPaint);
+  const { t } = useTranslation();
   const names = filamentChoices(colours, presets, physical).map((o) => o.label);
   if (!remap)
     return (
-      <button className="secondary paint-remap" title={`Moves the paint on ${where} from one filament to another`} onClick={() => setRemap(colours.map((_, i) => i + 1))}>
-        Remap filaments
+      <button className="secondary paint-remap" title={t('paintTool.remapTip', { where })} onClick={() => setRemap(colours.map((_, i) => i + 1))}>
+        {t('paintTool.remapFilaments')}
       </button>
     );
   // The row follows the filaments, if one was added or removed while it was open.
   const to = colours.map((_, i) => (remap[i] && remap[i] <= colours.length ? remap[i] : i + 1));
   const label = (n: number) => `${n}: ${names[n - 1] ?? ''}`;
   return (
-    <div className="paint-remap" role="group" aria-label="Remap filaments">
+    <div className="paint-remap" role="group" aria-label={t('paintTool.remapFilaments')}>
       <div className="paint-filaments">
         {to.map((dst, i) => (
           <Menu
             key={i}
             role="dialog"
-            label={`Filament ${i + 1} becomes`}
+            label={t('paintTool.becomes', { n: i + 1 })}
             placement="bottom"
             className="paint-remap-pop"
             button={(props, open) => (
               <button
                 {...props}
                 className={open ? 'on' : ''}
-                aria-label={`Filament ${i + 1} becomes ${dst}`}
-                title={dst === i + 1 ? `${label(i + 1)} stays` : `${label(i + 1)} becomes ${label(dst)}`}
+                aria-label={t('paintTool.becomesN', { n: i + 1, to: dst })}
+                title={dst === i + 1 ? t('paintTool.stays', { filament: label(i + 1) }) : t('paintTool.becomesFilament', { filament: label(i + 1), to: label(dst) })}
               >
                 <Swatch colour={colours[dst - 1]} number={dst} size="lg" />
               </button>
             )}
           >
             {(close) => (
-              <div className="paint-filaments" role="radiogroup" aria-label={`Filament ${i + 1} becomes`}>
+              <div className="paint-filaments" role="radiogroup" aria-label={t('paintTool.becomes', { n: i + 1 })}>
                 {colours.map((c, k) => (
                   <button
                     key={k}
                     role="radio"
                     aria-checked={dst === k + 1}
-                    aria-label={`Filament ${k + 1}`}
+                    aria-label={t('paintTool.filament', { n: k + 1 })}
                     title={label(k + 1)}
                     className={dst === k + 1 ? 'on' : ''}
                     onClick={() => {
@@ -293,10 +302,10 @@ function RemapFilaments({ remap, setRemap, colours, presets, physical, where }: 
             void remapPaint(to);
           }}
         >
-          Remap
+          {t('paintTool.remap')}
         </button>
         <button className="secondary" onClick={() => setRemap(null)}>
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { flowModeLabel, processFlowModes } from '../lib/flow-variants';
 import { useSlicer } from '../state/store';
 
@@ -7,6 +8,7 @@ import { useSlicer } from '../state/store';
  * there when the process has values for more than one variant.
  */
 export function FlowVariantSwitch() {
+  const { t } = useTranslation();
   const support = useSlicer((s) => s.baseConfig.process_flow_support);
   const modes = processFlowModes({ process_flow_support: support });
   const flowVariant = useSlicer((s) => s.flowVariant);
@@ -14,7 +16,7 @@ export function FlowVariantSwitch() {
   if (modes.length < 2) return null;
   const current = Math.min(flowVariant, modes.length - 1);
   return (
-    <div className="chooser" role="radiogroup" aria-label="Flow variant">
+    <div className="chooser" role="radiogroup" aria-label={t('flowVariant.label')}>
       {modes.map((m, i) => (
         <button key={m} role="radio" aria-checked={i === current} className={i === current ? 'active' : ''} onClick={() => setFlowVariant(i)}>
           {flowModeLabel(m)}

@@ -2,6 +2,7 @@
 // printable="0"): the slice leaves them out, and desktop draws them in its
 // UNPRINTABLE_COLOR, black at half opacity, so you can see that before slicing.
 import type { ObjectInfo, PreviewMesh } from '../engine/protocol';
+import { i18n } from '../i18n';
 
 /** Desktop's GLVolume::UNPRINTABLE_COLOR. */
 export const UNPRINTABLE = { colour: [0, 0, 0] as [number, number, number], opacity: 0.5 };
@@ -30,9 +31,9 @@ export function unprintableTriangles(preview: PreviewMesh, objects: ObjectInfo[]
 }
 
 /** How the object list marks an object on `plate`: '' when all of it prints. */
-export function printableLabel(object: ObjectInfo, plate: number): '' | 'Not printed' | 'Some copies not printed' {
+export function printableLabel(object: ObjectInfo, plate: number): string {
   const here = object.instances.filter((i) => i.plate === plate);
   const skipped = here.filter((i) => !i.printable).length;
   if (!skipped) return '';
-  return skipped === here.length ? 'Not printed' : 'Some copies not printed';
+  return skipped === here.length ? i18n.t('objectList.notPrinted') : i18n.t('objectList.someNotPrinted');
 }

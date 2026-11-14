@@ -1,11 +1,12 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { menuPosition } from '../lib/objectMenu';
 import { HANDY_MODELS } from '../lib/plateMenu';
-import { SHAPES } from '../lib/volumes';
+import { shapeLabel, SHAPES } from '../lib/volumes';
 import { usePlateMarks, usePrints } from '../state/prints';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
-import { NO_HISTORY, useHistoryAvailable } from './PrintHistory';
+import { noHistoryWords, useHistoryAvailable } from './PrintHistory';
 import { startSvg } from './SvgPanel';
 import { startText } from './TextPanel';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -24,6 +25,7 @@ export function PlateMenu({ onAdd }: { onAdd(): void }) {
 }
 
 function MenuCard({ onAdd }: { onAdd(): void }) {
+  const { t } = useTranslation();
   const menu = useSlicer((s) => s.plateMenu)!;
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
@@ -94,19 +96,19 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
   // Desktop loads a handy model's geometry only, added to the plate.
   const addHandy = async (file: string) => {
     const res = await fetch(`${import.meta.env.BASE_URL}engine/handy_models/${file}`);
-    if (!res.ok) return useSlicer.setState({ notice: `Couldn't fetch ${file} (${res.status}).`, noticeWarn: true });
+    if (!res.ok) return useSlicer.setState({ notice: t('plateMenu.fetchFailed', { file, status: res.status }), noticeWarn: true });
     await useProjects.getState().openFiles([new File([await res.blob()], file)], 'geometry');
   };
 
-  const needsModel = empty ? 'Nothing on this plate yet' : undefined;
-  const lockedTitle = locked ? 'This plate is locked' : undefined;
-  const title = menu.onPlate ? `Plate ${plate + 1}${name ? ` · ${name}` : ''}` : 'Add to the plate';
+  const needsModel = empty ? t('plateMenu.nothingYet') : undefined;
+  const lockedTitle = locked ? t('plateMenu.lockedTip') : undefined;
+  const title = menu.onPlate ? (name ? t('plateMenu.plateNamed', { n: plate + 1, name }) : t('plateMenu.plateN', { n: plate + 1 })) : t('plateMenu.addToPlate');
   return (
     <div
       ref={card}
       className="menu object-menu plate-menu"
       role="menu"
-      aria-label={menu.onPlate ? 'Plate menu' : 'Add menu'}
+      aria-label={menu.onPlate ? t('plateMenu.plateMenu') : t('plateMenu.addMenu')}
       style={at ?? { left: menu.x, top: menu.y, visibility: 'hidden' }}
       onContextMenu={(e) => e.preventDefault()}
       onPointerDownCapture={() => (armed.current = true)}
@@ -125,19 +127,19 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
           className="menu-form"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => s.plateAction({ op: 'rename', name: newName.trim() }, 'Rename plate'))();
+            run(() => s.plateAction({ op: 'rename', name: newName.trim() }, t('plateMenu.renamePlateUndo')))();
           }}
         >
           <label>
-            Plate name
-            <input aria-label="Plate name" value={newName} autoFocus placeholder="No name" onChange={(e) => setNewName(e.target.value)} />
+            {t('plateMenu.plateName')}
+            <input aria-label={t('plateMenu.plateName')} value={newName} autoFocus placeholder={t('plateMenu.noName')} onChange={(e) => setNewName(e.target.value)} />
           </label>
           <div className="menu-form-actions">
             <button type="button" className="ghost" onClick={() => setRenaming(false)}>
-              Back
+              {t('plateMenu.back')}
             </button>
             <button type="submit" className="primary">
-              Rename
+              {t('plateMenu.rename')}
             </button>
           </div>
         </form>
@@ -145,63 +147,63 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
         <>
           {menu.onPlate && (
             <>
-              {item('Select all', run(() => s.selectAll()), { disabled: empty, title: needsModel ?? 'Choose every object on this plate (Ctrl+A)' })}
-              {item('Arrange', run(() => s.arrange()), { disabled: empty || locked, title: needsModel ?? lockedTitle ?? 'Lay out the objects on this plate' })}
-              {item('Auto orient', run(() => s.orient()), {
+              {item(t('plateMenu.selectAll'), run(() => s.selectAll()), { disabled: empty, title: needsModel ?? t('plateMenu.selectAllTip') })}
+              {item(t('plateMenu.arrange'), run(() => s.arrange()), { disabled: empty || locked, title: needsModel ?? lockedTitle ?? t('plateMenu.arrangeTip') })}
+              {item(t('plateMenu.autoOrient'), run(() => s.orient()), {
                 disabled: empty || locked,
-                title: needsModel ?? lockedTitle ?? 'Turn every object on this plate to print with the least overhang',
+                title: needsModel ?? lockedTitle ?? t('plateMenu.autoOrientTip'),
               })}
-              {item('Delete all', run(() => s.plateAction({ op: 'deleteAll' }, 'Delete all')), { disabled: empty, title: needsModel ?? 'Delete every object on this plate' })}
-              {item('Delete plate', run(() => s.deletePlate()), {
+              {item(t('plateMenu.deleteAll'), run(() => s.plateAction({ op: 'deleteAll' }, t('plateMenu.deleteAll'))), { disabled: empty, title: needsModel ?? t('plateMenu.deleteAllTip') })}
+              {item(t('plateMenu.deletePlate'), run(() => s.deletePlate()), {
                 disabled: plates < 2,
-                title: plates < 2 ? 'The only plate stays' : 'Delete this plate and what is on it',
+                title: plates < 2 ? t('plateMenu.onlyPlate') : t('plateMenu.deletePlateTip'),
               })}
-              {item('Plate settings…', () => s.openPlateSettings(true), { title: "Settings this plate uses instead of the project's: plate type, print sequence, spiral vase, filament order" })}
-              {item('Rename plate…', () => setRenaming(true), { title: 'Shown on the plate tabs and saved in the project' })}
-              {item(locked ? 'Unlock' : 'Lock', run(() => s.lockPlate(!locked)), {
-                title: locked ? 'Let Arrange and Auto orient change this plate again' : 'Keep this plate as it is: Arrange and Auto orient leave it alone',
+              {item(t('plateMenu.plateSettings'), () => s.openPlateSettings(true), { title: t('plateMenu.plateSettingsTip') })}
+              {item(t('plateMenu.renamePlate'), () => setRenaming(true), { title: t('plateMenu.renamePlateTip') })}
+              {item(locked ? t('plateMenu.unlock') : t('plateMenu.lock'), run(() => s.lockPlate(!locked)), {
+                title: locked ? t('plateMenu.unlockTip') : t('plateMenu.lockTip'),
               })}
               {printedNow
-                ? item('Mark as not printed', run(() => usePrints.getState().unmark(plate)), { title: 'This plate still has to be printed' })
-                : item('Mark as printed', run(() => usePrints.getState().mark(plate)), {
+                ? item(t('plateMenu.markNotPrinted'), run(() => usePrints.getState().unmark(plate)), { title: t('plateMenu.markNotPrintedTip') })
+                : item(t('plateMenu.markPrinted'), run(() => usePrints.getState().mark(plate)), {
                     disabled: !history || empty,
-                    title: !history ? NO_HISTORY : (needsModel ?? 'Printed another way, like from an SD card'),
+                    title: !history ? noHistoryWords() : (needsModel ?? t('plateMenu.markPrintedTip')),
                   })}
-              {item('Print history…', run(() => usePrints.getState().openHistory(plate)), {
+              {item(t('plateMenu.printHistory'), run(() => usePrints.getState().openHistory(plate)), {
                 disabled: !history,
-                title: history ? 'When this plate was sent and printed' : NO_HISTORY,
+                title: history ? t('plateMenu.printHistoryTip') : noHistoryWords(),
               })}
               <hr />
             </>
           )}
           {submenu(
             'primitive',
-            'Add primitive',
+            t('plateMenu.addPrimitive'),
             <>
               {SHAPES.map((shape) => (
-                <Fragment key={shape}>{item(shape, run(() => s.plateAction({ op: 'addShape', shape }, 'Add primitive')))}</Fragment>
+                <Fragment key={shape}>{item(shapeLabel(shape), run(() => s.plateAction({ op: 'addShape', shape }, t('plateMenu.addPrimitive'))))}</Fragment>
               ))}
-              {item('Text', run(() => startText(null)), { title: 'Letters in a font, edited in the Text shape tool' })}
-              {item('SVG…', run(() => startSvg(null)), { title: 'The paths of an .svg file, like a logo' })}
+              {item(t('plateMenu.text'), run(() => startText(null)), { title: t('plateMenu.textTip') })}
+              {item(t('plateMenu.svg'), run(() => startSvg(null)), { title: t('plateMenu.svgTip') })}
             </>,
           )}
           {submenu(
             'handy',
-            'Add handy models',
+            t('plateMenu.addHandy'),
             <>
               {HANDY_MODELS.map((m) => (
                 <Fragment key={m.file}>{item(m.label, run(() => addHandy(m.file)))}</Fragment>
               ))}
             </>,
           )}
-          {item('Add models…', run(onAdd), { title: 'STL, 3MF, OBJ, STEP or SVG files from this device' })}
-          {item('Paste', run(() => s.paste()), { disabled: !copied, title: copied ? 'What you copied or cut, as a new object (Ctrl+V)' : 'Copy or cut an object first (its menu, or Ctrl+C)' })}
+          {item(t('plateMenu.addModels'), run(onAdd), { title: t('plateMenu.addModelsTip') })}
+          {item(t('plateMenu.paste'), run(() => s.paste()), { disabled: !copied, title: copied ? t('plateMenu.pasteTip') : t('plateMenu.copyFirst') })}
           <hr />
-          <button role="menuitemcheckbox" aria-checked={labels} className="menu-item" title="Object names in the 3D view (Ctrl+E)" onClick={run(() => s.setLabels(!labels))}>
+          <button role="menuitemcheckbox" aria-checked={labels} className="menu-item" title={t('plateMenu.showLabelsTip')} onClick={run(() => s.setLabels(!labels))}>
             <span className="menu-check" aria-hidden="true">
               {labels ? '✓' : ''}
             </span>
-            Show labels
+            {t('plateMenu.showLabels')}
           </button>
         </>
       )}

@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "Simplify this model first?",
+    "openAsIs": "Open as is",
+    "simplify": "Simplify",
+    "paintKept": "Its painting will be kept on the simplified mesh.",
+    "dontAsk": "Don't ask again on this device"
+  }
+}

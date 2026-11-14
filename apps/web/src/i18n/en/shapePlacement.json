@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Rotate text",
+    "rotateSvg": "Rotate SVG",
+    "moveText": "Move text from surface",
+    "moveSvg": "Move SVG from surface",
+    "rotationTip": "Turn it about its own axis, clockwise (the ring in the 3D view does the same)",
+    "rotation": "Rotation",
+    "fromSurfaceTip": "How far it stands off the surface",
+    "fromSurface": "From surface",
+    "keepUpTip": "Keeps it upright while you slide it over the surface or face it to the camera",
+    "keepUp": "Keep up",
+    "faceCameraTip": "Turn it to face you, where you look at it from",
+    "faceCamera": "Face the camera",
+    "moveToolsText": "Move or rotate the text with those tools.",
+    "moveToolsShape": "Move or rotate the shape with those tools.",
+    "dragText": "Drag the text or its blue frame to slide it over the object. The ring turns it.",
+    "dragShape": "Drag the shape or its blue frame to slide it over the object. The ring turns it."
+  }
+}

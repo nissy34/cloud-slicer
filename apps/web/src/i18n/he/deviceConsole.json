@@ -1,0 +1,27 @@
+{
+  "deviceConsole": {
+    "filterTemps": "טמפרטורות",
+    "filterTimelapse": "טיימלאפס",
+    "filterTimelapseExample": "הודעות על תמונות טיימלאפס",
+    "filterProgress": "התקדמות ההדפסה",
+    "filterOk": "״ok״ בלבד",
+    "done": "סיום",
+    "filtersN": "מסננים ({{n}})",
+    "filters": "מסננים",
+    "hideThese": "הסתרת השורות האלה",
+    "hideLike": "הסתרת שורות כמו: {{example}}",
+    "hideContaining": "הסתרת שורות שמכילות ״{{text}}״",
+    "removeFilter": "הסרת המסנן ״{{text}}״",
+    "remove": "הסרה",
+    "hideContainingPlaceholder": "הסתרת שורות שמכילות…",
+    "hideContainingLabel": "הסתרת שורות שמכילות",
+    "add": "הוספה",
+    "filtersHelp": "הקישו על תג כדי להפעיל או לכבות אותו. מה שאתם שולחים ושגיאות תמיד מוצגים.",
+    "linesHidden_one": "שורה אחת הוסתרה על ידי מסננים",
+    "linesHidden_two": "שתי שורות הוסתרו על ידי מסננים",
+    "linesHidden_other": "{{count}} שורות הוסתרו על ידי מסננים",
+    "sendPlaceholder": "שליחת G-code, למשל M115",
+    "commandLabel": "פקודת G-code",
+    "send": "שליחה"
+  }
+}

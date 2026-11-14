@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "Use {{engine}}'s start and filament change G-code?",
+    "yes": "Yes, slice",
+    "body": "This file's start and filament change G-code was written for {{app}}, and {{engine}} can't use it. {{engine}} has its own for <b>{{printer}}</b>, which works. This choice is saved with this project."
+  }
+}

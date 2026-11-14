@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { DEFAULT_TEXT, clampStyle, missingLettersHint, type FontChoice, type TextStyle } from '../lib/fonts';
-import { KIND_LABELS, keepsAPart } from '../lib/volumes';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../i18n';
+import { DEFAULT_TEXT, clampStyle, missingLettersHint, scriptLabel, type FontChoice, type TextStyle } from '../lib/fonts';
+import { kindLabel, keepsAPart } from '../lib/volumes';
 import { addFontFile, availableFonts, canListComputerFonts, loadComputerFonts, nextTextStyle, rememberTextStyle, restoreFonts } from '../state/fonts';
 import { useSlicer } from '../state/store';
 import { ShapeActions, ShapePlacement, placementHint } from './ShapePlacement';
@@ -13,10 +15,10 @@ const TYPES = ['part', 'negative', 'modifier'] as const;
 function fontGroups(fonts: FontChoice[]): [string, FontChoice[]][] {
   const scripts = [...new Set(fonts.flatMap((f) => (f.source === 'bundled' && f.script ? [f.script] : [])))];
   const groups: [string, FontChoice[]][] = [
-    ['Built in', fonts.filter((f) => f.source === 'bundled' && !f.script)],
-    ...scripts.map((script): [string, FontChoice[]] => [`Built in: ${script} and Latin`, fonts.filter((f) => f.script === script)]),
-    ['Font files', fonts.filter((f) => f.source === 'file')],
-    ['On this computer', fonts.filter((f) => f.source === 'computer')],
+    [i18n.t('textTool.builtIn'), fonts.filter((f) => f.source === 'bundled' && !f.script)],
+    ...scripts.map((script): [string, FontChoice[]] => [i18n.t('textTool.builtInScript', { script: scriptLabel(script) }), fonts.filter((f) => f.script === script)]),
+    [i18n.t('textTool.fontFiles'), fonts.filter((f) => f.source === 'file')],
+    [i18n.t('textTool.onComputer'), fonts.filter((f) => f.source === 'computer')],
   ];
   return groups.filter(([, list]) => list.length);
 }
@@ -38,14 +40,15 @@ export function TextPanel() {
   const v = selected?.volume !== undefined ? volumes?.[selected.volume] : volumes?.length === 1 ? volumes[0] : undefined;
   const index = selected?.volume ?? 0;
   const { setTool } = useSlicer.getState();
+  const { t } = useTranslation();
   // Closing the tool (Done, Esc, another tool) right after it added a text takes that text back.
   useEffect(() => () => void useSlicer.getState().dropUnusedText(), []);
   return (
-    <section className="tool-panel text-panel" aria-label="Text shape">
+    <section className="tool-panel text-panel" aria-label={t('textTool.title')}>
       <div className="tool-panel-head">
-        <strong>Text shape</strong>
+        <strong>{t('textTool.title')}</strong>
         <button className="ghost" onClick={() => setTool(null)}>
-          Done
+          {t('textTool.done')}
         </button>
       </div>
       {v?.text && selected ? (
@@ -61,12 +64,11 @@ export function TextPanel() {
       ) : (
         <>
           <p className="muted hint">
-            Pick a text in the object list or the 3D view to change it, or add one: on the selected object, or as an object of its own when nothing is
-            selected.
+            {t('textTool.pickHint')}
           </p>
           <div className="tool-row">
             <button className="primary" onClick={() => void startText(selected?.object ?? null)}>
-              Add text
+              {t('textTool.addText')}
             </button>
           </div>
         </>
@@ -100,6 +102,7 @@ function TextFields({
   // As the remake below would write it, so opening a text doesn't remake it unchanged.
   const applied = useRef(JSON.stringify(clampStyle({ ...DEFAULT_TEXT, ...start })));
   const { textVolume, volumeAction } = useSlicer.getState();
+  const { t } = useTranslation();
   const missingFont = !restoring && !fonts.some((f) => f.name === style.font);
 
   // Font files kept in this browser, and the computer's fonts if already allowed.
@@ -151,7 +154,7 @@ function TextFields({
         await loadComputerFonts();
         setFonts(availableFonts());
       } catch {
-        useSlicer.setState({ notice: "The browser didn't share this computer's fonts.", noticeWarn: true });
+        useSlicer.setState({ notice: t('textTool.noComputerFonts'), noticeWarn: true });
       }
       return;
     }
@@ -160,23 +163,23 @@ function TextFields({
 
   return (
     <>
-      <textarea className="text-input" aria-label="Text" dir="auto" rows={2} value={style.text} onChange={(e) => set('text', e.target.value)} />
-      {!style.text.trim() && <Note tone="warn">Type some text.</Note>}
+      <textarea className="text-input" aria-label={t('textTool.text')} dir="auto" rows={2} value={style.text} onChange={(e) => set('text', e.target.value)} />
+      {!style.text.trim() && <Note tone="warn">{t('textTool.typeText')}</Note>}
       <div className="transform-row text-row">
-        <span>Font</span>
+        <span>{t('textTool.font')}</span>
         <Picker
           field
-          label="Font"
+          label={t('textTool.font')}
           value={missingFont ? null : style.font}
-          placeholder={missingFont ? `${style.font} (not on this device)` : undefined}
-          title="Built-in fonts, a font file you load (kept in this browser), or this computer's fonts in Chrome or Edge on a computer"
+          placeholder={missingFont ? t('textTool.notOnDevice', { font: style.font }) : undefined}
+          title={t('textTool.fontTip')}
           options={fontGroups(fonts).flatMap(([group, list]) => list.map((f) => ({ value: f.name, label: f.name, group })))}
           onChange={(name) => void pickFont(name)}
           actions={([
-            { id: '__file', label: 'Load a font file (.ttf, .otf)…', icon: FileUp },
+            { id: '__file', label: t('textTool.loadFontFile'), icon: FileUp },
             canListComputerFonts()
-              ? !fonts.some((f) => f.source === 'computer') && { id: '__computer', label: "Use this computer's fonts…", icon: Monitor }
-              : { id: '__nocomputer', label: "This computer's fonts: Chrome or Edge on a computer only", icon: Monitor, disabled: true },
+              ? !fonts.some((f) => f.source === 'computer') && { id: '__computer', label: t('textTool.useComputerFonts'), icon: Monitor }
+              : { id: '__nocomputer', label: t('textTool.computerFontsOnly'), icon: Monitor, disabled: true },
           ] as (PickerAction | false)[]).filter((a): a is PickerAction => !!a)}
           onAction={(id) => void pickFont(id)}
         />
@@ -195,29 +198,29 @@ function TextFields({
           set('font', choice.name);
         }}
       />
-      {missingFont && <Note tone="warn">This text was made with a font that isn't on this device. Pick a font to change the text.</Note>}
+      {missingFont && <Note tone="warn">{t('textTool.missingFont')}</Note>}
       {missing && !missingFont && <Note tone="warn">{missingLettersHint(missing)}</Note>}
       <ShapePlacement
         object={object}
         volume={volume}
         followsSurface={style.useSurface}
-        label="text"
+        shapeKind="text"
         fields={
           <>
-            {num('size', 'Height', 'mm', 0.5, 'Height of the letters')}
-            {num('depth', 'Depth', 'mm', 0.1, kind === 'negative' ? 'How deep the text cuts in' : 'How far the text stands out')}
+            {num('size', t('textTool.height'), 'mm', 0.5, t('textTool.heightTip'))}
+            {num('depth', t('textTool.depth'), 'mm', 0.1, kind === 'negative' ? t('textTool.depthCutTip') : t('textTool.depthTip'))}
           </>
         }
       />
       <div className="align-row">
-        <div className="chooser icons" role="radiogroup" aria-label="Alignment">
+        <div className="chooser icons" role="radiogroup" aria-label={t('textTool.alignment')}>
           {(['left', 'center', 'right'] as const).map((a) => (
             <button
               key={a}
               role="radio"
               aria-checked={style.align === a}
-              aria-label={ALIGN_NAMES[a]}
-              title={`${ALIGN_NAMES[a]}: lines line up on the ${a === 'center' ? 'middle' : a}`}
+              aria-label={t(ALIGN_NAMES[a])}
+              title={t(ALIGN_TIPS[a])}
               className={style.align === a ? 'on' : ''}
               onClick={() => set('align', a)}
             >
@@ -225,14 +228,14 @@ function TextFields({
             </button>
           ))}
         </div>
-        <div className="chooser icons" role="radiogroup" aria-label="Vertical alignment">
+        <div className="chooser icons" role="radiogroup" aria-label={t('textTool.verticalAlignment')}>
           {VALIGNS.map(({ side, value }) => (
             <button
               key={side}
               role="radio"
               aria-checked={style.valign === value}
-              aria-label={VALIGN_NAMES[side]}
-              title={`${VALIGN_NAMES[side]}: the text sits ${side === 'center' ? 'across' : side === 'top' ? 'above' : 'below'} its point`}
+              aria-label={t(VALIGN_NAMES[side])}
+              title={t(VALIGN_TIPS[side])}
               className={style.valign === value ? 'on' : ''}
               onClick={() => set('valign', value)}
             >
@@ -243,52 +246,54 @@ function TextFields({
       </div>
       {onObject && (
         <div className="shape-checks">
-          <label className="switch-row" title="The text bends with the object's surface instead of standing flat on it">
+          <label className="switch-row" title={t('textTool.useSurfaceTip')}>
             <input className="switch" type="checkbox" checked={style.useSurface} onChange={(e) => set('useSurface', e.target.checked)} />
-            Use surface
+            {t('textTool.useSurface')}
           </label>
-          <label className="switch-row" title="Each letter sits on the surface on its own, so text can go around a curved object">
+          <label className="switch-row" title={t('textTool.perLetterTip')}>
             <input className="switch" type="checkbox" checked={style.perGlyph} onChange={(e) => set('perGlyph', e.target.checked)} />
-            Per letter
+            {t('textTool.perLetter')}
           </label>
         </div>
       )}
       <ShapeActions object={object} volume={volume} />
       {canChangeType && (
-        <div className="chooser" role="radiogroup" aria-label="Text type">
-          {TYPES.map((t) => (
+        <div className="chooser" role="radiogroup" aria-label={t('textTool.textType')}>
+          {TYPES.map((type) => (
             <button
-              key={t}
+              key={type}
               role="radio"
-              aria-checked={kind === t}
-              className={kind === t ? 'on' : ''}
-              onClick={() => kind !== t && void volumeAction(object, { op: 'type', volume, type: t, remake: true }, 'Change type')}
+              aria-checked={kind === type}
+              className={kind === type ? 'on' : ''}
+              onClick={() => kind !== type && void volumeAction(object, { op: 'type', volume, type, remake: true }, t('textTool.changeType'))}
             >
-              {t === 'negative' ? 'Engraved' : KIND_LABELS[t]}
+              {type === 'negative' ? t('textTool.engraved') : kindLabel(type)}
             </button>
           ))}
         </div>
       )}
       <button className="ghost text-more" aria-expanded={more} onClick={() => setMore(!more)}>
-        {more ? 'Fewer settings' : 'More settings'}
+        {more ? t('textTool.fewerSettings') : t('textTool.moreSettings')}
       </button>
       {more && (
         <>
           <div className="num-fields">
-            {num('boldness', 'Boldness', 'mm', 0.05, 'Thicker (+) or thinner (−) letters')}
-            {num('skew', 'Skew', '', 0.05, 'Slant the letters (0.2 is a light italic)')}
-            {num('charGap', 'Letter gap', '', 10, 'Extra space between letters, in font units')}
-            {num('lineGap', 'Line gap', '', 10, 'Extra space between lines, in font units')}
+            {num('boldness', t('textTool.boldness'), 'mm', 0.05, t('textTool.boldnessTip'))}
+            {num('skew', t('textTool.skew'), '', 0.05, t('textTool.skewTip'))}
+            {num('charGap', t('textTool.letterGap'), '', 10, t('textTool.letterGapTip'))}
+            {num('lineGap', t('textTool.lineGap'), '', 10, t('textTool.lineGapTip'))}
           </div>
         </>
       )}
-      <p className="muted hint">{working ? 'Making the text…' : `${placementHint('text', onObject)} Undo brings the last text back.`}</p>
+      <p className="muted hint">{working ? t('textTool.making') : `${placementHint('text', onObject)} ${t('textTool.undoHint')}`}</p>
     </>
   );
 }
 
-const ALIGN_NAMES = { left: 'Left', center: 'Centre', right: 'Right' } as const;
-const VALIGN_NAMES = { top: 'Top', center: 'Middle', bottom: 'Bottom' } as const;
+const ALIGN_NAMES = { left: 'textTool.left', center: 'textTool.centre', right: 'textTool.right' } as const;
+const ALIGN_TIPS = { left: 'textTool.leftTip', center: 'textTool.centreTip', right: 'textTool.rightTip' } as const;
+const VALIGN_NAMES = { top: 'textTool.top', center: 'textTool.middle', bottom: 'textTool.bottom' } as const;
+const VALIGN_TIPS = { top: 'textTool.topTip', center: 'textTool.middleTip', bottom: 'textTool.bottomTip' } as const;
 /** Where the text goes from its point, top to bottom. Orca's own words are the other
  * way round (its "top" is the text's top on the point, so the text hangs below it). */
 const VALIGNS = [

@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "מורידים את מנוע הפריסה",
+    "setup": "מפעילים את מנוע הפריסה",
+    "printers": "טוענים את המדפסות והפרופילים שלכם",
+    "downloadingProject": "מורידים את ״{{name}}״",
+    "opening": "פותחים את {{name}}"
+  }
+}

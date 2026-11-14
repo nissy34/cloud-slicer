@@ -1,35 +1,37 @@
+import { i18n } from '../i18n';
 /**
  * The colours the colour popup offers (components/ColourPicker.tsx).
  *
  * BUILT_IN_COLOURS is desktop Orca's own list: the 24 "Other Color" squares of its filament
  * colour popup (`ColorPickerPopup::m_def_colors` in src/slic3r/GUI/AMSMaterialsSetting.cpp),
- * in the same order. The names are ours, for the tooltip and screen readers.
+ * in the same order. The names are ours (word keys in the i18n colourPicker files), for the
+ * tooltip and screen readers.
  */
 export const BUILT_IN_COLOURS: { hex: string; name: string }[] = [
-  { hex: '#FFFFFF', name: 'White' },
-  { hex: '#FFF144', name: 'Yellow' },
-  { hex: '#DCF478', name: 'Lime' },
-  { hex: '#0ACC38', name: 'Green' },
-  { hex: '#057748', name: 'Dark green' },
-  { hex: '#0D6284', name: 'Teal' },
-  { hex: '#0EE2A0', name: 'Mint' },
-  { hex: '#76D9F4', name: 'Sky blue' },
-  { hex: '#46A8F9', name: 'Light blue' },
-  { hex: '#2850E0', name: 'Blue' },
-  { hex: '#443089', name: 'Indigo' },
-  { hex: '#A03CF7', name: 'Purple' },
-  { hex: '#F330F9', name: 'Magenta' },
-  { hex: '#D4B1DD', name: 'Lavender' },
-  { hex: '#F95D73', name: 'Pink' },
-  { hex: '#F72323', name: 'Red' },
-  { hex: '#7C4B00', name: 'Brown' },
-  { hex: '#F98C36', name: 'Orange' },
-  { hex: '#FCECD6', name: 'Cream' },
-  { hex: '#D3C5A3', name: 'Beige' },
-  { hex: '#AF7933', name: 'Tan' },
-  { hex: '#898989', name: 'Grey' },
-  { hex: '#BCBCBC', name: 'Light grey' },
-  { hex: '#161616', name: 'Black' },
+  { hex: '#FFFFFF', name: 'colourPicker.white' },
+  { hex: '#FFF144', name: 'colourPicker.yellow' },
+  { hex: '#DCF478', name: 'colourPicker.lime' },
+  { hex: '#0ACC38', name: 'colourPicker.green' },
+  { hex: '#057748', name: 'colourPicker.darkGreen' },
+  { hex: '#0D6284', name: 'colourPicker.teal' },
+  { hex: '#0EE2A0', name: 'colourPicker.mint' },
+  { hex: '#76D9F4', name: 'colourPicker.skyBlue' },
+  { hex: '#46A8F9', name: 'colourPicker.lightBlue' },
+  { hex: '#2850E0', name: 'colourPicker.blue' },
+  { hex: '#443089', name: 'colourPicker.indigo' },
+  { hex: '#A03CF7', name: 'colourPicker.purple' },
+  { hex: '#F330F9', name: 'colourPicker.magenta' },
+  { hex: '#D4B1DD', name: 'colourPicker.lavender' },
+  { hex: '#F95D73', name: 'colourPicker.pink' },
+  { hex: '#F72323', name: 'colourPicker.red' },
+  { hex: '#7C4B00', name: 'colourPicker.brown' },
+  { hex: '#F98C36', name: 'colourPicker.orange' },
+  { hex: '#FCECD6', name: 'colourPicker.cream' },
+  { hex: '#D3C5A3', name: 'colourPicker.beige' },
+  { hex: '#AF7933', name: 'colourPicker.tan' },
+  { hex: '#898989', name: 'colourPicker.grey' },
+  { hex: '#BCBCBC', name: 'colourPicker.lightGrey' },
+  { hex: '#161616', name: 'colourPicker.black' },
 ];
 
 /** "#RGB", "#RRGGBBAA", "rrggbb" -> "#RRGGBB"; anything else -> the fallback. */
@@ -49,7 +51,8 @@ export function parseHex(text: string): string | null {
 /** The name of a built-in colour, or its hex code. */
 export function colourName(hex: string): string {
   const h = toHex6(hex);
-  return BUILT_IN_COLOURS.find((c) => c.hex === h)?.name ?? h;
+  const c = BUILT_IN_COLOURS.find((b) => b.hex === h);
+  return c ? i18n.t(c.name as 'colourPicker.red') : h;
 }
 
 const RECENT_KEY = 'cloud-slicer:recent-colours:v1';

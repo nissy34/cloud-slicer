@@ -30,7 +30,7 @@
 }
 .dv-printer-picker {
   max-width: 60vw;
-  margin-left: calc(-1 * var(--s-3));
+  margin-inline-start: calc(-1 * var(--s-3));
   font-size: var(--t-xl);
   font-weight: 600;
 }
@@ -63,7 +63,7 @@
   background: var(--danger);
 }
 .dv-header-actions {
-  margin-left: auto;
+  margin-inline-start: auto;
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-2);
@@ -221,7 +221,7 @@
   font-size: var(--t-md);
 }
 .dv-slot-tools {
-  margin-left: auto;
+  margin-inline-start: auto;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -313,7 +313,7 @@
   color: var(--text);
   font: inherit;
   font-size: var(--t-sm);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .dv-fan-tile span {
@@ -415,7 +415,7 @@
 }
 .dv-cameras-many .dv-camera:not(.dv-camera-main) figcaption {
   font-size: var(--t-xs);
-  left: 3px;
+  inset-inline-start: 3px;
   top: 3px;
   padding: 0 4px;
 }
@@ -448,7 +448,7 @@
   }
   .dv-cameras-pair .dv-camera:not(.dv-camera-main) figcaption {
     font-size: var(--t-sm);
-    left: 6px;
+    inset-inline-start: 6px;
     top: 6px;
     padding: 1px 6px;
   }
@@ -476,7 +476,7 @@
 }
 .dv-camera figcaption {
   position: absolute;
-  left: 6px;
+  inset-inline-start: 6px;
   top: 6px;
   padding: 1px 6px;
   border-radius: var(--r-sm);
@@ -522,8 +522,8 @@
 }
 .dv-camera-note {
   position: absolute;
-  left: 6px;
-  right: 6px;
+  inset-inline-start: 6px;
+  inset-inline-end: 6px;
   bottom: 6px;
   padding: 2px 8px;
   border-radius: var(--r-sm);
@@ -1239,12 +1239,12 @@
 }
 .dv-temp-target {
   min-width: 2ch;
-  text-align: right;
+  text-align: end;
   font-variant-numeric: tabular-nums;
 }
 .dv-temp input {
   width: 52px;
-  text-align: right;
+  text-align: end;
   padding: 0 var(--s-2);
 }
 .dv-list li {
@@ -1265,7 +1265,7 @@
 }
 .dv-slider-value {
   width: 36px;
-  text-align: right;
+  text-align: end;
   font-variant-numeric: tabular-nums;
 }
 .dv-pos {
@@ -1392,7 +1392,7 @@
   gap: 3px;
 }
 .dv-file-filaments .swatch:last-of-type {
-  margin-right: 2px;
+  margin-inline-end: 2px;
 }
 .dv-file-actions {
   grid-area: actions;
@@ -1407,7 +1407,7 @@
   background: none;
   color: inherit;
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .dv-timelapse-name:hover {
@@ -1658,7 +1658,7 @@
 }
 /* The inside corners where the tile meets its settings, outline included. */
 .dv-alert-tile.open:not(.col0)::before {
-  left: calc(-1 * var(--r-lg) - 1px);
+  inset-inline-start: calc(-1 * var(--r-lg) - 1px);
   background: radial-gradient(
     circle at 0 0,
     transparent calc(var(--r-lg) - 1.5px),
@@ -1668,7 +1668,7 @@
   );
 }
 .dv-alert-tile.open:not(.col2)::after {
-  right: calc(-1 * var(--r-lg) - 1px);
+  inset-inline-end: calc(-1 * var(--r-lg) - 1px);
   background: radial-gradient(
     circle at 100% 0,
     transparent calc(var(--r-lg) - 1.5px),
@@ -1738,11 +1738,11 @@
 }
 .dv-alerts-layer {
   width: 64px;
-  text-align: right;
+  text-align: end;
 }
 .dv-alerts-layer.dv-alerts-add {
   width: 84px;
-  text-align: left;
+  text-align: start;
 }
 .dv-print-layer {
   display: flex;
@@ -1838,7 +1838,7 @@
   font-family: var(--font-mono);
 }
 .dv-left {
-  margin-right: auto;
+  margin-inline-end: auto;
 }
 
 /* Skip objects (device/ui/SkipObjects.tsx): plate map beside the list, map above it on a phone */
@@ -1994,7 +1994,7 @@
 }
 .dv-steps-list {
   margin: 0;
-  padding-left: 18px;
+  padding-inline-start: 18px;
   display: grid;
   gap: 8px;
 }
@@ -2200,7 +2200,7 @@
   flex-basis: 100%;
 }
 .dv-upload {
-  margin-right: auto;
+  margin-inline-end: auto;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -2260,7 +2260,7 @@
     white-space: nowrap;
   }
   .dv-header-actions {
-    margin-left: 0;
+    margin-inline-start: 0;
     width: 100%;
   }
   .dv-banner {

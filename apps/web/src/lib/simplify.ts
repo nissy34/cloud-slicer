@@ -1,7 +1,8 @@
 // Simplify (engine/src/simplify_api.cpp), like desktop Orca's Simplify tool.
+import { i18n } from '../i18n';
 
-/** Desktop's detail levels, most detail first (the largest error each allows grows from 0.001 to 1 mm). */
-export const DETAIL_LEVELS = ['Extra high', 'High', 'Medium', 'Low', 'Extra low'] as const;
+/** Desktop's detail levels (word keys), most detail first (the largest error each allows grows from 0.001 to 1 mm). */
+export const DETAIL_LEVELS = ['simplifyTool.extraHigh', 'simplifyTool.high', 'simplifyTool.medium', 'simplifyTool.low', 'simplifyTool.extraLow'] as const;
 
 export type SimplifyBy = { level: number } | { ratio: number };
 export type SimplifyRequest = { op: 'get' } | ({ op: 'preview' | 'apply' } & SimplifyBy);
@@ -58,7 +59,7 @@ export function heavyModel(triangles: number[], onPlate: number[] = triangles.ma
 
 /** "3.2 million" or "800,000". */
 export function triangleCount(n: number): string {
-  return n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, '')} million` : n.toLocaleString('en-US');
+  return n >= 1e6 ? i18n.t('simplifyTool.million', { n: (n / 1e6).toFixed(1).replace(/\.0$/, '') }) : n.toLocaleString('en-US');
 }
 
 /** What simplifying a project's heavy plates takes, worked out when it opens. */
@@ -94,11 +95,12 @@ export function heavyProject(counts: SimplifyResult[], plates: number[][]): Heav
 /** The question before a heavy project is drawn: what's heavy and what simplifying does. */
 export function heavyQuestion(h: HeavyProject, plateCount: number): string {
   const light = triangleCount(LIGHT_TRIANGLES);
-  const tooMuch = 'which can be more than this device can hold';
   if (h.plates.length > 1)
-    return `${h.plates.length} plates have more than ${triangleCount(HEAVY_TRIANGLES)} triangles (up to ${triangleCount(h.plates[0].triangles)}), ${tooMuch}. Simplifying each to about ${light} keeps plenty of detail for printing.`;
-  const what = plateCount > 1 ? `Plate ${h.plates[0].plate + 1}` : 'This model';
-  return `${what} has ${triangleCount(h.plates[0].triangles)} triangles, ${tooMuch}. Simplifying it to about ${light} keeps plenty of detail for printing.`;
+    return i18n.t('simplifyTool.heavyPlates', { n: h.plates.length, limit: triangleCount(HEAVY_TRIANGLES), most: triangleCount(h.plates[0].triangles), light });
+  const triangles = triangleCount(h.plates[0].triangles);
+  return plateCount > 1
+    ? i18n.t('simplifyTool.heavyPlate', { n: h.plates[0].plate + 1, triangles, light })
+    : i18n.t('simplifyTool.heavyModel', { triangles, light });
 }
 
 /**

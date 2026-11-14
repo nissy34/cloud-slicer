@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DEFAULT_ARRANGE, MAX_SPACING, alignYFor } from '../lib/arrange';
 import { useSlicer } from '../state/store';
 import { Slider } from './Slider';
@@ -12,6 +13,7 @@ const round = (n: number) => Math.round(n * 100) / 100;
  * apply to A, Shift+A and the plate's Arrange icon and menu item.
  */
 export function ArrangeOptions({ onArranged }: { onArranged(): void }) {
+  const { t } = useTranslation();
   const settings = useSlicer((s) => s.arrangeSettings);
   const set = useSlicer((s) => s.setArrangeSettings);
   const structure = useSlicer((s) => s.overrides.printer_structure ?? s.baseConfig.printer_structure);
@@ -23,7 +25,7 @@ export function ArrangeOptions({ onArranged }: { onArranged(): void }) {
   return (
     <div className="arrange-options" data-testid="arrange-options">
       <div className="arrange-spacing">
-        <span id="arrange-spacing-label">Spacing</span>
+        <span id="arrange-spacing-label">{t('arrangeOptions.spacing')}</span>
         <Slider
           aria-labelledby="arrange-spacing-label"
           min={0}
@@ -41,7 +43,7 @@ export function ArrangeOptions({ onArranged }: { onArranged(): void }) {
             inputMode="decimal"
             min={0}
             step={0.1}
-            aria-label="Spacing in mm"
+            aria-label={t('arrangeOptions.spacingMm')}
             value={spacingText}
             onChange={(e) => {
               setTyped(e.target.value);
@@ -53,18 +55,18 @@ export function ArrangeOptions({ onArranged }: { onArranged(): void }) {
           <span className="unit">mm</span>
         </span>
       </div>
-      <p className="arrange-note">0 means auto spacing.</p>
+      <p className="arrange-note">{t('arrangeOptions.autoNote')}</p>
       <hr />
       <div className="switch-list">
         <label className="switch-row">
           <input className="switch" type="checkbox" checked={settings.rotate} onChange={(e) => set({ ...settings, rotate: e.target.checked })} />
-          Auto rotate for arrangement
+          {t('arrangeOptions.rotate')}
         </label>
         <label className="switch-row">
           <input className="switch" type="checkbox" checked={settings.multiMaterial} onChange={(e) => set({ ...settings, multiMaterial: e.target.checked })} />
-          Allow multiple materials on same plate
+          {t('arrangeOptions.multiMaterial')}
         </label>
-        <label className="switch-row" title={settings.rotate ? 'Turn off Auto rotate to use this' : 'Turns each object so its long side runs front to back'}>
+        <label className="switch-row" title={settings.rotate ? t('arrangeOptions.alignYOff') : t('arrangeOptions.alignYTip')}>
           <input
             className="switch"
             type="checkbox"
@@ -72,7 +74,7 @@ export function ArrangeOptions({ onArranged }: { onArranged(): void }) {
             checked={!settings.rotate && alignY}
             onChange={(e) => set({ ...settings, alignY: e.target.checked })}
           />
-          Align to Y axis
+          {t('arrangeOptions.alignY')}
         </label>
       </div>
       <hr />
@@ -84,7 +86,7 @@ export function ArrangeOptions({ onArranged }: { onArranged(): void }) {
             onArranged();
           }}
         >
-          Arrange
+          {t('arrangeOptions.arrange')}
         </button>
         <button
           className="secondary"
@@ -93,7 +95,7 @@ export function ArrangeOptions({ onArranged }: { onArranged(): void }) {
             set(DEFAULT_ARRANGE);
           }}
         >
-          Reset
+          {t('arrangeOptions.reset')}
         </button>
       </div>
     </div>

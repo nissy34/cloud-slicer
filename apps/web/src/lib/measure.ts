@@ -1,8 +1,9 @@
 // The Measure tool's data (engine/src/measure_api.cpp) and the figures its
 // panel shows, like desktop Orca's Measure gizmo. All positions are plate
 // coordinates in mm.
+import { i18n } from '../i18n';
 
-export type Vec3 = [number, number, number];
+export type Vec3 =[number, number, number];
 
 interface FeatureBase {
   /** Pass back to measureBetween. */
@@ -55,7 +56,7 @@ export type AssembleResult = Measurement & { first: MeasureFeature; second: Meas
 /** Hovered, first and second picked features (the --measure-* colours in styles/tokens.css). */
 export const MEASURE_COLOURS = { hover: '#f5c542', first: '#ff6b4a', second: '#3fa7ff' } as const;
 
-const NAMES = { point: 'Point', edge: 'Edge', circle: 'Circle', plane: 'Plane' } as const;
+const NAMES = { point: 'measureFigures.point', edge: 'measureFigures.edge', circle: 'measureFigures.circle', plane: 'measureFigures.plane' } as const;
 
 const mm = (n: number) => `${n.toFixed(3)} mm`;
 const xyz = (v: Vec3) => v.map((n) => n.toFixed(3)).join(', ');
@@ -65,38 +66,38 @@ const length = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] -
 export function describeFeature(f: MeasureFeature): { name: string; rows: [string, string][] } {
   switch (f.type) {
     case 'point':
-      return { name: NAMES.point, rows: [['Position', xyz(f.point)]] };
+      return { name: i18n.t(NAMES.point), rows: [[i18n.t('measureFigures.position'), xyz(f.point)]] };
     case 'edge':
       return {
-        name: NAMES.edge,
+        name: i18n.t(NAMES.edge),
         rows: [
-          ['Length', mm(length(f.start, f.end))],
-          ['From', xyz(f.start)],
-          ['To', xyz(f.end)],
+          [i18n.t('measureFigures.length'), mm(length(f.start, f.end))],
+          [i18n.t('measureFigures.from'), xyz(f.start)],
+          [i18n.t('measureFigures.to'), xyz(f.end)],
         ],
       };
     case 'circle':
       return {
-        name: NAMES.circle,
+        name: i18n.t(NAMES.circle),
         rows: [
-          ['Diameter', mm(f.radius * 2)],
-          ['Radius', mm(f.radius)],
-          ['Centre', xyz(f.centre)],
+          [i18n.t('measureFigures.diameter'), mm(f.radius * 2)],
+          [i18n.t('measureFigures.radius'), mm(f.radius)],
+          [i18n.t('measureFigures.centre'), xyz(f.centre)],
         ],
       };
     case 'plane':
-      return { name: NAMES.plane, rows: [['Normal', xyz(f.normal)]] };
+      return { name: i18n.t(NAMES.plane), rows: [[i18n.t('measureFigures.normal'), xyz(f.normal)]] };
   }
 }
 
 /** The rows the panel shows for two features, in desktop's order. */
 export function measurementRows(m: Measurement): [string, string][] {
   const rows: [string, string][] = [];
-  if (m.angle) rows.push(['Angle', `${m.angle.degrees.toFixed(2)}°`]);
-  if (m.distance) rows.push(['Distance', mm(m.distance.distance)]);
+  if (m.angle) rows.push([i18n.t('measureFigures.angle'), `${m.angle.degrees.toFixed(2)}°`]);
+  if (m.distance) rows.push([i18n.t('measureFigures.distance'), mm(m.distance.distance)]);
   if (m.perpendicular && (!m.distance || Math.abs(m.perpendicular.distance - m.distance.distance) > 1e-6))
-    rows.push(['Perpendicular distance', mm(m.perpendicular.distance)]);
-  if (m.xyz) (['X', 'Y', 'Z'] as const).forEach((axis, i) => rows.push([`Along ${axis}`, mm(m.xyz![i])]));
+    rows.push([i18n.t('measureFigures.perpendicular'), mm(m.perpendicular.distance)]);
+  if (m.xyz) (['X', 'Y', 'Z'] as const).forEach((axis, i) => rows.push([i18n.t('measureFigures.along', { axis }), mm(m.xyz![i])]));
   return rows;
 }
 

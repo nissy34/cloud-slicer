@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../i18n';
 import { useSlicer } from '../state/store';
 import { cameraPosition } from '../state/view';
 
@@ -11,15 +13,17 @@ export function ShapePlacement({
   object,
   volume,
   followsSurface,
-  label,
+  shapeKind,
   fields,
 }: {
   object: number;
   volume: number;
   followsSurface: boolean;
-  label: string;
+  /** What it is, for the undo step's name. */
+  shapeKind: 'text' | 'svg';
   fields: ReactNode;
 }) {
+  const { t } = useTranslation();
   const shape = useSlicer((s) => (s.shape?.object === object && s.shape.volume === volume ? s.shape : null));
   const shapePlace = useSlicer((s) => s.shapePlace);
   const instance = shape?.instance ?? 0;
@@ -39,40 +43,40 @@ export function ShapePlacement({
   // Applied a moment after the last change, like the other fields.
   useEffect(() => {
     if (!shape || angle === shown.current.angle || !Number.isFinite(Number(angle)) || angle.trim() === '') return;
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       shown.current = { ...shown.current, angle };
-      void shapePlace(object, { op: 'rotate', volume, instance, angle: Number(angle) }, `Rotate ${label}`);
+      void shapePlace(object, { op: 'rotate', volume, instance, angle: Number(angle) }, shapeKind === 'text' ? i18n.t('shapePlacement.rotateText') : i18n.t('shapePlacement.rotateSvg'));
     }, 600);
-    return () => window.clearTimeout(t);
-  }, [angle, shape, object, volume, instance, label, shapePlace]);
+    return () => window.clearTimeout(timer);
+  }, [angle, shape, object, volume, instance, shapeKind, shapePlace]);
   useEffect(() => {
     if (!shape || distance === shown.current.distance || !Number.isFinite(Number(distance)) || distance.trim() === '') return;
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       shown.current = { ...shown.current, distance };
-      void shapePlace(object, { op: 'distance', volume, instance, distance: Number(distance) }, `Move ${label} from surface`);
+      void shapePlace(object, { op: 'distance', volume, instance, distance: Number(distance) }, shapeKind === 'text' ? i18n.t('shapePlacement.moveText') : i18n.t('shapePlacement.moveSvg'));
     }, 600);
-    return () => window.clearTimeout(t);
-  }, [distance, shape, object, volume, instance, label, shapePlace]);
+    return () => window.clearTimeout(timer);
+  }, [distance, shape, object, volume, instance, shapeKind, shapePlace]);
 
   const onSurface = !!shape?.surface;
   return (
     <div className="num-fields">
       {fields}
       {shape && (
-        <label className="num-field" title="Turn it about its own axis, clockwise (the ring in the 3D view does the same)">
+        <label className="num-field" title={t('shapePlacement.rotationTip')}>
           <span>
-            Rotation <span className="unit">(°)</span>
+            {t('shapePlacement.rotation')} <span className="unit">(°)</span>
           </span>
-          <input type="number" aria-label="Rotation" inputMode="decimal" step={5} value={angle} onChange={(e) => setAngle(e.target.value)} />
+          <input type="number" aria-label={t('shapePlacement.rotation')} inputMode="decimal" step={5} value={angle} onChange={(e) => setAngle(e.target.value)} />
         </label>
       )}
       {/* Following the surface, it sits on it. */}
       {onSurface && !followsSurface && (
-        <label className="num-field" title="How far it stands off the surface">
+        <label className="num-field" title={t('shapePlacement.fromSurfaceTip')}>
           <span>
-            From surface <span className="unit">(mm)</span>
+            {t('shapePlacement.fromSurface')} <span className="unit">(mm)</span>
           </span>
-          <input type="number" aria-label="From surface" inputMode="decimal" step={0.1} value={distance} onChange={(e) => setDistance(e.target.value)} />
+          <input type="number" aria-label={t('shapePlacement.fromSurface')} inputMode="decimal" step={0.1} value={distance} onChange={(e) => setDistance(e.target.value)} />
         </label>
       )}
     </div>
@@ -84,24 +88,25 @@ export function ShapeActions({ object, volume }: { object: number; volume: numbe
   const shape = useSlicer((s) => (s.shape?.object === object && s.shape.volume === volume ? s.shape : null));
   const keepUp = useSlicer((s) => s.keepUp);
   const { setKeepUp, shapePlace } = useSlicer.getState();
+  const { t } = useTranslation();
   if (!shape) return null;
   return (
     <div className="tool-row shape-row">
       {shape.surface && (
-        <label className="switch-row" title="Keeps it upright while you slide it over the surface or face it to the camera">
+        <label className="switch-row" title={t('shapePlacement.keepUpTip')}>
           <input className="switch" type="checkbox" checked={keepUp} onChange={(e) => setKeepUp(e.target.checked)} />
-          Keep up
+          {t('shapePlacement.keepUp')}
         </label>
       )}
       <button
         className="ghost"
-        title="Turn it to face you, where you look at it from"
+        title={t('shapePlacement.faceCameraTip')}
         onClick={() => {
           const camera = cameraPosition();
-          if (camera) void shapePlace(object, { op: 'face', volume, instance: shape.instance, camera }, 'Face the camera');
+          if (camera) void shapePlace(object, { op: 'face', volume, instance: shape.instance, camera }, t('shapePlacement.faceCamera'));
         }}
       >
-        Face the camera
+        {t('shapePlacement.faceCamera')}
       </button>
     </div>
   );
@@ -109,6 +114,6 @@ export function ShapeActions({ object, volume }: { object: number; volume: numbe
 
 /** The 3D view's handles, in words for this screen. */
 export function placementHint(what: 'text' | 'shape', onObject: boolean): string {
-  if (!onObject) return `Move or rotate the ${what} with those tools.`;
-  return `Drag the ${what} or its blue frame to slide it over the object. The ring turns it.`;
+  if (!onObject) return what === 'text' ? i18n.t('shapePlacement.moveToolsText') : i18n.t('shapePlacement.moveToolsShape');
+  return what === 'text' ? i18n.t('shapePlacement.dragText') : i18n.t('shapePlacement.dragShape');
 }

@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "לבן",
+    "yellow": "צהוב",
+    "lime": "ליים",
+    "green": "ירוק",
+    "darkGreen": "ירוק כהה",
+    "teal": "כחול-ירקרק",
+    "mint": "מנטה",
+    "skyBlue": "תכלת",
+    "lightBlue": "כחול בהיר",
+    "blue": "כחול",
+    "indigo": "אינדיגו",
+    "purple": "סגול",
+    "magenta": "מג׳נטה",
+    "lavender": "לבנדר",
+    "pink": "ורוד",
+    "red": "אדום",
+    "brown": "חום",
+    "orange": "כתום",
+    "cream": "קרם",
+    "beige": "בז׳",
+    "tan": "חום בהיר",
+    "grey": "אפור",
+    "lightGrey": "אפור בהיר",
+    "black": "שחור",
+    "colours": "צבעים",
+    "recent": "אחרונים",
+    "recentColours": "צבעים אחרונים",
+    "hex": "קוד צבע (hex)",
+    "custom": "מותאם אישית"
+  }
+}

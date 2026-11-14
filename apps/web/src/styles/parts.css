@@ -40,13 +40,17 @@
   font-size: var(--t-sm);
 }
 .levels .chip + .chip {
-  margin-left: -1px;
+  margin-inline-start: -1px;
 }
 .levels .chip:first-child {
-  border-radius: var(--r-full) 0 0 var(--r-full);
+  border-radius: 0;
+  border-start-start-radius: var(--r-full);
+  border-end-start-radius: var(--r-full);
 }
 .levels .chip:last-child {
-  border-radius: 0 var(--r-full) var(--r-full) 0;
+  border-radius: 0;
+  border-start-end-radius: var(--r-full);
+  border-end-end-radius: var(--r-full);
 }
 .levels .chip[aria-pressed='true'] {
   z-index: 1;
@@ -276,7 +280,7 @@
   background: none;
   color: var(--text);
   font: inherit;
-  text-align: left;
+  text-align: start;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -306,7 +310,7 @@
 .menu kbd,
 .menu .menu-arrow,
 .menu .menu-hint {
-  margin-left: auto;
+  margin-inline-start: auto;
   color: var(--muted);
   font: inherit;
   font-size: var(--t-sm);
@@ -360,7 +364,7 @@
 .picker-value,
 .picker-label {
   flex: 1;
-  text-align: left;
+  text-align: start;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -368,14 +372,14 @@
 }
 /* Small grey words after a choice's name (an engine's version). */
 .picker-note {
-  margin-left: var(--s-3);
+  margin-inline-start: var(--s-3);
   color: var(--muted);
   font-size: var(--t-sm);
   font-weight: 400;
 }
 /* A small boxed tag after the picked choice: where it came from (the tool head, "T3"). */
 .picker-tag {
-  margin-left: var(--s-3);
+  margin-inline-start: var(--s-3);
   padding: 0 var(--s-2);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
@@ -570,7 +574,7 @@ button.swatch:disabled {
   gap: var(--s-2);
   min-width: 0;
   min-height: var(--ctl);
-  padding-right: var(--s-3);
+  padding-inline-end: var(--s-3);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--surface-2);
@@ -727,7 +731,7 @@ button.swatch:disabled {
 .info-tip {
   display: inline-grid;
   place-items: center;
-  margin-left: var(--s-1);
+  margin-inline-start: var(--s-1);
   padding: var(--s-1);
   border: 0;
   border-radius: var(--r-full);
@@ -759,6 +763,23 @@ button.swatch:disabled {
     margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-2)) calc(-1 * var(--s-3)) 0;
     padding: var(--s-3) var(--s-3);
   }
+}
+
+/* Error details and code read left to right in a right-to-left page too (docs/architecture/languages.md). */
+pre,
+code,
+kbd {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+pre {
+  text-align: left;
+}
+
+/* Arrows that point along the reading direction turn round in a right-to-left page. */
+[dir='rtl'] .menu-arrow svg,
+[dir='rtl'] .flip-rtl {
+  transform: scaleX(-1);
 }
 
 /* Colour picker (components/ColourPicker.tsx): a swatch that opens desktop Orca's

@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Continue where you left off?",
+    "local": "{{name}}, changed {{when}}. Kept in this browser, not saved.",
+    "discard": "Discard",
+    "continue": "Continue",
+    "projectAsk": "Continue {{name}}?",
+    "project": "Continue {{name}}",
+    "openHere": "You had it open here, edited {{when}}",
+    "editedOn": "Edited {{when}} on {{device}}",
+    "notNow": "Not now",
+    "editedElsewhere": "{{name}} is being edited on {{device}}",
+    "viewOnly": "This tab is view only.",
+    "viewOnlyUnsaved": "This tab is view only. Changes you made here aren’t in it.",
+    "saveMineAsCopy": "Save mine as a copy",
+    "editHere": "Edit here instead",
+    "gone": "“{{name}}” was deleted on {{device}}. It’s still open here, not saved."
+  }
+}

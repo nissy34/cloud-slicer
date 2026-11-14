@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { HexColorPicker } from 'react-colorful';
+import { useTranslation } from 'react-i18next';
 import { Check, ChevronDown } from 'lucide-react';
 import { Menu } from './Menu';
 import { textOn } from '../lib/mixing';
@@ -26,6 +27,7 @@ type Props = {
  * Never the browser's own colour box.
  */
 export function ColourPicker({ value, onChange, label, number, size = 'lg', disabled, title }: Props) {
+  const { t } = useTranslation();
   const current = toHex6(value);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(current);
@@ -93,20 +95,23 @@ export function ColourPicker({ value, onChange, label, number, size = 'lg', disa
         </button>
       )}
     >
-      {row(BUILT_IN_COLOURS, 'Colours')}
+      {row(
+        BUILT_IN_COLOURS.map((c) => ({ hex: c.hex, name: t(c.name as 'colourPicker.red') })),
+        t('colourPicker.colours'),
+      )}
       {recent.length > 0 && (
         <>
-          <span className="colour-label">Recent</span>
+          <span className="colour-label">{t('colourPicker.recent')}</span>
           {row(
             recent.map((hex) => ({ hex, name: hex })),
-            'Recent colours',
+            t('colourPicker.recentColours'),
           )}
         </>
       )}
       <div className="colour-custom">
         <span className="swatch lg" style={{ background: draft }} aria-hidden />
         <input
-          aria-label="Hex code"
+          aria-label={t('colourPicker.hex')}
           className="colour-hex"
           value={text}
           spellCheck={false}
@@ -126,7 +131,7 @@ export function ColourPicker({ value, onChange, label, number, size = 'lg', disa
           onBlur={() => setText(draft)}
         />
         <button type="button" className="quiet" aria-expanded={custom} onClick={() => setCustom(!custom)}>
-          Custom <ChevronDown size={14} aria-hidden className={custom ? 'flip' : undefined} />
+          {t('colourPicker.custom')} <ChevronDown size={14} aria-hidden className={custom ? 'flip' : undefined} />
         </button>
       </div>
       {custom && (

@@ -14,7 +14,8 @@ export const NOT_IN_BROWSER = new Set(['post_process']);
  * desktop; parallel printheads fills in desktop's excluded bed area.
  */
 export const GREYED_IN_BROWSER = new Set(['compatible_printers_condition', 'compatible_prints_condition', 'parallel_printheads_count']);
-export const GREYED_TIP = 'Not available in the browser';
+/** A word key: show it with t(GREYED_TIP). */
+export const GREYED_TIP = 'settingsPanel.greyedTip';
 
 /** The layout's pages as this printer shows them: Extruder 1..n, and the ones its flavor has. */
 export function shownPages(layout: SettingsPage[], extruders: number, flavor: string | undefined): (SettingsPage & { index?: number })[] {

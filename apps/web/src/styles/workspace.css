@@ -28,14 +28,14 @@
 /* Undo and redo stay in reach while the rest of the row scrolls on a phone. */
 .toolbar-group:first-child {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 1;
   background: var(--surface);
 }
 .toolbar-group + .toolbar-group {
-  margin-left: 4px;
-  padding-left: 4px;
-  border-left: 1px solid var(--border);
+  margin-inline-start: 4px;
+  padding-inline-start: 4px;
+  border-inline-start: 1px solid var(--border);
 }
 .tool {
   display: grid;
@@ -235,19 +235,19 @@
   gap: 2px;
   margin: 0;
   padding: 6px 8px;
-  border-left: 3px solid var(--measure-hover);
+  border-inline-start: 3px solid var(--measure-hover);
   border-radius: var(--r-sm);
   background: var(--surface-2);
   font-size: var(--t-sm);
 }
 .measure-figures.pick-1 {
-  border-left-color: var(--measure-first);
+  border-inline-start-color: var(--measure-first);
 }
 .measure-figures.pick-2 {
-  border-left-color: var(--measure-second);
+  border-inline-start-color: var(--measure-second);
 }
 .measure-figures.result {
-  border-left-color: var(--accent);
+  border-inline-start-color: var(--accent);
 }
 .measure-figures > div {
   display: flex;
@@ -264,7 +264,7 @@
 .measure-figures dd {
   margin: 0;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  text-align: end;
 }
 /* A picked feature's title with desktop's Reset beside it. */
 .measure-figures > .measure-title-row {
@@ -308,7 +308,7 @@
 .workspace-tools {
   position: absolute;
   top: 60px;
-  right: 12px;
+  inset-inline-end: 12px;
   left: 50%;
   display: flex;
   flex-wrap: wrap;
@@ -322,7 +322,7 @@
 .plate-tabs {
   position: absolute;
   top: 60px;
-  left: 12px;
+  inset-inline-start: 12px;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -352,7 +352,7 @@
   place-items: center;
   padding: 0 7px;
   border: 1px solid var(--accent);
-  border-left: none;
+  border-inline-start: none;
   border-radius: 0 var(--r-md) var(--r-md) 0;
   background: var(--surface);
   color: var(--text);
@@ -366,7 +366,7 @@
   display: inline-block;
   width: 7px;
   height: 7px;
-  margin-left: 6px;
+  margin-inline-start: 6px;
   border-radius: 50%;
   background: var(--warn);
   vertical-align: middle;
@@ -375,7 +375,7 @@
    They start right of the hide-sidebar button (prepare.css .side-toggle). */
 .preview .plate-tabs {
   top: 12px;
-  left: calc(var(--ctl) + 2 * var(--s-4));
+  inset-inline-start: calc(var(--ctl) + 2 * var(--s-4));
   z-index: 2;
 }
 .coming-soon .plate-tabs {
@@ -388,7 +388,7 @@
 /* Fit all and the views menu, in the bottom right corner of a 3D view. */
 .view-buttons {
   position: absolute;
-  right: 12px;
+  inset-inline-end: 12px;
   bottom: 12px;
   z-index: 2;
   display: flex;

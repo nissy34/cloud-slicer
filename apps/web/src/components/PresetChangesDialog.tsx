@@ -3,6 +3,8 @@
 // save them into presets first. "Remember my choice" answers Keep or Discard
 // without asking next time (the settings panel offers to ask again).
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../i18n';
 import { create } from 'zustand';
 import { Dialog } from './Dialog';
 import { Note } from './Note';
@@ -55,8 +57,9 @@ export async function askPresetChanges(): Promise<PresetChangesAnswer> {
   );
 }
 
-const label = (p: ChangedPreset) => (p.type === 'filament' ? `Filament ${(p.slot ?? 0) + 1}` : p.type === 'process' ? 'Process' : 'Printer');
-const changes = (n: number) => `${n} change${n === 1 ? '' : 's'}`;
+const label = (p: ChangedPreset) =>
+  p.type === 'filament' ? i18n.t('presetChanges.filamentN', { n: (p.slot ?? 0) + 1 }) : p.type === 'process' ? i18n.t('presetChanges.process') : i18n.t('presetChanges.printer');
+const changes = (count: number) => i18n.t('presetChanges.changes', { count });
 
 /** A name for each preset's changes: the user's own preset keeps its name (Save writes into it), a system preset gets a free copy name. */
 function startNames(presets: ChangedPreset[]): string[] {
@@ -75,6 +78,7 @@ export function PresetChangesDialog() {
 }
 
 function Question({ q }: { q: Question }) {
+  const { t } = useTranslation();
   const [remember, setRemember] = useState(false);
   const [names, setNames] = useState<string[] | null>(null);
   const [working, setWorking] = useState(false);
@@ -105,16 +109,16 @@ function Question({ q }: { q: Question }) {
   if (names)
     return (
       <Dialog
-        title="Save changed settings"
+        title={t('presetChanges.saveTitle')}
         testId="preset-changes-save"
         onClose={() => q.answer('cancel')}
         footer={
           <>
             <button className="secondary" disabled={working} onClick={() => (setNames(null), setError(''))}>
-              Back
+              {t('presetChanges.back')}
             </button>
             <button className="primary" type="submit" form="preset-changes-names" disabled={working}>
-              {working ? 'Saving…' : 'Save'}
+              {working ? t('presetChanges.saving') : t('presetChanges.save')}
             </button>
           </>
         }
@@ -127,11 +131,11 @@ function Question({ q }: { q: Question }) {
             void save();
           }}
         >
-          <p>Your own presets keep their name and take the changes. Give a new name to save a copy instead.</p>
+          <p>{t('presetChanges.namesText')}</p>
           {q.presets.map((p, i) => (
             <label key={`${p.type}${p.slot}`} className="field">
               <span>
-                {label(p)}: {shortName(p.name)} ({changes(p.changes)})
+                {t('presetChanges.row', { label: label(p), name: shortName(p.name), changes: changes(p.changes) })}
               </span>
               <input
                 value={names[i]}
@@ -148,7 +152,7 @@ function Question({ q }: { q: Question }) {
 
   return (
     <Dialog
-      title="Keep your changed settings?"
+      title={t('presetChanges.title')}
       role="alertdialog"
       describedBy="preset-changes-text"
       testId="preset-changes"
@@ -156,31 +160,31 @@ function Question({ q }: { q: Question }) {
       footer={
         <>
           <button className="secondary" onClick={() => q.answer('cancel')}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="secondary" onClick={() => answer('discard')}>
-            Discard
+            {t('presetChanges.discard')}
           </button>
           <button className="secondary" onClick={() => setNames(startNames(q.presets))}>
-            Save…
+            {t('presetChanges.saveMenu')}
           </button>
           <button className="primary" autoFocus onClick={() => answer('keep')}>
-            Keep
+            {t('presetChanges.keep')}
           </button>
         </>
       }
     >
-      <p id="preset-changes-text">Some presets have changed settings. Keep them in the new project, discard them, or save them into presets.</p>
+      <p id="preset-changes-text">{t('presetChanges.text')}</p>
       <ul className="preset-changes-list">
         {q.presets.map((p) => (
           <li key={`${p.type}${p.slot}`}>
-            <strong>{label(p)}:</strong> {shortName(p.name)} ({changes(p.changes)})
+            <strong>{t('presetChanges.labelColon', { label: label(p) })}</strong> {t('presetChanges.nameChanges', { name: shortName(p.name), changes: changes(p.changes) })}
           </li>
         ))}
       </ul>
       <label className="switch-row">
         <input className="switch" type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-        <span>Remember my choice (Keep or Discard)</span>
+        <span>{t('presetChanges.remember')}</span>
       </label>
     </Dialog>
   );

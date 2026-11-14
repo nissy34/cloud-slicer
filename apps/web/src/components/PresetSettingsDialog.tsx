@@ -3,6 +3,7 @@
 // filament slot, with Save and Save as at the bottom. Closing keeps the
 // changes on screen as unsaved, like desktop's "(modified)" presets.
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { create } from 'zustand';
 import type { OrcaConfig } from '../engine/protocol';
 import { presetNameError } from '../account/api';
@@ -34,8 +35,9 @@ export const usePresetSettings = create<PresetSettingsState>((set) => ({
 
 /** The edit (pencil) button beside a printer picker or filament slot. */
 export function EditPresetButton(target: Target) {
+  const { t } = useTranslation();
   const busy = useSlicer((s) => s.engine !== 'ready' || !s.layout);
-  const label = target.type === 'printer' ? 'Edit printer settings' : `Edit filament ${target.slot + 1} settings`;
+  const label = target.type === 'printer' ? t('presetSettings.editPrinter') : t('presetSettings.editFilament', { n: target.slot + 1 });
   return (
     <IconButton icon={Pencil} label={label} disabled={busy} onClick={() => usePresetSettings.getState().show(target)} />
   );
@@ -48,6 +50,7 @@ export function PresetSettingsDialog() {
 }
 
 function Editor({ target }: { target: Target }) {
+  const { t } = useTranslation();
   const hide = usePresetSettings((s) => s.hide);
   const { type } = target;
   const slot = target.type === 'filament' ? target.slot : undefined;
@@ -96,7 +99,7 @@ function Editor({ target }: { target: Target }) {
     // A new online project asks for its name first, in the projects' own window.
     if (p.saveAsOpen) return hide();
     if (p.message && p.messageWarn) setError(p.message);
-    else if (!p.dirty) setSaved(signedIn ? `Saved in the project ${p.current.name}.` : 'Saved in the downloaded project 3MF.');
+    else if (!p.dirty) setSaved(signedIn ? t('presetSettings.savedInProject', { name: p.current.name }) : t('presetSettings.savedIn3mf'));
   }
 
   async function act(task: () => Promise<void>, done: string) {
@@ -116,13 +119,13 @@ function Editor({ target }: { target: Target }) {
 
   function submitSaveAs(raw: string) {
     const next = raw.trim();
-    const problem = presetNameError(next) ?? (presetTaken(type, next) ? 'A preset with this name already exists.' : null);
+    const problem = presetNameError(next) ?? (presetTaken(type, next) ? t('presetSettings.nameTaken') : null);
     if (problem) return setError(problem);
-    void act(() => saveAsNew(type, next, slot), `Saved as ${next}.`);
+    void act(() => saveAsNew(type, next, slot), t('presetSettings.savedAs', { name: next }));
   }
 
-  const where = signedIn ? 'Saved to your account.' : 'Saved in this browser until you sign in.';
-  const title = type === 'printer' ? 'Printer settings' : slots > 1 ? `Filament ${(slot ?? 0) + 1} settings` : 'Filament settings';
+  const where = signedIn ? t('presetSettings.whereAccount') : t('presetSettings.whereBrowser');
+  const title = type === 'printer' ? t('presetSettings.printerTitle') : slots > 1 ? t('presetSettings.filamentNTitle', { n: (slot ?? 0) + 1 }) : t('presetSettings.filamentTitle');
 
   // Save as new preset is the main button when nothing else saves (a system preset, no project open).
   const saveAsMain = !preset?.user && !hasProject;
@@ -146,29 +149,29 @@ function Editor({ target }: { target: Target }) {
             }}
           >
             <label className="preset-pop-field">
-              <span>New {type} preset name</span>
+              <span>{type === 'printer' ? t('presetSettings.newPrinterName') : t('presetSettings.newFilamentName')}</span>
               <input autoFocus value={saveAs} maxLength={128} onChange={(e) => setSaveAs(e.target.value)} />
             </label>
             <div className="win-foot-row">
               <button type="button" className="secondary" onClick={() => (setSaveAs(null), setError(''))}>
-                Back
+                {t('presetSettings.back')}
               </button>
               <button type="submit" className="primary" disabled={working}>
-                {working ? 'Saving…' : 'Save'}
+                {working ? t('presetSettings.saving') : t('presetSettings.save')}
               </button>
             </div>
           </form>
         ) : (
           <>
             <span className="preset-settings-count muted small" role="status">
-              {saved || (changes > 0 ? `${changes} unsaved change${changes === 1 ? '' : 's'}` : 'No changes')}
+              {saved || (changes > 0 ? t('presetSettings.unsaved', { count: changes }) : t('presetSettings.noChanges'))}
             </span>
             <button className="secondary" disabled={working} onClick={hide}>
-              Close
+              {t('common.close')}
             </button>
             {changes > 0 && (type === 'printer' || slots < 2) && (
               <button className="secondary" disabled={working} onClick={() => resetOverrides(ownKeys)}>
-                Discard changes
+                {t('presetSettings.discard')}
               </button>
             )}
             <button
@@ -176,21 +179,21 @@ function Editor({ target }: { target: Target }) {
               disabled={working || !preset}
               onClick={() => (setError(''), setSaved(''), setSaveAs(copyName(name, (n) => presetTaken(type, n))))}
             >
-              Save as new preset…
+              {t('presetSettings.saveAsNew')}
             </button>
             {preset?.user && (
-              <button className="primary" disabled={working || changes === 0} onClick={() => void act(() => saveChanges(type, slot), `Saved ${name}.`)}>
-                {working ? 'Saving…' : 'Save to preset'}
+              <button className="primary" disabled={working || changes === 0} onClick={() => void act(() => saveChanges(type, slot), t('presetSettings.savedName', { name }))}>
+                {working ? t('presetSettings.saving') : t('presetSettings.saveToPreset')}
               </button>
             )}
             {hasProject && (
               <button
                 className={preset?.user ? 'secondary' : 'primary'}
                 disabled={working || projectBusy || changes === 0}
-                title="Keeps these changes in this project only and saves the project"
+                title={t('presetSettings.saveToProjectTip')}
                 onClick={() => void saveToProject()}
               >
-                Save to project
+                {t('presetSettings.saveToProject')}
               </button>
             )}
           </>
@@ -199,10 +202,10 @@ function Editor({ target }: { target: Target }) {
     >
       <p className="preset-settings-name" title={name}>
         <b>{type === 'filament' ? shortName(name) : name}</b>
-        {changes > 0 && <span className="muted"> (modified)</span>}
+        {changes > 0 && <span className="muted"> {t('presetSettings.modified')}</span>}
         <span className="muted small">
           {' '}
-          {preset?.user ? `Your preset, based on ${systemParent(preset)}.` : 'System preset: use Save as to keep your changes.'}
+          {preset?.user ? t('presetSettings.yours', { parent: systemParent(preset) }) : t('presetSettings.system')}
         </span>
       </p>
       <SettingsLevelChips />
@@ -215,8 +218,7 @@ function Editor({ target }: { target: Target }) {
         </Note>
       )}
       <p className="muted small">
-        Save to project keeps these changes in this project only, and they come back when you open it. A preset keeps them for every project. {where} Export, import,
-        rename and delete are in the ⋯ menu.
+        {t('presetSettings.footHint', { where })}
       </p>
     </Dialog>
   );

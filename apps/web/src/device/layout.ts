@@ -8,15 +8,16 @@
 export const CARD_IDS = ['camera', 'climate', 'motion', 'console', 'job', 'toolheads', 'alerts', 'files'] as const;
 export type CardId = (typeof CARD_IDS)[number];
 
+/** Word keys for each card's name, shown with t(). */
 export const CARD_NAMES: Record<CardId, string> = {
-  camera: 'Cameras',
-  climate: 'Bed and chamber',
-  motion: 'Move',
-  console: 'Console',
-  job: 'Print',
-  toolheads: 'Tool heads',
-  alerts: 'Alerts',
-  files: 'Files',
+  camera: 'deviceCards.cameras',
+  climate: 'deviceCards.climate',
+  motion: 'deviceCards.move',
+  console: 'deviceCards.console',
+  job: 'deviceCards.print',
+  toolheads: 'deviceCards.toolHeads',
+  alerts: 'deviceCards.alerts',
+  files: 'deviceCards.files',
 };
 
 /** An extra camera card, or a page card. */

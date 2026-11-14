@@ -1,5 +1,6 @@
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { hasPlateSettings } from '../lib/plate-settings';
 import { useTheme } from '../lib/theme';
@@ -42,6 +43,7 @@ interface IconDef {
   /** Top left corner on the plate, and the side, in mm. */
   at: [number, number];
   size: number;
+  /** An English name for the browser tests (data-plate-icons); not shown. */
   label: string;
   title: string;
   run(): void;
@@ -141,6 +143,7 @@ export const nameReach = (d: number) => (10 * d) / 200;
  * The icons hide while a tool is open; the name and number stay.
  */
 export function PlateIcons({ w, d }: { w: number; d: number }) {
+  const { t } = useTranslation();
   const show = useSlicer((s) => !!s.project && !s.tool && !s.paint);
   const hasProject = useSlicer((s) => !!s.project);
   const plates = useSlicer((s) => s.project?.plates.length ?? 1);
@@ -152,26 +155,26 @@ export function PlateIcons({ w, d }: { w: number; d: number }) {
   const factor = d / 200;
   const size = 16 * factor;
   const nameH = 9 * factor;
-  const title = useTextTexture(name || 'Untitled');
+  const title = useTextTexture(name || t('plateIcons.untitled'));
   const number = useTextTexture(String(plate + 1).padStart(2, '0'));
 
   const icons = useMemo(() => {
     const s = useSlicer.getState();
-    const nothing = 'Nothing on this plate yet';
-    const off = empty ? nothing : locked ? 'This plate is locked' : undefined;
+    const nothing = t('plateIcons.nothingYet');
+    const off = empty ? nothing : locked ? t('plateIcons.locked') : undefined;
     // Desktop's slot k: 3 mm right of the plate, 3 mm down from its back edge, 16 mm icons 5 mm apart (all scaled).
     const slot = (k: number): [number, number] => [w + 3 * factor, d - 3 * factor - k * (size + 5 * factor)];
     const list: IconDef[] = [
-      { id: 'delete', image: 'plate_close', at: slot(0), size, label: 'Delete plate', title: 'Remove this plate and what is on it (not the last one)', run: () => void s.deletePlate() },
-      { id: 'orient', image: 'plate_orient', at: slot(1), size, label: 'Auto orient plate', title: off ?? 'Auto orient the objects on this plate', run: () => void s.orient(), disabled: !!off },
-      { id: 'arrange', image: 'plate_arrange', at: slot(2), size, label: 'Arrange plate', title: off ?? 'Arrange the objects on this plate (Shift+A)', run: () => void s.arrange(), disabled: !!off },
+      { id: 'delete', image: 'plate_close', at: slot(0), size, label: 'Delete plate', title: t('plateIcons.deleteTip'), run: () => void s.deletePlate() },
+      { id: 'orient', image: 'plate_orient', at: slot(1), size, label: 'Auto orient plate', title: off ?? t('plateIcons.orientTip'), run: () => void s.orient(), disabled: !!off },
+      { id: 'arrange', image: 'plate_arrange', at: slot(2), size, label: 'Arrange plate', title: off ?? t('plateIcons.arrangeTip'), run: () => void s.arrange(), disabled: !!off },
       {
         id: 'lock',
         image: locked ? 'plate_locked' : 'plate_unlocked',
         at: slot(3),
         size,
         label: locked ? 'Unlock plate' : 'Lock plate',
-        title: locked ? 'Unlock this plate' : 'Lock this plate: Arrange and Auto orient leave it as it is',
+        title: locked ? t('plateIcons.unlockTip') : t('plateIcons.lockTip'),
         run: () => void s.lockPlate(!locked),
       },
       {
@@ -180,14 +183,14 @@ export function PlateIcons({ w, d }: { w: number; d: number }) {
         at: slot(4),
         size,
         label: `Plate ${plate + 1} settings`,
-        title: own ? 'Plate settings: this plate has settings of its own' : 'Plate settings: plate type, print sequence, spiral vase, filament order',
+        title: own ? t('plateIcons.settingsOwnTip') : t('plateIcons.settingsTip'),
         run: () => s.openPlateSettings(true),
       },
       // Right after the name, as tall as it (desktop: 9 mm, 1 mm off the plate's back edge).
-      { id: 'rename', image: 'plate_name_edit', at: [nameH * title.aspect, d + factor + nameH], size: nameH, label: 'Rename plate', title: 'Rename this plate', run: () => s.openPlateSettings(true) },
+      { id: 'rename', image: 'plate_name_edit', at: [nameH * title.aspect, d + factor + nameH], size: nameH, label: 'Rename plate', title: t('plateIcons.renameTip'), run: () => s.openPlateSettings(true) },
     ];
     return list.filter((i) => i.id !== 'delete' || plates > 1);
-  }, [empty, own, locked, plate, plates, w, d, factor, size, nameH, title.aspect]);
+  }, [empty, own, locked, plate, plates, w, d, factor, size, nameH, title.aspect, t]);
 
   // Where each icon is on screen, and the shown name, for the browser tests (data-plate-icons / data-plate-name on the canvas).
   const camera = useThree((s) => s.camera);

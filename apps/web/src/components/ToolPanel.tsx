@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { CutPanel } from './CutPanel';
 import { describeFeature, measurementRows } from '../lib/measure';
@@ -58,6 +59,7 @@ function TransformFields({ tool, object, instance, volume }: { tool: 'move' | 'r
   const obj = useSlicer((s) => s.project?.objects[object]);
   const uniform = useSlicer((s) => s.uniformScale);
   const { transformInstance, transformVolume, mirror, setUniformScale } = useSlicer.getState();
+  const { t } = useTranslation();
   const inst = obj?.instances[instance];
   const vol = volume !== undefined ? obj?.volumes[volume] : undefined;
   const at: Placement | undefined = vol ?? (inst && obj ? { ...inst, meshSize: obj.meshSize } : undefined);
@@ -70,13 +72,13 @@ function TransformFields({ tool, object, instance, volume }: { tool: 'move' | 'r
   if (tool === 'move')
     return (
       <AxisFields
-        label="Position"
+        label={t('toolPanel.position')}
         unit="mm"
         values={at.offset}
         onSet={(axis, v) => apply({ offset: replace(at.offset, axis, v) })}
       />
     );
-  if (tool === 'rotate') return <AxisFields label="Rotation" unit="°" values={at.rotation} onSet={(axis, v) => apply({ rotation: replace(at.rotation, axis, v) })} />;
+  if (tool === 'rotate') return <AxisFields label={t('toolPanel.rotation')} unit="°" values={at.rotation} onSet={(axis, v) => apply({ rotation: replace(at.rotation, axis, v) })} />;
   const setScale = (axis: number, factor: number) => {
     if (!(factor > 0)) return;
     // A mirrored axis keeps its flip.
@@ -86,20 +88,20 @@ function TransformFields({ tool, object, instance, volume }: { tool: 'move' | 'r
   };
   return (
     <>
-      <AxisFields label="Scale" unit="%" values={at.scale.map((v) => Math.abs(v) * 100)} onSet={(axis, v) => setScale(axis, v / 100)} />
-      <AxisFields label="Size" unit="mm" values={size} onSet={(axis, v) => at.meshSize[axis] > 0 && setScale(axis, v / at.meshSize[axis])} />
+      <AxisFields label={t('toolPanel.scale')} unit="%" values={at.scale.map((v) => Math.abs(v) * 100)} onSet={(axis, v) => setScale(axis, v / 100)} />
+      <AxisFields label={t('toolPanel.size')} unit="mm" values={size} onSet={(axis, v) => at.meshSize[axis] > 0 && setScale(axis, v / at.meshSize[axis])} />
       <div className="tool-row">
-        <label className="switch-row" title="Changing one box changes the other two by as much, so the shape keeps its proportions">
+        <label className="switch-row" title={t('toolPanel.scaleEvenlyTip')}>
           <input className="switch" type="checkbox" checked={uniform} onChange={(e) => setUniformScale(e.target.checked)} />
-          <span>Scale evenly</span>
+          <span>{t('toolPanel.scaleEvenly')}</span>
         </label>
         {!vol && (
           <>
-            <button className="secondary" title="Mirror along X" onClick={() => void mirror(object, instance, 0)}>
-              Mirror X
+            <button className="secondary" title={t('toolPanel.mirrorXTip')} onClick={() => void mirror(object, instance, 0)}>
+              {t('toolPanel.mirrorX')}
             </button>
-            <button className="secondary" title="Mirror along Y" onClick={() => void mirror(object, instance, 1)}>
-              Mirror Y
+            <button className="secondary" title={t('toolPanel.mirrorYTip')} onClick={() => void mirror(object, instance, 1)}>
+              {t('toolPanel.mirrorY')}
             </button>
           </>
         )}
@@ -117,6 +119,7 @@ function GroupFields({ tool }: { tool: 'move' | 'rotate' | 'scale' }) {
   const preview = useSlicer((s) => s.preview);
   const group = useSlicer((s) => s.group);
   const { transformGroup } = useSlicer.getState();
+  const { t } = useTranslation();
   const version = useMemo(() => Math.random().toString(36), [preview]);
   if (!preview) return null;
   const box = groupBox(preview, group);
@@ -130,23 +133,23 @@ function GroupFields({ tool }: { tool: 'move' | 'rotate' | 'scale' }) {
     return (
       <AxisFields
         key={fresh}
-        label="Position"
+        label={t('toolPanel.position')}
         unit="mm"
         only={2}
         values={[c.x, c.y]}
-        onSet={(axis, v) => void transformGroup(new THREE.Matrix4().makeTranslation(axis === 0 ? v - c.x : 0, axis === 1 ? v - c.y : 0, 0).elements.slice(), 'Move')}
+        onSet={(axis, v) => void transformGroup(new THREE.Matrix4().makeTranslation(axis === 0 ? v - c.x : 0, axis === 1 ? v - c.y : 0, 0).elements.slice(), t('toolPanel.move'))}
       />
     );
   if (tool === 'rotate')
     return (
       <AxisFields
         key={fresh}
-        label="Turn by"
+        label={t('toolPanel.turnBy')}
         unit="°"
         values={[0, 0, 0]}
         onSet={(axis, v) => {
           const r = (v * Math.PI) / 180;
-          void transformGroup(about(axis === 0 ? new THREE.Matrix4().makeRotationX(r) : axis === 1 ? new THREE.Matrix4().makeRotationY(r) : new THREE.Matrix4().makeRotationZ(r)), 'Rotate');
+          void transformGroup(about(axis === 0 ? new THREE.Matrix4().makeRotationX(r) : axis === 1 ? new THREE.Matrix4().makeRotationY(r) : new THREE.Matrix4().makeRotationZ(r)), t('toolPanel.rotate'));
         }}
       />
     );
@@ -154,14 +157,14 @@ function GroupFields({ tool }: { tool: 'move' | 'rotate' | 'scale' }) {
     <>
       <AxisFields
         key={fresh}
-        label="Scale"
+        label={t('toolPanel.scale')}
         unit="%"
         only={1}
         values={[100]}
-        onSet={(_, v) => v > 0 && void transformGroup(about(new THREE.Matrix4().makeScale(v / 100, v / 100, v / 100)), 'Scale')}
+        onSet={(_, v) => v > 0 && void transformGroup(about(new THREE.Matrix4().makeScale(v / 100, v / 100, v / 100)), t('toolPanel.scale'))}
       />
-      <p className="muted hint" aria-label="Group size">
-        Together {size.toArray().map((n) => round(n)).join(' × ')} mm
+      <p className="muted hint" aria-label={t('toolPanel.groupSize')}>
+        {t('toolPanel.together', { size: size.toArray().map((n) => round(n)).join(' × ') })}
       </p>
     </>
   );
@@ -174,29 +177,34 @@ const COARSE = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer:
 function MeasurePanel() {
   const { hover, picks, result, onlyPlane } = useSlicer((s) => s.measure);
   const { setTool, measureReset, setMeasureOnlyPlane } = useSlicer.getState();
+  const { t } = useTranslation();
   const shown = picks.length ? picks : hover ? [hover] : [];
   return (
-    <section className="tool-panel measure-panel" aria-label="Measure">
+    <section className="tool-panel measure-panel" aria-label={t('toolPanel.measure')}>
       <div className="tool-panel-head">
-        <strong>Measure</strong>
+        <strong>{t('toolPanel.measure')}</strong>
         <button className="ghost" onClick={() => setTool(null)}>
-          Done
+          {t('toolPanel.done')}
         </button>
       </div>
       <p className="muted hint">
         {picks.length === 0
           ? COARSE
-            ? 'Tap a face, edge, circle or corner. Tap a second one to measure between them.'
-            : 'Point at a face, edge, circle or corner and click it. Click a second one to measure between them.'
+            ? t('toolPanel.measureStartTouch')
+            : t('toolPanel.measureStart')
           : picks.length === 1
-            ? `Now ${COARSE ? 'tap' : 'click'} a second feature to measure the distance and angle.`
-            : `${COARSE ? 'Tap' : 'Click'} another feature to start a new measurement.`}
-        {picks.length > 0 && !COARSE && ' Esc lets go of the last pick, Delete starts over.'}
+            ? COARSE
+              ? t('toolPanel.measureSecondTouch')
+              : t('toolPanel.measureSecond')
+            : COARSE
+              ? t('toolPanel.measureAgainTouch')
+              : t('toolPanel.measureAgain')}
+        {picks.length > 0 && !COARSE && ` ${t('toolPanel.measureKeys')}`}
       </p>
       {shown.map((f, i) => {
         const { name, rows } = describeFeature(f);
         return (
-          <dl className={`measure-figures pick-${picks.length ? i + 1 : 0}`} key={`${i}-${f.id}`} aria-label={picks.length ? `Feature ${i + 1}` : 'Feature under the pointer'}>
+          <dl className={`measure-figures pick-${picks.length ? i + 1 : 0}`} key={`${i}-${f.id}`} aria-label={picks.length ? t('toolPanel.feature', { n: i + 1 }) : t('toolPanel.featureHover')}>
             {picks.length ? (
               <div className="measure-title-row">
                 <dt className="measure-title">{`${i + 1}. ${name}`}</dt>
@@ -217,7 +225,7 @@ function MeasurePanel() {
         );
       })}
       {result && (
-        <dl className="measure-figures result" aria-label="Measurement">
+        <dl className="measure-figures result" aria-label={t('toolPanel.measurement')}>
           {measurementRows(result).map(([k, v]) => (
             <div key={k}>
               <dt>{k}</dt>
@@ -228,12 +236,12 @@ function MeasurePanel() {
       )}
       <label className="switch-row">
         <input className="switch" type="checkbox" checked={onlyPlane} onChange={(e) => setMeasureOnlyPlane(e.target.checked)} />
-        <span>Pick whole faces only</span>
+        <span>{t('toolPanel.wholeFaces')}</span>
       </label>
       {picks.length > 0 && (
         <div className="tool-row">
           <button className="secondary" onClick={measureReset}>
-            Start over
+            {t('toolPanel.startOver')}
           </button>
         </div>
       )}
@@ -242,10 +250,27 @@ function MeasurePanel() {
 }
 
 const HINTS: Record<Exclude<Tool, 'cut' | 'measure' | 'layers' | 'brim' | 'simplify' | 'boolean' | 'text' | 'svg' | 'assemble'>, [string, string]> = {
-  move: ['Move', 'Drag an arrow, or drag the object itself.'],
-  rotate: ['Rotate', 'Drag a ring to turn the object around that axis.'],
-  scale: ['Scale', 'Drag a handle; the centre box scales evenly.'],
-  flatten: ['Lay on face', 'Tap or click a highlighted face to lay the object flat on it.'],
+  move: ['toolPanel.move', 'toolPanel.moveHint'],
+  rotate: ['toolPanel.rotate', 'toolPanel.rotateHint'],
+  scale: ['toolPanel.scale', 'toolPanel.scaleHint'],
+  flatten: ['toolPanel.flatten', 'toolPanel.flattenHint'],
+};
+/** Several chosen objects: what to drag and type, for 2 or more. */
+const GROUP_HINTS: Record<'move' | 'rotate' | 'scale', [string, string]> = {
+  move: ['toolPanel.groupMoveBoth', 'toolPanel.groupMoveAll'],
+  rotate: ['toolPanel.groupRotateBoth', 'toolPanel.groupRotateAll'],
+  scale: ['toolPanel.groupScaleBoth', 'toolPanel.groupScaleAll'],
+};
+/** A part picked inside its object. */
+const VOLUME_HINTS: Record<'move' | 'rotate' | 'scale', string> = {
+  move: 'toolPanel.volumeMove',
+  rotate: 'toolPanel.volumeRotate',
+  scale: 'toolPanel.volumeScale',
+};
+const SNAP_WORDS: Record<'move' | 'rotate' | 'scale', string> = {
+  move: 'toolPanel.snapMove',
+  rotate: 'toolPanel.snapRotate',
+  scale: 'toolPanel.snapScale',
 };
 
 /** The open tool's options, floating over the 3D view like desktop's gizmo panels. */
@@ -263,28 +288,27 @@ export function ToolPanel() {
   });
   const several = useSlicer((s) => s.group.length);
   const { setTool, setSnap } = useSlicer.getState();
+  const { t } = useTranslation();
   if (tool === 'measure') return <MeasurePanel />;
   if (tool === 'assemble') return <AssemblePanel />;
   if (tool === 'text') return <TextPanel />;
   if (tool === 'svg') return <SvgPanel />;
   if (several > 1 && (tool === 'move' || tool === 'rotate' || tool === 'scale')) {
-    const [title] = HINTS[tool];
-    const what = tool === 'move' ? 'Drag an arrow, or drag one of them,' : tool === 'rotate' ? 'Drag a ring' : 'Drag a handle';
+    const title = t(HINTS[tool][0]);
+    const [both, all] = GROUP_HINTS[tool];
     return (
       <section className="tool-panel" aria-label={title}>
         <div className="tool-panel-head">
           <strong>{title}</strong>
           <button className="ghost" onClick={() => setTool(null)}>
-            Done
+            {t('toolPanel.done')}
           </button>
         </div>
-        <p className="muted hint">
-          {what} or type below to {tool} {several === 2 ? 'both' : `all ${several}`} chosen objects together{tool === 'move' ? '' : ' about their middle'}.
-        </p>
+        <p className="muted hint">{several === 2 ? t(both) : t(all, { n: several })}</p>
         <GroupFields key={tool} tool={tool} />
         <label className="switch-row">
           <input className="switch" type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
-          <span>{tool === 'rotate' ? 'Snap to 15°' : tool === 'move' ? 'Snap to 5 mm' : 'Snap to 10%'} (or hold Shift)</span>
+          <span>{t(SNAP_WORDS[tool])}</span>
         </label>
       </section>
     );
@@ -296,30 +320,27 @@ export function ToolPanel() {
   if (tool === 'layers') return <LayersPanel key={selected.object} object={selected.object} />;
   if (tool === 'cut')
     return (
-      <section className="tool-panel" aria-label="Cut">
-        <strong>Cut</strong>
+      <section className="tool-panel" data-tool="cut" aria-label={t('toolPanel.cut')}>
+        <strong>{t('toolPanel.cut')}</strong>
         <CutPanel key={`${selected.object}-${selected.instance}`} object={selected.object} instance={selected.instance} size={size ?? [10, 10, 10]} onDone={() => setTool(null)} />
       </section>
     );
-  const [title, objectHint] = HINTS[tool];
+  const title = t(HINTS[tool][0]);
+  const objectHint = t(HINTS[tool][1]);
   const onVolume = volume !== null && tool !== 'flatten';
-  const hint = onVolume
-    ? `${tool === 'move' ? 'Drag an arrow' : tool === 'rotate' ? 'Drag a ring' : 'Drag a handle'} or type below to change ${volume} inside its object${tool === 'move' ? ' (from its middle)' : ''}. Pick the object in the list to work on all of it.`
-    : tool === 'move'
-      ? `${objectHint} A Z below the bed sinks it into the bed; only what is above prints.`
-      : objectHint;
+  const hint = onVolume ? t(VOLUME_HINTS[tool], { name: volume }) : tool === 'move' ? `${objectHint} ${t('toolPanel.sinkHint')}` : objectHint;
   return (
     <section className="tool-panel" aria-label={title}>
       <div className="tool-panel-head">
         <strong>{title}</strong>
         <button className="ghost" onClick={() => setTool(null)}>
-          Done
+          {t('toolPanel.done')}
         </button>
       </div>
       <p className="muted hint">{hint}</p>
       {tool === 'flatten' ? (
-        <p className="muted hint" aria-label="Current rotation">
-          Rotation now: {rotation?.map((r) => `${round(r)}°`).join(', ')}
+        <p className="muted hint" aria-label={t('toolPanel.currentRotation')}>
+          {t('toolPanel.rotationNow', { values: rotation?.map((r) => `${round(r)}°`).join(', ') ?? '' })}
         </p>
       ) : (
         <TransformFields
@@ -333,7 +354,7 @@ export function ToolPanel() {
       {tool !== 'flatten' && (
         <label className="switch-row">
           <input className="switch" type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
-          <span>{tool === 'rotate' ? 'Snap to 15°' : tool === 'move' ? 'Snap to 5 mm' : 'Snap to 10%'} (or hold Shift)</span>
+          <span>{t(SNAP_WORDS[tool])}</span>
         </label>
       )}
     </section>

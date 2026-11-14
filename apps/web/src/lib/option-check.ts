@@ -15,6 +15,7 @@
  * A list typed whole ("0.2,0.3", one value per extruder) has each value
  * checked; text, lists of names and G-code are not checked.
  */
+import { i18n } from '../i18n';
 import { entryType, isVectorType, splitValues } from './flow-variants';
 
 export interface CheckedOption {
@@ -56,11 +57,11 @@ function range(def: CheckedOption, n: number, unit: string, percent: boolean): C
   const show = (v: number) => format(v) + (percent ? '%' : unit);
   const allowed =
     Number.isFinite(min) && Number.isFinite(max)
-      ? `Allowed ${show(min)} to ${show(max)}`
+      ? i18n.t('optionCheck.allowed', { min: show(min), max: show(max) })
       : Number.isFinite(min)
-        ? `Lowest allowed is ${show(min)}`
-        : `Highest allowed is ${show(max)}`;
-  return { kind: 'clamped', value, note: `${allowed}, set to ${show(nearest)}.` };
+        ? i18n.t('optionCheck.lowest', { min: show(min) })
+        : i18n.t('optionCheck.highest', { max: show(max) });
+  return { kind: 'clamped', value, note: i18n.t('optionCheck.setTo', { allowed, value: show(nearest) }) };
 }
 
 /** One value of the option's single-value type (float, int, percent, floatOrPercent). */
@@ -68,15 +69,15 @@ function checkOne(def: CheckedOption, type: string, raw: string, ask: boolean): 
   let text = raw.trim();
   if (def.nullable && text === 'nil') return { kind: 'ok', value: text };
   if (type !== 'int' && type !== 'float' && type !== 'percent' && type !== 'floatOrPercent') return { kind: 'ok', value: raw };
-  if (text === '') return { kind: 'invalid', problem: 'A value is needed.' };
+  if (text === '') return { kind: 'invalid', problem: i18n.t('optionCheck.needed') };
   text = text.replace(',', '.');
   const percent = text.endsWith('%');
-  if (percent && (type === 'int' || type === 'float')) return { kind: 'invalid', problem: "This setting can't be a percentage." };
+  if (percent && (type === 'int' || type === 'float')) return { kind: 'invalid', problem: i18n.t('optionCheck.noPercent') };
   if (percent) text = text.slice(0, -1).trim();
   // Desktop drops spaces and an "mm" after a "mm or %" value.
   if (type === 'floatOrPercent' && !percent) text = text.replace(/\s+/g, '').replace(/mm$/i, '');
   if (type === 'int' ? !WHOLE.test(text) : !NUMBER.test(text)) {
-    return { kind: 'invalid', problem: type === 'int' && NUMBER.test(text) ? `“${raw.trim()}” is not a whole number.` : `“${raw.trim()}” is not a number.` };
+    return { kind: 'invalid', problem: type === 'int' && NUMBER.test(text) ? i18n.t('optionCheck.notWhole', { text: raw.trim() }) : i18n.t('optionCheck.notNumber', { text: raw.trim() }) };
   }
   const n = Number(text);
   const number = format(n);
@@ -101,7 +102,7 @@ export function checkOptionValue(def: CheckedOption, type: string, raw: string):
   const one = entryType(type);
   const values: string[] = [];
   const notes: string[] = [];
-  if (raw.trim() === '') return { kind: 'invalid', problem: 'A value is needed.' };
+  if (raw.trim() === '') return { kind: 'invalid', problem: i18n.t('optionCheck.needed') };
   // In a whole list the comma separates values, so it isn't a decimal point here.
   for (const part of splitValues(raw)) {
     const r = checkOne(def, one, part, false);

@@ -5,6 +5,7 @@
 // extruder per filament, see engine/src/slice_api.cpp); the U1 then maps the
 // file's filaments onto its 4 heads when the print is sent (Device tab).
 // Other toolchangers have no such map, so they get a warning.
+import { i18n } from '../i18n';
 
 export type FilamentLimit =
   /** Any number of filaments. */
@@ -25,6 +26,6 @@ export function filamentLimit(p: { printer: string; nozzleDiameter: string | und
 export function filamentLimitMessage(limit: FilamentLimit, count: number): { text: string; warn: boolean } | null {
   if (limit.kind === 'free' || count <= limit.heads) return null;
   if (limit.kind === 'mapped')
-    return { text: `${count} filaments on ${limit.heads} heads: you pick which head prints each one when you send the print.`, warn: false };
-  return { text: `${count} filaments on a printer with ${limit.heads} heads.`, warn: true };
+    return { text: i18n.t('filamentLimit.mapped', { n: count, heads: limit.heads }), warn: false };
+  return { text: i18n.t('filamentLimit.warn', { n: count, heads: limit.heads }), warn: true };
 }

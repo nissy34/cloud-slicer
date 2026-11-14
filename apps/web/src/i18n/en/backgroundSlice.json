@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · Slicing · {{title}}",
+    "doneTitle": "Slicing done",
+    "plateSliced": "Plate {{plate}} is sliced. Tap to see it.",
+    "tapToSee": "Tap to see it.",
+    "questionTitle": "Slicing needs you",
+    "questionBody": "It has a question before it can finish. Tap to answer.",
+    "failedTitle": "Slicing failed",
+    "tapToSeeWhy": "Tap to see why."
+  }
+}

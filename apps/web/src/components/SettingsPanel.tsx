@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Settings2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { OptionDef, OrcaConfig, SettingsPage } from '../engine/protocol';
 import { splitValues, valueAt, withValueAt } from '../lib/flow-variants';
 import { FLUSH_OPTIONS } from '../lib/flush';
@@ -15,9 +16,9 @@ import { useOptionStates } from './SettingsPrompt';
 // Desktop's modes: Simple, Advanced, and Expert for Advanced plus desktop's Developer mode (its develop settings).
 export type SettingsLevel = 'simple' | 'advanced' | 'expert';
 const LEVELS: [SettingsLevel, string][] = [
-  ['simple', 'Simple'],
-  ['advanced', 'Advanced'],
-  ['expert', 'Expert'],
+  ['simple', 'settingsPanel.simple'],
+  ['advanced', 'settingsPanel.advanced'],
+  ['expert', 'settingsPanel.expert'],
 ];
 const visible = (def: OptionDef | undefined, level: SettingsLevel) =>
   def != null && (level === 'expert' || (level === 'advanced' ? def.mode !== 'develop' : def.mode === 'simple'));
@@ -31,19 +32,20 @@ export function useSettingsLevel(): SettingsLevel {
 
 /** Simple · Advanced · Expert: each shows more settings than the one before. */
 export function SettingsLevelChips() {
+  const { t } = useTranslation();
   const level = useSettingsLevel();
   return (
-    <span className="chips levels" role="group" aria-label="Settings shown">
+    <span className="chips levels" role="group" aria-label={t('settingsPanel.levelsShown')}>
       {LEVELS.map(([id, label]) => (
         <button
           key={id}
           type="button"
           className="chip"
           aria-pressed={level === id}
-          title={id === 'expert' ? "Also the tuning settings desktop keeps for its Developer mode" : undefined}
+          title={id === 'expert' ? t('settingsPanel.expertTip') : undefined}
           onClick={() => saveUserSetting(LEVEL_KEY, id).catch(() => {})}
         >
-          {label}
+          {t(label)}
         </button>
       ))}
     </span>
@@ -78,7 +80,14 @@ function usePresetOwn(kind: SettingsKind, slot?: number): OrcaConfig | null {
   return own;
 }
 
+const SEARCH_WORDS: Record<SettingsKind, { search: string; none: string }> = {
+  print: { search: 'settingsPanel.searchProcess', none: 'settingsPanel.noProcessMatch' },
+  filament: { search: 'settingsPanel.searchFilament', none: 'settingsPanel.noFilamentMatch' },
+  printer: { search: 'settingsPanel.searchPrinter', none: 'settingsPanel.noPrinterMatch' },
+};
+
 export function SettingsPages({ kind, slot }: { kind: SettingsKind; slot?: number }) {
+  const { t } = useTranslation();
   const layout = useSlicer((s) => s.layout?.[kind] ?? NO_PAGES);
   const options = useSlicer((s) => s.options);
   const extruders = splitValues(useOption('nozzle_diameter') ?? '').length || 1;
@@ -103,11 +112,11 @@ export function SettingsPages({ kind, slot }: { kind: SettingsKind; slot?: numbe
   ).map((g) => ({ ...g, keys: g.keys.filter(noFlush) }));
   const flushHidden = !flushes && kind === 'print' && !found && current?.groups.some((g) => g.options.some((k) => FLUSH_OPTIONS.includes(k)));
   const hasFlowVariants = groups.some((g) => g.keys.some((k) => options[k]?.flow));
-  const label = kind === 'print' ? 'process' : kind;
+  const words = SEARCH_WORDS[kind];
   const field = (k: string, at: ShownPage) => {
     const greyed = GREYED_IN_BROWSER.has(k);
     const off = greyed || states.disabled.has(k) || states.hidden.has(k);
-    const why = greyed ? GREYED_TIP : undefined;
+    const why = greyed ? t(GREYED_TIP) : undefined;
     const choices = states.enumValues[k];
     // The Dependencies conditions aren't in the sliced config: shown from the preset itself.
     if (greyed && options[k]?.type === 'string' && !(k in (useSlicer.getState().baseConfig ?? {})))
@@ -116,8 +125,8 @@ export function SettingsPages({ kind, slot }: { kind: SettingsKind; slot?: numbe
     if (at.limits?.includes(k))
       return (
         <Fragment key={k}>
-          <OptionField optKey={k} entry={0} disabled={off} label={silent ? `${options[k].fullLabel || options[k].label} (Normal)` : options[k].fullLabel || undefined} />
-          {silent && <OptionField optKey={k} entry={1} disabled={off} label={`${options[k].fullLabel || options[k].label} (Silent)`} />}
+          <OptionField optKey={k} entry={0} disabled={off} label={silent ? t('settingsPanel.normalMode', { label: options[k].fullLabel || options[k].label }) : options[k].fullLabel || undefined} />
+          {silent && <OptionField optKey={k} entry={1} disabled={off} label={t('settingsPanel.silentMode', { label: options[k].fullLabel || options[k].label })} />}
         </Fragment>
       );
     return <OptionField key={`${k}:${slot ?? ''}:${at.index ?? ''}`} optKey={k} slot={slot} entry={at.index} disabled={off} why={why} choices={choices} />;
@@ -127,14 +136,14 @@ export function SettingsPages({ kind, slot }: { kind: SettingsKind; slot?: numbe
       <input
         type="search"
         className="settings-search"
-        placeholder={`Search ${label} settings`}
-        aria-label={`Search ${label} settings`}
+        placeholder={t(words.search)}
+        aria-label={t(words.search)}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
       />
       {!found && (
-        <div className="line-tabs" role="tablist" aria-label="Settings pages">
+        <div className="line-tabs" role="tablist" aria-label={t('settingsPanel.pages')}>
           {pages.map((p, i) => (
             <button key={p.page} role="tab" aria-selected={p === current} className={p === current ? 'active' : undefined} onClick={() => setPage(i)}>
               {p.page}
@@ -142,10 +151,10 @@ export function SettingsPages({ kind, slot }: { kind: SettingsKind; slot?: numbe
           ))}
         </div>
       )}
-      {found && found.length === 0 && <p className="hint">No {label} settings match “{query.trim()}”.</p>}
+      {found && found.length === 0 && <p className="hint">{t(words.none, { query: query.trim() })}</p>}
       {hasFlowVariants && <FlowVariantSwitch />}
       {!found && current?.overrides && (
-        <p className="hint">Tick a setting to use this filament&apos;s own value. Unticked ones use the printer&apos;s, shown greyed out.</p>
+        <p className="hint">{t('settingsPanel.overridesHint')}</p>
       )}
       {groups.map((g) => {
         if (!g.keys.length) return null;
@@ -165,12 +174,11 @@ const NO_PAGES: SettingsPage[] = [];
 
 /** Where desktop's Flush options would be, on a printer that never purges between filaments. */
 function NoFlushHint() {
+  const { t } = useTranslation();
   const flushes = useSlicer((s) => s.flush?.flushes ?? false);
   return (
     <p className="hint" data-testid="no-flush-hint">
-      {flushes
-        ? 'Flush options (purging into infill, objects or support) appear here once the project has more than one filament.'
-        : 'No flush options: this printer has a nozzle for each filament, so it never purges when it changes filament. Printers with one nozzle for several filaments (an AMS, MMU or CFS) show them here and get a Flushing volumes window in the Filament section.'}
+      {flushes ? t('settingsPanel.flushLater') : t('settingsPanel.noFlush')}
     </p>
   );
 }
@@ -183,6 +191,7 @@ type ShownPage = SettingsPage & { index?: number };
  * greyed out.
  */
 function OverrideField({ optKey, slot }: { optKey: string; slot: number }) {
+  const { t } = useTranslation();
   const def = useSlicer((s) => s.options[optKey]);
   const value = useOption(optKey);
   const base = useSlicer((s) => s.baseConfig[optKey]);
@@ -207,15 +216,15 @@ function OverrideField({ optKey, slot }: { optKey: string; slot: number }) {
     <input
       type="checkbox"
       className="override-check"
-      aria-label={`Use this filament's own ${label}`}
-      title={on ? "Use the printer's value" : "Use this filament's own value"}
+      aria-label={t('settingsPanel.useOwnNamed', { label })}
+      title={on ? t('settingsPanel.usePrinters') : t('settingsPanel.useOwn')}
       checked={on}
       onChange={(e) => toggle(e.target.checked)}
     />
   );
   if (on) return <OptionField optKey={optKey} slot={slot} before={box} />;
   const enumAt = printerDef?.enumValues?.indexOf(fallback) ?? -1;
-  const shown = printerDef?.type === 'bools' ? (fallback === '1' ? 'Yes' : 'No') : enumAt >= 0 ? printerDef?.enumLabels?.[enumAt] || fallback : fallback;
+  const shown = printerDef?.type === 'bools' ? (fallback === '1' ? t('settingsPanel.yes') : t('settingsPanel.no')) : enumAt >= 0 ? printerDef?.enumLabels?.[enumAt] || fallback : fallback;
   return (
     <div className="option unset" title={def.tooltip || undefined}>
       <span className="option-label">
@@ -256,6 +265,7 @@ export function searchSettings(pages: ShownPage[], options: Record<string, Optio
  * their pickers. Changes are saved into a preset from the preset's ⋯ menu.
  */
 export function SettingsPanel() {
+  const { t } = useTranslation();
   const hasLayout = useSlicer((s) => !!s.layout?.print.length);
   const overrides = useSlicer((s) => s.overrides);
   const resetOverrides = useSlicer((s) => s.resetOverrides);
@@ -268,23 +278,23 @@ export function SettingsPanel() {
       <div className="group-head">
         <h2>
           <Settings2 aria-hidden />
-          Process settings
+          {t('settingsPanel.title')}
         </h2>
         <SettingsLevelChips />
       </div>
       <SettingsPages kind="print" />
       {changed > 0 && (
         <p className="hint">
-          {changed} setting{changed === 1 ? '' : 's'} changed from the presets. Save them into a preset from its ⋯ menu or its settings window.{' '}
+          {t('settingsPanel.changed', { count: changed })}{' '}
           <button className="quiet" onClick={() => resetOverrides()}>
-            Reset all
+            {t('settingsPanel.resetAll')}
           </button>
           {remembered && (
             <>
               {' '}
-              New project {remembered === 'keep' ? 'keeps' : 'discards'} them without asking.{' '}
+              {remembered === 'keep' ? t('settingsPanel.newKeeps') : t('settingsPanel.newDiscards')}{' '}
               <button className="quiet" onClick={forgetChoice}>
-                Ask again
+                {t('settingsPanel.askAgain')}
               </button>
             </>
           )}

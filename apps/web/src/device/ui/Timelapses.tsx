@@ -2,6 +2,7 @@
 // first. Tap one to watch it (fetched whole, then played, as Fluidd does),
 // download it, or delete it. Row pictures come over the direct link or the relay.
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Film, RefreshCw } from 'lucide-react';
 import { currentSession, useDevice } from '../../state/device';
 import { Dialog } from '../../components/Dialog';
@@ -57,27 +58,29 @@ const mb = (n: number) => (n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0
 
 /** A thin bar and "3.1 of 12 MB" in the dark video box while the video arrives. */
 function Arriving({ fraction, size, route }: { fraction: number; size: number; route: FileRoute | null }) {
-  const via = route === 'relay' ? ' through the relay' : '';
+  const { t } = useTranslation();
+  const vars = { got: mb(fraction * size), size: mb(size) };
   return (
     <div className="dv-timelapse-arriving" role="status">
       <div className="dv-timelapse-bar">
         <span style={{ width: `${Math.round(fraction * 100)}%` }} />
       </div>
-      <span>{`${mb(fraction * size)} of ${mb(size)} MB${via}`}</span>
+      <span>{route === 'relay' ? t('deviceTimelapse.arrivingRelay', vars) : t('deviceTimelapse.arriving', vars)}</span>
     </div>
   );
 }
 
-function Player({ t, onClose, onDelete }: { t: Timelapse; onClose(): void; onDelete(): void }) {
+function Player({ t: video, onClose, onDelete }: { t: Timelapse; onClose(): void; onDelete(): void }) {
+  const { t } = useTranslation();
   const printer = useDevice((s) => s.activeId);
-  const canPlay = playable(t.path);
-  const [src] = useState(() => sourceFor(printer, t, t.path, t.size));
+  const canPlay = playable(video.path);
+  const [src] = useState(() => sourceFor(printer, video, video.path, video.size));
   // The whole video, fetched before it plays (as Fluidd does); Download hands over the same copy.
   const [fraction, setFraction] = useState(0);
   const [blob, setBlob] = useState<Blob | null>(null);
   const url = useBlobUrl(blob);
   const [route, setRoute] = useState<FileRoute | null>(src?.route ?? null);
-  const [error, setError] = useState(src ? '' : 'This printer connection cannot fetch videos.');
+  const [error, setError] = useState(src ? '' : t('deviceTimelapse.cannotFetch'));
 
   useEffect(() => {
     if (!src) return;
@@ -85,7 +88,7 @@ function Player({ t, onClose, onDelete }: { t: Timelapse; onClose(): void; onDel
     let live = true;
     src.all((f) => live && setFraction(f)).then(
       (b) => live && setBlob(b),
-      (e: Error) => live && setError(e.message || 'The video could not be fetched.'),
+      (e: Error) => live && setError(e.message || t('deviceTimelapse.fetchFailed')),
     );
     return () => {
       live = false;
@@ -95,22 +98,22 @@ function Player({ t, onClose, onDelete }: { t: Timelapse; onClose(): void; onDel
 
   return (
     <Dialog
-      title={<span className="dv-timelapse-title">{nameOf(t.path)}</span>}
+      title={<span className="dv-timelapse-title">{nameOf(video.path)}</span>}
       onClose={onClose}
       wide
       testId="timelapse-player"
       footer={
         <>
           <button className="secondary danger" onClick={onDelete} disabled={!blob && !error}>
-            Delete
+            {t('deviceTimelapse.delete')}
           </button>
           {url ? (
-            <a className="primary" href={url} download={nameOf(t.path)}>
-              Download
+            <a className="primary" href={url} download={nameOf(video.path)}>
+              {t('deviceTimelapse.download')}
             </a>
           ) : (
             <button className="primary" disabled>
-              Download
+              {t('deviceTimelapse.download')}
             </button>
           )}
         </>
@@ -120,20 +123,21 @@ function Player({ t, onClose, onDelete }: { t: Timelapse; onClose(): void; onDel
         <Note tone="error">{error}</Note>
       ) : !url ? (
         <div className="dv-timelapse-stage">
-          <Arriving fraction={fraction} size={t.size} route={route} />
+          <Arriving fraction={fraction} size={video.size} route={route} />
         </div>
       ) : canPlay ? (
         <div className="dv-timelapse-stage">
           <video className="dv-timelapse-video" src={url} controls autoPlay playsInline muted data-testid="timelapse-video" />
         </div>
       ) : (
-        <Note>This kind of video doesn’t play in the browser. Download it to watch it.</Note>
+        <Note>{t('deviceTimelapse.cantPlay')}</Note>
       )}
     </Dialog>
   );
 }
 
 export function TimelapseList({ list, onRefresh, onDeleted }: { list: Timelapse[]; onRefresh(): void; onDeleted(t: Timelapse): void }) {
+  const { t } = useTranslation();
   const call = useDevice((s) => s.call);
   const printer = useDevice((s) => s.activeId);
   const [page, setPage] = useState(0);
@@ -143,81 +147,81 @@ export function TimelapseList({ list, onRefresh, onDeleted }: { list: Timelapse[
   const at = Math.min(page, pages - 1);
   const rows = list.slice(at * FILES_PER_PAGE, (at + 1) * FILES_PER_PAGE);
 
-  const remove = async (t: Timelapse) => {
+  const remove = async (v: Timelapse) => {
     setDeleting(null);
     setOpen(null);
-    if (await call('Deleted', (s) => s.deleteTimelapse(t))) {
-      forgetSource(keyOf(printer, t, t.path));
-      if (t.picture) forgetSource(keyOf(printer, t, t.picture));
-      onDeleted(t);
+    if (await call(t('deviceFiles.deleted'), (s) => s.deleteTimelapse(v))) {
+      forgetSource(keyOf(printer, v, v.path));
+      if (v.picture) forgetSource(keyOf(printer, v, v.picture));
+      onDeleted(v);
     }
   };
 
   return (
     <>
       {list.length === 0 ? (
-        <Empty icon={Film} text="No timelapses yet. Turn on Timelapse when you start a print." />
+        <Empty icon={Film} text={t('deviceTimelapse.none')} />
       ) : (
         <ul className="dv-files" data-testid="timelapse-list">
-          {rows.map((t) => (
-            <li key={`${t.root}/${t.path}`}>
-              <RowPicture t={t} />
-              <button className="dv-file-name dv-timelapse-name" title={`${t.path} · ${fileSize(t.size)}`} onClick={() => setOpen(t)}>
-                {t.path}
+          {rows.map((v) => (
+            <li key={`${v.root}/${v.path}`}>
+              <RowPicture t={v} />
+              <button className="dv-file-name dv-timelapse-name" title={`${v.path} · ${fileSize(v.size)}`} onClick={() => setOpen(v)}>
+                {v.path}
               </button>
               <span className="muted dv-file-meta">
-                <span>{fileWhen(t.modified)}</span>
-                <span>{fileSize(t.size)}</span>
+                <span>{fileWhen(v.modified)}</span>
+                <span>{fileSize(v.size)}</span>
               </span>
               <span className="dv-file-actions">
-                <button className="quiet" onClick={() => setOpen(t)}>
-                  Watch
+                <button className="quiet" onClick={() => setOpen(v)}>
+                  {t('deviceTimelapse.watch')}
                 </button>
-                <button className="quiet danger" aria-label={`Delete ${t.path}`} onClick={() => setDeleting(t)}>
-                  Delete
+                <button className="quiet danger" aria-label={t('deviceFiles.deleteName', { name: v.path })} onClick={() => setDeleting(v)}>
+                  {t('deviceTimelapse.delete')}
                 </button>
               </span>
             </li>
           ))}
         </ul>
       )}
-      <nav className="dv-pager" aria-label="Timelapse pages">
+      <nav className="dv-pager" aria-label={t('deviceTimelapse.pages')}>
         {pages > 1 ? (
           <>
             <button className="quiet" disabled={at === 0} onClick={() => setPage(at - 1)}>
-              <ChevronLeft size={14} aria-hidden /> Newer
+              <ChevronLeft size={14} aria-hidden /> {t('deviceFiles.newer')}
             </button>
             <span className="muted">
-              {at * FILES_PER_PAGE + 1}–{at * FILES_PER_PAGE + rows.length} of {list.length}
+              {t('deviceFiles.range', { from: at * FILES_PER_PAGE + 1, to: at * FILES_PER_PAGE + rows.length, total: list.length })}
             </span>
             <button className="quiet" disabled={at === pages - 1} onClick={() => setPage(at + 1)}>
-              Older <ChevronRight size={14} aria-hidden />
+              {t('deviceFiles.older')} <ChevronRight size={14} aria-hidden />
             </button>
           </>
         ) : (
           <span />
         )}
         <button className="quiet" onClick={onRefresh}>
-          <RefreshCw size={14} aria-hidden /> Refresh
+          <RefreshCw size={14} aria-hidden /> {t('deviceTimelapse.refresh')}
         </button>
       </nav>
       {open && <Player t={open} onClose={() => setOpen(null)} onDelete={() => setDeleting(open)} />}
       {deleting && (
         <Dialog
-          title="Delete timelapse"
+          title={t('deviceTimelapse.deleteTitle')}
           onClose={() => setDeleting(null)}
           footer={
             <>
               <button className="secondary" onClick={() => setDeleting(null)}>
-                Keep going
+                {t('deviceCards.keepGoing')}
               </button>
               <button className="primary danger" onClick={() => void remove(deleting)}>
-                Delete timelapse
+                {t('deviceTimelapse.deleteTitle')}
               </button>
             </>
           }
         >
-          <p>Delete {deleting.path} from the printer?</p>
+          <p>{t('deviceFiles.deleteText', { name: deleting.path })}</p>
         </Dialog>
       )}
     </>

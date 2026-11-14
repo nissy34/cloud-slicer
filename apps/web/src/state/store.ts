@@ -63,6 +63,7 @@ import { estimateLayers, slicePercent } from '../lib/slice-progress';
 import { MATRIX, MULTIPLIER, remapMatrix, type FlushInfo } from '../lib/flush';
 import { OBJECT_CLASHED, objectsOutside, plateBounds, printedObjects } from '../lib/outside';
 import { fingerprintOf, summarize, type PlateSummary } from '../lib/prints';
+import { i18n } from '../i18n';
 
 /** 'admin' is the owner's Admin page, opened from the account menu (no tab of its own). */
 export type Tab = 'prepare' | 'preview' | 'device' | 'admin';
@@ -676,10 +677,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // Replaces a crashed engine with a new one, which reopens the project when
   // it is up (see start).
   // Desktop's words when a locked plate is asked to arrange or orient; true when it is locked.
-  function lockedNotice(action: string) {
+  function lockedNotice(action: 'arrange' | 'orient' | 'copies') {
     const { project, plate } = get();
     if (!project?.plates[plate]?.locked) return false;
-    set({ notice: `This plate is locked, so it can't ${action}. Unlock it from its lock icon or the plate menu.`, noticeWarn: true });
+    const words = { arrange: 'slicerNotices.lockedArrange', orient: 'slicerNotices.lockedOrient', copies: 'slicerNotices.lockedCopies' } as const;
+    set({ notice: i18n.t(words[action]), noticeWarn: true });
     return true;
   }
 
@@ -690,7 +692,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const old = client;
     client = null;
     restarting = true;
-    old?.terminate('The slicing engine restarted.');
+    old?.terminate(i18n.t('slicerNotices.engineRestarted'));
     // A Convert question the opening was waiting on goes with the old engine.
     convertAnswer?.(null);
     const { project, plate, job } = get();
@@ -745,7 +747,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const old = client;
     client = null;
     restarting = true;
-    old?.terminate('The slicing engine restarted.');
+    old?.terminate(i18n.t('slicerNotices.engineRestarted'));
     pendingRestore = null;
     saved3mf = null;
     writing = null;
@@ -776,16 +778,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
     // the allocator giving up); the page says it in words, with what helps.
     const outOfMemory = /unreachable|out of memory|bad_alloc|Cannot enlarge memory|Aborted\(\)/i.test(r.message);
     const crashed = outOfMemory
-      ? 'The slicing engine ran out of memory'
+      ? i18n.t('slicerNotices.outOfMemory')
       : r.slicing
-        ? 'The slicing engine crashed while slicing, most likely because it needed more memory than this browser allows'
-        : 'The slicing engine crashed';
-    const why = outOfMemory ? ' A lighter model needs less: try Simplify model, or fewer plates in one project.' : ` (${r.message})`;
+        ? i18n.t('slicerNotices.crashedSlicing')
+        : i18n.t('slicerNotices.crashed');
+    // The engine's own message stays as it gave it.
+    const why = outOfMemory ? ` ${i18n.t('slicerNotices.lighterModel')}` : ` (${r.message})`;
     if (!r.file) {
-      set({ project: null, preview: null, notice: `${crashed}, so it restarted. Your project could not be reopened.${why}`, noticeWarn: true });
+      set({ project: null, preview: null, notice: `${i18n.t('slicerNotices.notReopened', { crashed })}${why}`, noticeWarn: true });
       return;
     }
-    set({ job: { kind: 'loading', name: r.file.name, label: 'Reopening your project' } });
+    set({ job: { kind: 'loading', name: r.file.name, label: i18n.t('slicerNotices.reopening') } });
     const area = get().overrides.printable_area ?? get().baseConfig.printable_area ?? '';
     const res = await e.load(r.file, 0, area, false);
     set({ plate: Math.min(r.plate, Math.max(0, res.info.plates.length - 1)), history: await e.clearHistory() });
@@ -793,8 +796,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     await checkHeavy().catch((err) => console.warn('Triangle count:', err));
     saved3mf = { file: r.file, edits: e.projectEdits };
     await drawn();
-    const lost = r.current ? '' : ' Changes made since your last slice were lost.';
-    set({ job: { kind: 'idle' }, notice: `${crashed}, so it restarted and reopened your project.${lost}${why}`, noticeWarn: true });
+    const lost = r.current ? '' : ` ${i18n.t('slicerNotices.changesLost')}`;
+    set({ job: { kind: 'idle' }, notice: `${i18n.t('slicerNotices.reopened', { crashed })}${lost}${why}`, noticeWarn: true });
   }
 
   // Opens a project switchProject brought from the other engine: its presets'
@@ -803,7 +806,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // without its settings (they were the other engine's).
   async function carry(c: NonNullable<typeof pendingCarry>) {
     const e = engine();
-    set({ job: { kind: 'loading', name: c.file?.name ?? '', label: `Opening your project in ${engineName(c.plan.to)}` } });
+    set({ job: { kind: 'loading', name: c.file?.name ?? '', label: i18n.t('slicerNotices.openingIn', { engine: engineName(c.plan.to) }) } });
     try {
       const want = c.plan.selection;
       const printer = get().printers.some((p) => p.name === want.printer) ? want.printer : startPrinter(get().printers, installed());
@@ -839,7 +842,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       await drawn();
       set({ job: { kind: 'idle' }, notice: switchedText(c.plan), noticeWarn: false });
     } catch (err) {
-      set({ job: { kind: 'error', message: `Couldn't open your project in ${engineName(c.plan.to)}: ${(err as Error).message}` } });
+      set({ job: { kind: 'error', message: i18n.t('slicerNotices.couldNotOpenIn', { engine: engineName(c.plan.to), error: (err as Error).message }) } });
     }
   }
 
@@ -1009,7 +1012,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     if (kind === 'sliced') return { ...dropped, job: { kind: 'idle' } };
     if (kind !== 'slicing') return dropped;
     stopSlice();
-    return { ...dropped, job: { kind: 'idle' }, notice: 'Slicing stopped because something changed. Slice again when ready.', noticeWarn: false };
+    return { ...dropped, job: { kind: 'idle' }, notice: i18n.t('slicerNotices.sliceStopped'), noticeWarn: false };
   };
   // The shown plate's slice, or idle: what job goes back to when nothing runs.
   const shownSlice = (plate = get().plate): Job => get().slices[plate] ?? { kind: 'idle' };
@@ -1172,7 +1175,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const { choice, dontAsk } = await askSimplifyFirst(heavyQuestion(plan, info.plates.length), plan.painted);
     if (dontAsk) saveAskSimplify(false);
     if (choice !== 'simplify') return { choice, info };
-    set({ job: { kind: 'loading', name: file.name, label: 'Simplifying' } });
+    set({ job: { kind: 'loading', name: file.name, label: i18n.t('slicerEdits.simplifying') } });
     for (const { object, ratio } of plan.objects) info = await e.simplifyApply(object, { ratio });
     return { choice, info };
   }
@@ -1256,8 +1259,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     save({ selection: get().selection }, get().flavor);
   }
 
-  const settingsNotice = (n: number, from: string) =>
-    n ? `Loaded ${n} setting${n === 1 ? '' : 's'} from ${from}. Changed values are marked in Settings.` : '';
+  const settingsNotice = (n: number) => (n ? i18n.t('slicerNotices.projectSettings', { count: n }) : '');
 
   // A 3MF's own settings: with a printer we have, select the project's presets
   // and apply its changes on top (like opening the project in desktop Orca);
@@ -1281,7 +1283,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const answer = await new Promise<{ printer: string; keepSettings: boolean } | null>((resolve) => (convertAnswer = resolve));
       convertAnswer = null;
       if (!answer) return set({ conversion: null });
-      set({ job: { kind: 'loading', name, label: `Converting to ${answer.printer}` } });
+      set({ job: { kind: 'loading', name, label: i18n.t('slicerNotices.converting', { printer: answer.printer }) } });
       await convert(file, answer.printer, answer.keepSettings);
       return;
     }
@@ -1303,12 +1305,12 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const own = samePresets ? changedOnPurpose(file) : null;
     const { mixed_filament_definitions: mixes = '', ...overrides } = projectOverrides(file, get().baseConfig, get().options, own ?? undefined);
     const gcode = gcodeOverrides(overrides);
-    foreignGcode = !engineOfModelHead(head) && Object.keys(gcode).length ? { app: appOfModelHead(head) || 'another slicer', values: gcode } : null;
+    foreignGcode = !engineOfModelHead(head) && Object.keys(gcode).length ? { app: appOfModelHead(head) || i18n.t('slicerNotices.anotherSlicer'), values: gcode } : null;
     // The project's own mixes replace the current ones, as opening it in desktop does.
     set({ mixDefinitions: file.mixed_filament_definitions ?? mixes });
     setOverrides(overrides);
     await refreshMixes();
-    set({ notice: settingsNotice(Object.keys(overrides).length, 'the project'), noticeWarn: false });
+    set({ notice: settingsNotice(Object.keys(overrides).length), noticeWarn: false });
   }
 
   // The answer to the Convert question while a project opens (null: Cancel).
@@ -1344,7 +1346,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     await fitPlates();
     const from = printerLabel(file);
     const n = Object.keys(overrides).length;
-    set({ notice: `Converted from ${from} to ${printer}.${n ? ' ' + settingsNotice(n, 'the project') : ''}`, noticeWarn: false });
+    set({ notice: `${i18n.t('slicerNotices.converted', { from, printer })}${n ? ' ' + settingsNotice(n) : ''}`, noticeWarn: false });
   }
 
   if (typeof Worker !== 'undefined') queueMicrotask(engine);
@@ -1444,7 +1446,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   const stepHistory = async (step: 'undo' | 'redo') => {
     if (!get().history[step]) return;
-    await busyWhile(step === 'undo' ? 'Undoing' : 'Redoing', () => stepHistoryNow(step), BUSY_AFTER_MS);
+    await busyWhile(step === 'undo' ? i18n.t('slicerEdits.undoing') : i18n.t('slicerEdits.redoing'), () => stepHistoryNow(step), BUSY_AFTER_MS);
   };
   const stepHistoryNow = async (step: 'undo' | 'redo') => {
     edits++;
@@ -1645,7 +1647,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       // New filaments: the flushing volumes are recalculated for them.
       await editFilaments(() => ({ filaments: presets, colours }), () => presets.map(() => null));
       const n = plan.filaments.length;
-      set({ notice: `Loaded ${n} filament${n === 1 ? '' : 's'} from ${from}.`, noticeWarn: false });
+      set({ notice: i18n.t('slicerNotices.filamentsLoaded', { count: n, from }), noticeWarn: false });
     },
 
     setOverride(key, value) {
@@ -1690,7 +1692,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
           // Adding a model can be undone; opening a project starts a new history, like desktop.
           const opensProject = is3mf(file) && !geometryOnly;
           const hadObjects = (get().project?.objects.length ?? 0) > 0;
-          if (!opensProject) set({ history: await e.snapshot('Add model') });
+          if (!opensProject) set({ history: await e.snapshot(i18n.t('slicerEdits.addModel')) });
           // What wrote the project decides whether its G-code is kept (importProject).
           const head = opensProject ? await modelHeadOf3mf(file) : '';
           // Like desktop, an added model turns by the printer's preferred orientation.
@@ -1826,13 +1828,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
       engine()
         .simplifyPreview(o, by)
         .catch((err) => (fail(err), null)),
-    simplifyObject: (o, by) => projectEdit('Simplify', () => engine().simplifyApply(o, by)),
+    simplifyObject: (o, by) => projectEdit(i18n.t('slicerEdits.simplify'), () => engine().simplifyApply(o, by)),
     async simplifyHeavy() {
       const plan = get().heavy;
       if (!plan) return;
       triangleCounts = null;
-      set({ heavy: null, job: { kind: 'loading', name: '', label: 'Simplifying' } });
-      await projectEdit('Simplify', async () => {
+      set({ heavy: null, job: { kind: 'loading', name: '', label: i18n.t('slicerEdits.simplifying') } });
+      await projectEdit(i18n.t('slicerEdits.simplify'), async () => {
         let info = get().project!;
         for (const o of plan.objects) info = await engine().simplifyApply(o, { ratio: plan.ratio });
         return info;
@@ -1901,7 +1903,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     assemble: (request) => {
       const [a, b] = get().measure.picks;
       if (!a || !b) return Promise.resolve();
-      return projectEdit(request.op === 'join' ? 'Join objects' : 'Assemble', async () => {
+      return projectEdit(request.op === 'join' ? i18n.t('slicerEdits.joinObjects') : i18n.t('slicerEdits.assemble'), async () => {
         const { info, first, second, object, ...result } = await engine().assembleAction(a.id, b.id, request);
         set({
           measure: { ...get().measure, hover: null, picks: [first, second], result },
@@ -1923,7 +1925,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const e = engine();
       const edit = request.op !== 'get';
       try {
-        if (edit) set({ history: await e.snapshot('Brim ears') });
+        if (edit) set({ history: await e.snapshot(i18n.t('slicerEdits.brimEars')) });
         const ears = await e.brimEars(selected.object, selected.instance, engineOverrides(), request);
         if (get().tool !== 'brim') return;
         const same = get().brim?.object === selected.object;
@@ -1942,7 +1944,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const e = engine();
       const edit = request.op !== 'get';
       try {
-        if (edit && !continues) set({ history: await e.snapshot('Variable layer height') });
+        if (edit && !continues) set({ history: await e.snapshot(i18n.t('slicerEdits.variableLayerHeight')) });
         const profile = await e.layerHeights(o, engineOverrides(), request);
         if (get().tool === 'layers') set({ layers: { ...profile, object: o } });
         if (edit) set(stale());
@@ -1970,7 +1972,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       pendingRestore = null;
       // What the old engine was still doing is dropped, not an error to show.
       restarting = true;
-      old?.terminate('The slicing engine was switched.');
+      old?.terminate(i18n.t('slicerNotices.engineSwitched'));
       // Settings and mixes belong to a project, and the presets they name to an engine.
       set({ ...emptyEngine(), flavor, engineInfo: null, overrides: {}, calibration: null, mixDefinitions: '', mixes: [], palette: [], towers: [], notice: '', conversion: null, pendingOpen: null });
       engine();
@@ -2009,7 +2011,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       try {
         await get().endCalibration();
         if (get().job.kind === 'slicing') stopSlice();
-        set({ job: { kind: 'loading', name: '', label: `Moving your project to ${engineName(to)}` }, tool: null, paint: null });
+        set({ job: { kind: 'loading', name: '', label: i18n.t('slicerNotices.moving', { engine: engineName(to) }) }, tool: null, paint: null });
         if (hasModel) {
           // The old engine changes what the new one can't read, then saves the project.
           for (const edit of plan.objectEdits) await e.setObjectSettings(edit.object, edit.volume, edit.values);
@@ -2042,7 +2044,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set({ history: await engine().clearHistory() });
     },
     clearProject: () =>
-      projectEdit('Delete all', async () => {
+      projectEdit(i18n.t('slicerEdits.deleteAll'), async () => {
         await get().endCalibration();
         set({ selected: null, tool: null });
         return engine().clear();
@@ -2111,13 +2113,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const { group, selected, preview } = get();
       const objects = group.length > 1 ? group : selected && selected.volume === undefined ? [selected.object] : [];
       if (!objects.length || !preview) return;
-      if ('move' in by) return get().transformGroup([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, by.move[0], by.move[1], 0, 1], 'Move');
+      if ('move' in by) return get().transformGroup([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, by.move[0], by.move[1], 0, 1], i18n.t('slicerEdits.move'));
       const c = groupBox(preview, objects).getCenter(new THREE.Vector3());
       const m = new THREE.Matrix4()
         .makeTranslation(c.x, c.y, 0)
         .multiply(new THREE.Matrix4().makeRotationZ((by.turn * Math.PI) / 180))
         .multiply(new THREE.Matrix4().makeTranslation(-c.x, -c.y, 0));
-      return get().transformGroup(m.elements.slice(), 'Rotate');
+      return get().transformGroup(m.elements.slice(), i18n.t('slicerEdits.rotate'));
     },
     groupAction: async (action) => {
       const { project, plate, group, preview } = get();
@@ -2132,7 +2134,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         });
       switch (action.op) {
         case 'delete':
-          return projectEdit('Delete', async () => {
+          return projectEdit(i18n.t('slicerEdits.delete'), async () => {
             set({ group: [], selected: null, tool: null, groupMenu: null });
             let info = project;
             // From the last object back, so the numbers of the ones still to go stay right.
@@ -2144,15 +2146,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
             return info;
           });
         case 'printable':
-          return each('Printable', (o, i) => e.objectAction(o, i, { op: 'printable', value: action.value }));
+          return each(i18n.t('slicerEdits.printable'), (o, i) => e.objectAction(o, i, { op: 'printable', value: action.value }));
         case 'filament':
-          return projectEdit('Change filament', async () => {
+          return projectEdit(i18n.t('slicerEdits.changeFilament'), async () => {
             let info = project;
             for (const o of group) info = await e.setExtruder(o, -1, action.filament);
             return info;
           });
         case 'orient':
-          return projectEdit('Auto orient', async () => {
+          return projectEdit(i18n.t('slicerEdits.autoOrient'), async () => {
             let info = project;
             for (const o of group) info = await e.orientObject(o);
             return info;
@@ -2163,20 +2165,20 @@ export const useSlicer = create<SlicerState>((set, get) => {
           const dx = project.plateWidth / 2 - (box.min.x + box.max.x) / 2;
           const dy = project.plateDepth / 2 - (box.min.y + box.max.y) / 2;
           if (Math.hypot(dx, dy) < 1e-3) return;
-          return get().transformGroup([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, dx, dy, 0, 1], 'Center');
+          return get().transformGroup([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, dx, dy, 0, 1], i18n.t('slicerEdits.center'));
         }
         case 'arrange':
-          return projectEdit('Arrange selection', async () => (await e.plateAction(plate, { op: 'arrangeSelection', objects: group })).info);
+          return projectEdit(i18n.t('slicerEdits.arrangeSelection'), async () => (await e.plateAction(plate, { op: 'arrangeSelection', objects: group })).info);
         case 'assemble':
           // Desktop's Assemble with several objects selected (ObjectList::merge):
           // one new object, each part where it stood, picked.
-          return projectEdit('Assemble', async () => {
+          return projectEdit(i18n.t('slicerEdits.assemble'), async () => {
             const { info, object } = await e.plateAction(plate, { op: 'assemble', items: firstCopies(items) });
             if (object !== undefined) set({ group: [], selected: { object, instance: 0 } });
             return info;
           });
         case 'clone':
-          await projectEdit('Clone', async () => {
+          await projectEdit(i18n.t('slicerEdits.clone'), async () => {
             let info = project;
             for (const o of group) info = await e.objectAction(o, 0, { op: 'clone', count: action.count });
             return info;
@@ -2192,7 +2194,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         case 'copy':
           try {
             await e.plateAction(plate, { op: 'copy', items });
-            set({ copied: true, notice: `Copied ${group.length} objects. Ctrl+V pastes them as new objects.`, noticeWarn: false });
+            set({ copied: true, notice: i18n.t('slicerNotices.copiedObjects', { count: group.length }), noticeWarn: false });
           } catch (err) {
             fail(err);
           }
@@ -2208,21 +2210,21 @@ export const useSlicer = create<SlicerState>((set, get) => {
           return;
       }
     },
-    moveInstance: (o, i, x, y) => projectEdit('Move', () => engine().transform(o, i, { offset: [x, y], plate: get().plate })),
+    moveInstance: (o, i, x, y) => projectEdit(i18n.t('slicerEdits.move'), () => engine().transform(o, i, { offset: [x, y], plate: get().plate })),
     transformInstance: (o, i, changes) =>
-      projectEdit(changes.rotation ? 'Rotate' : changes.scale ? 'Scale' : 'Move', () => engine().transform(o, i, changes)),
-    setObjectFilament: (o, volume, filament) => projectEdit('Change filament', () => engine().setExtruder(o, volume, filament)),
+      projectEdit(changes.rotation ? i18n.t('slicerEdits.rotate') : changes.scale ? i18n.t('slicerEdits.scale') : i18n.t('slicerEdits.move'), () => engine().transform(o, i, changes)),
+    setObjectFilament: (o, volume, filament) => projectEdit(i18n.t('slicerEdits.changeFilament'), () => engine().setExtruder(o, volume, filament)),
     deleteObject: (o) =>
-      projectEdit('Delete', () => {
+      projectEdit(i18n.t('slicerEdits.delete'), () => {
         set({ selected: null, tool: null });
         return engine().deleteObject(o);
       }),
     copyInstance: (o, i) => {
       const size = get().project?.objects[o]?.size ?? [20, 20, 0];
-      return projectEdit('Add instance', () => engine().addInstance(o, i, size[0] + 5, 0));
+      return projectEdit(i18n.t('slicerEdits.addInstance'), () => engine().addInstance(o, i, size[0] + 5, 0));
     },
     removeInstance: (o, i) =>
-      projectEdit('Remove instance', async () => {
+      projectEdit(i18n.t('slicerEdits.removeInstance'), async () => {
         const last = (get().project?.objects[o]?.instances.length ?? 1) <= 1;
         const sel = get().selected;
         if (sel?.object === o) {
@@ -2233,12 +2235,12 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return engine().deleteInstance(o, i);
       }),
     transformVolume: (o, volume, changes) =>
-      projectEdit(changes.rotation ? 'Rotate part' : changes.scale ? 'Scale part' : 'Move part', async () =>
+      projectEdit(changes.rotation ? i18n.t('slicerEdits.rotatePart') : changes.scale ? i18n.t('slicerEdits.scalePart') : i18n.t('slicerEdits.movePart'), async () =>
         (await engine().volumeAction(o, { op: 'set', volume, ...changes })).info),
     copyToClipboard: async (o, i) => {
       try {
         await engine().plateAction(get().plate, { op: 'copy', object: o, instance: i });
-        set({ copied: true, notice: 'Copied. Ctrl+V pastes it as a new object.', noticeWarn: false });
+        set({ copied: true, notice: i18n.t('slicerNotices.copied'), noticeWarn: false });
       } catch (err) {
         fail(err);
       }
@@ -2247,14 +2249,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
       await get().copyToClipboard(o, i);
       if (!get().copied) return;
       await get().removeInstance(o, i);
-      set({ notice: 'Cut. Paste puts it back as a new object (Ctrl+V).', noticeWarn: false });
+      set({ notice: i18n.t('slicerNotices.cut'), noticeWarn: false });
     },
     paste: async () => {
-      if (!get().copied) return void set({ notice: 'Nothing copied yet: pick an object and choose Copy (Ctrl+C).', noticeWarn: false });
-      return get().plateAction({ op: 'paste' }, 'Paste');
+      if (!get().copied) return void set({ notice: i18n.t('slicerNotices.nothingCopied'), noticeWarn: false });
+      return get().plateAction({ op: 'paste' }, i18n.t('slicerEdits.paste'));
     },
     setInstanceCount: (o, count) =>
-      projectEdit('Set number of instances', async () => {
+      projectEdit(i18n.t('slicerEdits.setInstances'), async () => {
         const e = engine();
         let info = get().project!;
         const width = info.objects[o]?.size[0] ?? 20;
@@ -2268,7 +2270,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }),
     moveToPlate: async (items, to) => {
       let target = to === 'new' ? -1 : to;
-      await projectEdit('Move to plate', async () => {
+      await projectEdit(i18n.t('slicerEdits.moveToPlate'), async () => {
         const e = engine();
         let info = get().project!;
         if (to === 'new') {
@@ -2288,8 +2290,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
     arrange: (all = false) => {
       if (!all && lockedNotice('arrange')) return Promise.resolve();
-      return busyWhile(all ? 'Arranging all plates' : 'Arranging the plate', () =>
-        projectEdit('Arrange', async () => {
+      return busyWhile(all ? i18n.t('slicerEdits.arrangingAll') : i18n.t('slicerEdits.arrangingPlate'), () =>
+        projectEdit(i18n.t('slicerEdits.arrange'), async () => {
           if (!all) return arrangePlate(get().plate);
           // Each plate in turn, skipping locked ones; what doesn't fit goes onto new plates at the end.
           const plates = get().project?.plates.length ?? 1;
@@ -2299,34 +2301,34 @@ export const useSlicer = create<SlicerState>((set, get) => {
         }),
       );
     },
-    setObjectSettings: (o, volume, values) => projectEdit('Change object settings', () => engine().setObjectSettings(o, volume, values)),
+    setObjectSettings: (o, volume, values) => projectEdit(i18n.t('slicerEdits.changeObjectSettings'), () => engine().setObjectSettings(o, volume, values)),
     addPlate: async () => {
-      await projectEdit('Add plate', () => engine().addPlate());
+      await projectEdit(i18n.t('slicerEdits.addPlate'), () => engine().addPlate());
       const n = get().project?.plates.length ?? 1;
       await get().setPlate(n - 1);
     },
     deletePlate: async () => {
       const gone = get().plate;
       const before = get().project?.plates.length ?? 1;
-      await projectEdit('Delete plate', () => {
+      await projectEdit(i18n.t('slicerEdits.deletePlate'), () => {
         set({ selected: null, towers: dropPlateTower(get().towers, gone) });
         return engine().deletePlate(gone);
       });
       if ((get().project?.plates.length ?? 1) < before) plateDeleted(gone, before);
     },
-    orientObject: (o) => projectEdit('Auto orient', () => engine().orientObject(o)),
+    orientObject: (o) => projectEdit(i18n.t('slicerEdits.autoOrient'), () => engine().orientObject(o)),
     splitObject: (o) =>
-      busyWhile('Splitting into objects', () =>
-        projectEdit('Split to objects', () => {
+      busyWhile(i18n.t('slicerEdits.splittingObjects'), () =>
+        projectEdit(i18n.t('slicerEdits.splitObjects'), () => {
           set({ selected: null, tool: null });
           return engine().splitObject(o);
         }),
       ),
-    splitParts: (o) => busyWhile('Splitting into parts', () => projectEdit('Split to parts', () => engine().splitParts(o))),
+    splitParts: (o) => busyWhile(i18n.t('slicerEdits.splittingParts'), () => projectEdit(i18n.t('slicerEdits.splitParts'), () => engine().splitParts(o))),
     orient: (o) => {
-      if (o === undefined && lockedNotice('auto orient')) return Promise.resolve();
-      return busyWhile('Auto orienting', () =>
-        projectEdit('Auto orient', async () => {
+      if (o === undefined && lockedNotice('orient')) return Promise.resolve();
+      return busyWhile(i18n.t('slicerEdits.autoOrienting'), () =>
+        projectEdit(i18n.t('slicerEdits.autoOrient'), async () => {
           const { project, plate } = get();
           const objects = o !== undefined ? [o] : (project?.plates[plate]?.objects ?? []);
           let info = project!;
@@ -2335,11 +2337,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
         }),
       );
     },
-    mirror: (o, i, axis) => projectEdit('Mirror', () => engine().mirrorInstance(o, i, axis)),
+    mirror: (o, i, axis) => projectEdit(i18n.t('slicerEdits.mirror'), () => engine().mirrorInstance(o, i, axis)),
     openObjectMenu: (objectMenu) => set(objectMenu ? { objectMenu, plateMenu: null } : { objectMenu }),
     openPlateMenu: (plateMenu) => set(plateMenu ? { plateMenu, objectMenu: null } : { plateMenu }),
     openPlateSettings: (plateSettings) => set({ plateSettings, plateMenu: null }),
-    lockPlate: (locked) => get().plateAction({ op: 'lock', locked }, locked ? 'Lock plate' : 'Unlock plate'),
+    lockPlate: (locked) => get().plateAction({ op: 'lock', locked }, locked ? i18n.t('slicerEdits.lockPlate') : i18n.t('slicerEdits.unlockPlate')),
     plateAction: async (request, label) => {
       let object: number | undefined;
       let objects: number[] = [];
@@ -2378,8 +2380,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     objectAction: (o, i, request, label) => projectEdit(label, () => engine().objectAction(o, i, request)),
     cloneObject: (o, count, arrange) =>
-      busyWhile(arrange ? 'Cloning and arranging' : 'Cloning', async () => {
-        await projectEdit('Clone', async () => {
+      busyWhile(arrange ? i18n.t('slicerEdits.cloningArranging') : i18n.t('slicerEdits.cloning'), async () => {
+        await projectEdit(i18n.t('slicerEdits.clone'), async () => {
           const before = get().project!.objects.length;
           let info = await engine().objectAction(o, 0, { op: 'clone', count });
           // The engine lines the copies up beside the object, so many of them
@@ -2391,13 +2393,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
           }
           return info;
         });
-        if (arrange) await projectEdit('Arrange', () => arrangePlate(get().plate));
+        if (arrange) await projectEdit(i18n.t('slicerEdits.arrange'), () => arrangePlate(get().plate));
       }),
     fillPlate: async (o, i) => {
-      if (lockedNotice('take more copies')) return;
+      if (lockedNotice('copies')) return;
       const before = get().project?.objects[o]?.instances.length ?? 0;
-      await busyWhile('Filling the plate', () =>
-        projectEdit('Fill plate with copies', async () => {
+      await busyWhile(i18n.t('slicerEdits.fillingPlate'), () =>
+        projectEdit(i18n.t('slicerEdits.fillPlate'), async () => {
           // Arrange's spacing, and clear of the prime tower, as desktop's FillBedJob.
           const { plate, wipeTower } = get();
           const { spacing } = await arrangeFor(plate);
@@ -2407,10 +2409,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
         }),
       );
       const after = get().project?.objects[o]?.instances.length ?? 0;
-      if (after === before) set({ notice: 'There is no room left on this plate for another copy.', noticeWarn: false });
+      if (after === before) set({ notice: i18n.t('slicerNotices.noRoomForCopy'), noticeWarn: false });
     },
     replaceWithStl: async (o, volume, file) =>
-      projectEdit('Replace with STL', async () => engine().objectAction(o, 0, { op: 'replace', volume }, await file.arrayBuffer())),
+      projectEdit(i18n.t('slicerEdits.replaceStl'), async () => engine().objectAction(o, 0, { op: 'replace', volume }, await file.arrayBuffer())),
     volumeAction: async (o, request, label, file) => {
       let volume: number | undefined;
       const instance = get().selected?.object === o ? get().selected!.instance : 'instance' in request ? request.instance : 0;
@@ -2423,7 +2425,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     textVolume: async (o, style, edit) => {
       let out: { object: number; volume: number; missing: string } | undefined;
-      const label = 'volume' in edit ? 'Edit text' : 'Add text';
+      const label = 'volume' in edit ? i18n.t('slicerEdits.editText') : i18n.t('slicerEdits.addText');
       const objectsBefore = get().project?.objects.length ?? 0;
       await projectEdit(label, async () => {
         const e = engine();
@@ -2464,7 +2466,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     svgVolume: async (o, edit) => {
       let out: { object: number; volume: number } | undefined;
-      await projectEdit('file' in edit ? 'Add SVG' : 'Edit SVG', async () => {
+      await projectEdit('file' in edit ? i18n.t('slicerEdits.addSvg') : i18n.t('slicerEdits.editSvg'), async () => {
         const e = engine();
         const r =
           'file' in edit
@@ -2516,7 +2518,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         // A text that follows the surface is remade with its font.
         const fontPath = text ? await fontInEngine(e, text.font).catch(() => undefined) : undefined;
         const r = await e.shapePlace(o, get().plate, { ...request, fontPath, keepUp: get().keepUp } as ShapePlaceRequest);
-        if (!r.info) throw new Error('The shape is off the object there; move it back onto the surface.');
+        if (!r.info) throw new Error(i18n.t('slicerNotices.shapeOff'));
         ok = true;
         return r.info;
       });
@@ -2524,7 +2526,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     meshBoolean: async (o, request) => {
       let volume: number | undefined;
-      const label = request.op === 'union' ? 'Union' : request.op === 'difference' ? 'Difference' : 'Intersection';
+      const label = request.op === 'union' ? i18n.t('slicerEdits.union') : request.op === 'difference' ? i18n.t('slicerEdits.difference') : i18n.t('slicerEdits.intersection');
       await projectEdit(label, async () => {
         const out = await engine().meshBoolean(o, request);
         volume = out.volume;
@@ -2549,7 +2551,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
     },
     cutObject: (o, i, request) =>
-      projectEdit('Cut', () => {
+      projectEdit(i18n.t('slicerEdits.cut'), () => {
         set({ selected: null, tool: null });
         return engine().cutObject(o, i, request);
       }),
@@ -2560,7 +2562,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       saveConvertPreference(remember ? { printer, keepSettings, auto: true } : null);
       // Asked while the project opens: the opening converts it, then draws it.
       if (convertAnswer) return convertAnswer({ printer, keepSettings });
-      set({ job: { kind: 'loading', name: c.from, label: `Converting to ${printer}` } });
+      set({ job: { kind: 'loading', name: c.from, label: i18n.t('slicerNotices.converting', { printer }) } });
       try {
         await convert(c.file, printer, keepSettings);
         await drawn();
@@ -2604,7 +2606,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
           strokeQueue = [];
           if (strokeStarts) {
             strokeStarts = false;
-            set({ history: await engine().snapshot('Paint') });
+            set({ history: await engine().snapshot(i18n.t('slicerEdits.paint')) });
           }
           const res = await engine().paint(get().plate, { ...paint, rays: batch });
           set({ project: res.info, ...(res.preview && { preview: res.preview }), ...(res.overlay && { overlay: res.overlay }), ...stale() });
@@ -2618,20 +2620,20 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     undo: () => stepHistory('undo'),
     redo: () => stepHistory('redo'),
-    clearPaint: (o) => projectEdit('Clear paint', () => engine().clearPaint(o, get().paint?.kind ?? 'all')),
+    clearPaint: (o) => projectEdit(i18n.t('slicerEdits.clearPaint'), () => engine().clearPaint(o, get().paint?.kind ?? 'all')),
     async remapPaint(map) {
       if (map.every((to, i) => to === i + 1)) return;
       const sel = get().selected;
       const objects = sel ? [sel.object] : (get().project?.plates[get().plate]?.objects ?? []);
       if (!objects.length) return;
-      await projectEdit('Remap filaments', () => engine().remapPaint(objects, map));
-      if (get().job.kind !== 'error') set({ notice: 'Filament remapping finished.', noticeWarn: false });
+      await projectEdit(i18n.t('slicerEdits.remapFilaments'), () => engine().remapPaint(objects, map));
+      if (get().job.kind !== 'error') set({ notice: i18n.t('slicerNotices.remapped'), noticeWarn: false });
     },
 
     async startCalibration(mode, values) {
       const title = CALIBRATIONS.find((c) => c.mode === mode)?.title ?? mode;
       await get().endCalibration();
-      set({ tab: 'prepare', paint: null, overlay: null, selected: null, plate: 0, conversion: null, job: { kind: 'loading', name: `${title} test`, label: `Setting up the ${title} test` } });
+      set({ tab: 'prepare', paint: null, overlay: null, selected: null, plate: 0, conversion: null, job: { kind: 'loading', name: i18n.t('slicerNotices.testName', { title }), label: i18n.t('slicerNotices.settingUpTest', { title }) } });
       try {
         const res = await engine().calibrate(calibrationOptions(mode, values), get().overrides);
         set({ history: await engine().clearHistory() });
@@ -2643,7 +2645,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         await drawn();
         set({
           job: { kind: 'idle' },
-          notice: [`${title} test ready. It changed ${keys.length} setting${keys.length === 1 ? '' : 's'}, marked in Settings.`, ...res.notes].join(' '),
+          notice: [i18n.t('slicerNotices.testReady', { title, count: keys.length }), ...res.notes].join(' '),
           noticeWarn: false,
         });
       } catch (e) {
@@ -2690,7 +2692,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       if (objectsOutside(get().preview ?? { positions: new Float32Array(), partList: new Int32Array() }, configBounds()).length) return fail(new Error(OBJECT_CLASHED));
       // Desktop refuses to slice a mix of materials that can't be mixed.
       if (get().mixes.some((m) => m.enabled && !m.compatible))
-        return fail(new Error('Mixed filaments contain incompatible material types. Please correct the mixed filaments settings before slicing.'));
+        return fail(new Error(i18n.t('slicerNotices.mixIncompatible')));
       const run = ++sliceRun;
       // Slicing a plate again replaces its old slice (a cancel leaves it unsliced, as before).
       const { [plate]: _old, ...others } = get().slices;
@@ -2714,7 +2716,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         // A big project takes the engine many seconds to write, so the bar
         // says so, and a write already running (AutoSave's) is used, not repeated.
         const e = engine();
-        if (writing || saved3mf?.edits !== e.projectEdits) set({ job: { kind: 'slicing', plate, pct: 0, stage: 'Saving a copy first' } });
+        if (writing || saved3mf?.edits !== e.projectEdits) set({ job: { kind: 'slicing', plate, pct: 0, stage: i18n.t('slicerNotices.savingCopy') } });
         if (saved3mf?.edits !== e.projectEdits) {
           await (writing?.edits === e.projectEdits ? writing.done : writeCopy(null));
           if (run !== sliceRun) return;
@@ -2763,7 +2765,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         // Another slicer's G-code this engine can't fill in: ask whether to use the printer's own.
         const fromFile = foreignGcode && gcodeErrors(message).some((f) => f.key in foreignGcode!.values);
         if (fromFile && fallBackGcode(get().overrides, foreignGcode!.values).dropped) {
-          set({ job: shownSlice(), gcodeFallback: { app: foreignGcode!.app, printer: get().selection?.printer ?? 'this printer', error } });
+          set({ job: shownSlice(), gcodeFallback: { app: foreignGcode!.app, printer: get().selection?.printer ?? i18n.t('slicerNotices.thisPrinter'), error } });
           return;
         }
         // Custom G-code the engine can't fill in: which one, which line, which variable.
@@ -2780,7 +2782,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     cancelSlice() {
       if (get().job.kind !== 'slicing') return;
       stopSlice();
-      set({ job: shownSlice(), notice: 'Slicing cancelled.', noticeWarn: false });
+      set({ job: shownSlice(), notice: i18n.t('slicerNotices.cancelled'), noticeWarn: false });
     },
   };
 });

@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "Settings to add to this object",
+    "forPart": "Settings to add to this part",
+    "forModifier": "Settings to add to this modifier",
+    "search": "Search settings",
+    "done": "Done",
+    "noMatch": "No setting matches “{{query}}”.",
+    "more": "More settings"
+  }
+}

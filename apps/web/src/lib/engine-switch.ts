@@ -20,6 +20,7 @@
 //     layer filament changes keep printing with it. OrcaSlicer has no Cycle
 //     mode: a Cycle mix goes there as a Ratio mix of the same shares.
 import type { OptionDef, OrcaConfig, ProjectInfo, Selection } from '../engine/protocol';
+import { i18n } from '../i18n';
 import { engineName, type EngineFlavor } from './engines';
 import { splitValues, valueAt, withValueAt } from './flow-variants';
 import { encodeIds, LAYER_CYCLE, MODES, mixLabel, normalizeWeights, patternIds, ratioFor, SIMPLE, type MixRecipe, type MixRow } from './mixing';
@@ -285,7 +286,7 @@ export function switchPlan(p: PlanInput, t: SharedTable = SHARED): SwitchPlan {
   const carried = inUse.map((r) => ({ id: r.virtualId, recipe: carriedRecipe(r, to) }));
   const mixes = inUse
     .filter((r) => r.pattern && to === 'orca')
-    .map((r) => ({ id: r.virtualId, label: `Cycle: ${mixLabel(r)}`, colour: r.colour, becomes: `Ratio: ${mixLabel(carriedRecipe(r, to))}` }));
+    .map((r) => ({ id: r.virtualId, label: `${i18n.t('colorMixing.cycle')}: ${mixLabel(r)}`, colour: r.colour, becomes: `${i18n.t('colorMixing.ratio')}: ${mixLabel(carriedRecipe(r, to))}` }));
   return { from, to, mixes, carried, highFlowChanged, dropped, ownGcode, presets, selection, overrides, objectEdits };
 }
 
@@ -295,11 +296,12 @@ export const losesNothing = (plan: SwitchPlan) =>
 
 /** The notice after a switch (`model` false: an empty plate, only the settings moved). */
 export function switchedText(plan: SwitchPlan, model = true): string {
-  const parts = [model ? `This project now slices with ${engineName(plan.to)}.` : `Now slicing with ${engineName(plan.to)}.`];
-  if (!model && Object.keys(plan.overrides).length) parts.push('Your changed settings came along.');
-  if (plan.carried.length) parts.push(plan.carried.length === 1 ? 'Its colour mix came along.' : `Its ${plan.carried.length} colour mixes came along.`);
-  if (plan.mixes.length) parts.push(plan.mixes.length === 1 ? 'Its Cycle mix is now a Ratio mix.' : `Its ${plan.mixes.length} Cycle mixes are now Ratio mixes.`);
-  if (plan.dropped.length) parts.push(`${plan.dropped.length} setting${plan.dropped.length === 1 ? '' : 's'} ${engineName(plan.to)} doesn't have were left out.`);
-  if (model) parts.push('Slice again before printing.');
+  const engine = engineName(plan.to);
+  const parts = [model ? i18n.t('engineSwitch.nowSlicesWith', { engine }) : i18n.t('engineSwitch.nowSlicing', { engine })];
+  if (!model && Object.keys(plan.overrides).length) parts.push(i18n.t('engineSwitch.settingsCame'));
+  if (plan.carried.length) parts.push(i18n.t('engineSwitch.mixesCame', { count: plan.carried.length }));
+  if (plan.mixes.length) parts.push(i18n.t('engineSwitch.cycleNowRatio', { count: plan.mixes.length }));
+  if (plan.dropped.length) parts.push(i18n.t('engineSwitch.settingsLeftOut', { count: plan.dropped.length, engine }));
+  if (model) parts.push(i18n.t('engineSwitch.sliceBeforePrinting'));
   return parts.join(' ');
 }

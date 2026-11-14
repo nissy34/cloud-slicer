@@ -1,0 +1,33 @@
+{
+  "presetSettings": {
+    "editPrinter": "Edit printer settings",
+    "editFilament": "Edit filament {{n}} settings",
+    "savedInProject": "Saved in the project {{name}}.",
+    "savedIn3mf": "Saved in the downloaded project 3MF.",
+    "nameTaken": "A preset with this name already exists.",
+    "savedAs": "Saved as {{name}}.",
+    "whereAccount": "Saved to your account.",
+    "whereBrowser": "Saved in this browser until you sign in.",
+    "printerTitle": "Printer settings",
+    "filamentNTitle": "Filament {{n}} settings",
+    "filamentTitle": "Filament settings",
+    "newPrinterName": "New printer preset name",
+    "newFilamentName": "New filament preset name",
+    "back": "Back",
+    "saving": "Saving…",
+    "save": "Save",
+    "unsaved_one": "{{count}} unsaved change",
+    "unsaved_other": "{{count}} unsaved changes",
+    "noChanges": "No changes",
+    "discard": "Discard changes",
+    "saveAsNew": "Save as new preset…",
+    "savedName": "Saved {{name}}.",
+    "saveToPreset": "Save to preset",
+    "saveToProjectTip": "Keeps these changes in this project only and saves the project",
+    "saveToProject": "Save to project",
+    "modified": "(modified)",
+    "yours": "Your preset, based on {{parent}}.",
+    "system": "System preset: use Save as to keep your changes.",
+    "footHint": "Save to project keeps these changes in this project only, and they come back when you open it. A preset keeps them for every project. {{where}} Export, import, rename and delete are in the ⋯ menu."
+  }
+}

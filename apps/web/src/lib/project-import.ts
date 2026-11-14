@@ -4,6 +4,7 @@
 // converted: only its print (process) settings are carried over to a printer we
 // do have, and its filaments are matched by material.
 import type { OrcaConfig, PresetSummary, SettingsLayout } from '../engine/protocol';
+import { i18n } from '../i18n';
 import { alignFlowVariants, type FlowDomain } from './flow-variants';
 
 /**
@@ -216,7 +217,7 @@ export function pickProcess(processes: PresetSummary[], layerHeight: string | un
 
 /** Printer name for display: "Bambu Lab A1 mini 0.4 nozzle". */
 export function printerLabel(file: OrcaConfig): string {
-  return file.printer_settings_id || file.printer_model || 'another printer';
+  return file.printer_settings_id || file.printer_model || i18n.t('projectImport.anotherPrinter');
 }
 
 /**
@@ -225,6 +226,6 @@ export function printerLabel(file: OrcaConfig): string {
  */
 export function emptyProjectMessage(fileName: string): string {
   return /\.gcode\.3mf$/i.test(fileName)
-    ? `${fileName} is a sliced file: it holds G-code for another printer but no models. Open the original project (.3mf) instead.`
-    : `${fileName} has no objects to print.`;
+    ? i18n.t('projectImport.slicedFile', { name: fileName })
+    : i18n.t('projectImport.noObjects', { name: fileName });
 }

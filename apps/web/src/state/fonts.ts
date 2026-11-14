@@ -3,6 +3,7 @@
 import { BUNDLED_FONTS, DEFAULT_TEXT, computerFontName, fontFileName, type FontChoice, type TextStyle } from '../lib/fonts';
 import type { EngineClient } from '../engine/client';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { i18n } from '../i18n';
 
 // Font files the user picked are kept in this browser (IndexedDB), so texts
 // made with them can still be changed after a reload.
@@ -97,7 +98,7 @@ export async function fontInEngine(engine: EngineClient, name: string): Promise<
   if (bundled) await engine.loadBundledFont(path, bundled.file!);
   else {
     const load = loaders.get(name);
-    if (!load) throw new Error(`The font "${name}" isn't on this device. Pick another font for this text.`);
+    if (!load) throw new Error(i18n.t('slicerNotices.fontMissing', { name }));
     await engine.loadFont(path, await load());
   }
   return path;

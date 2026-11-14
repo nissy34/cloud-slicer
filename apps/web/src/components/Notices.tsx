@@ -3,6 +3,7 @@
 // news goes away by itself after a few seconds; problems and messages with
 // buttons stay until answered. Several stack, newest at the bottom, at most 3.
 import { useEffect, useLayoutEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDevice } from '../state/device';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
@@ -33,24 +34,25 @@ function ProjectMessage() {
 
 /** A Save or Download the person asked for, from the press until it is done ("Saved" follows): how far it got, and Cancel. */
 function SavingCard() {
+  const { t } = useTranslation();
   const busy = useProjects((s) => s.busy);
   const canCancel = useProjects((s) => s.saveCancel);
-  const download = busy.startsWith('Preparing');
+  const download = useProjects((s) => s.busyKind === 'download');
   return (
     <Notice
       tone="info"
       icon={<LoaderCircle className="spin" size={18} />}
-      title={busy || 'Saving…'}
+      title={busy || t('saving.saving')}
       text={
         <>
-          {download ? 'It downloads by itself when it is ready.' : 'You can keep working. Changes from now on go in the next save.'}
+          {download ? t('saving.downloadsItself') : t('saving.keepWorking')}
           <SaveBar />
         </>
       }
       actions={
         canCancel && (
           <button className="secondary" onClick={() => useProjects.getState().cancelSave()} data-testid="cancel-save">
-            Cancel
+            {t('common.cancel')}
           </button>
         )
       }

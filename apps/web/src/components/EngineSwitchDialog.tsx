@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { engineName, type EngineFlavor } from '../lib/engines';
 import type { DroppedSetting } from '../lib/engine-switch';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
 import { Swatch } from './Swatch';
 
-const TYPE_LABEL = { printer: 'Printer', process: 'Process', filament: 'Filament' } as const;
+const TYPE_LABEL = { printer: 'engineSwitch.printer', process: 'engineSwitch.process', filament: 'engineSwitch.filament' } as const;
 
 /** Each setting once, one row each: "Travel speed", or "Travel speed" with "Cube" beside it. */
 function SettingRows({ list }: { list: DroppedSetting[] }) {
@@ -32,6 +33,7 @@ function SettingRows({ list }: { list: DroppedSetting[] }) {
  * something would be lost (losesNothing): it lists only what applies.
  */
 export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor; onClose: () => void; onSwitch: () => void }) {
+  const { t } = useTranslation();
   const from = useSlicer((s) => s.flavor);
   const hasModel = useSlicer((s) => !!s.project?.objects.length);
   const plan = useMemo(() => useSlicer.getState().switchPlan(to), [to]);
@@ -41,29 +43,29 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
   );
   return (
     <Dialog
-      title={`Switch this project to ${target}?`}
+      title={t('engineSwitch.title', { engine: target })}
       onClose={onClose}
       className="engine-switch"
       testId="engine-switch"
       footer={
         <>
           <button className="secondary" onClick={onClose} autoFocus>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="primary" onClick={onSwitch}>
-            Switch to {target}
+            {t('engineSwitch.switchTo', { engine: target })}
           </button>
         </>
       }
     >
       <div className="engine-switch-body">
         <p>
-          {hasModel ? 'Your model, plates, positions, painting and settings move over, except:' : 'Your printer, presets and changed settings move over, except:'}
+          {hasModel ? t('engineSwitch.movesModel') : t('engineSwitch.movesSettings')}
         </p>
         {plan.mixes.length > 0 && (
           <section>
-            <h3>Cycle mixes become Ratio mixes</h3>
-            <p className="muted small">{target} has no Cycle mode. Each Cycle mix keeps its filaments, in the same shares, mixed by ratio.</p>
+            <h3>{t('engineSwitch.mixesTitle')}</h3>
+            <p className="muted small">{t('engineSwitch.mixesText', { engine: target })}</p>
             <ul className="engine-switch-mixes">
               {plan.mixes.map((m) => (
                 <li key={m.id}>
@@ -78,42 +80,41 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
         )}
         {plan.highFlowChanged.length > 0 && (
           <section>
-            <h3>High flow values</h3>
-            <p className="muted small">
-              {target} has one value per setting, not one for standard and one for high flow. The standard flow values carry over; your high flow changes to these are lost:
-            </p>
+            <h3>{t('engineSwitch.highFlowTitle')}</h3>
+            <p className="muted small">{t('engineSwitch.highFlowText', { engine: target })}</p>
             <SettingRows list={plan.highFlowChanged} />
           </section>
         )}
         {plan.dropped.length > 0 && (
           <section>
-            <h3>Settings {target} doesn't have</h3>
-            <p className="muted small">This project's values for these are left out:</p>
+            <h3>{t('engineSwitch.droppedTitle', { engine: target })}</h3>
+            <p className="muted small">{t('engineSwitch.droppedText')}</p>
             <SettingRows list={plan.dropped} />
           </section>
         )}
         {plan.ownGcode.length > 0 && (
           <section>
-            <h3>G-code stays the printer's own</h3>
-            <p className="muted small">{target} uses its own printer G-code for these, not this project's:</p>
+            <h3>{t('engineSwitch.ownGcodeTitle')}</h3>
+            <p className="muted small">{t('engineSwitch.ownGcodeText', { engine: target })}</p>
             <SettingRows list={plan.ownGcode} />
           </section>
         )}
         {plan.presets.length > 0 && (
           <section>
-            <h3>A different layer height</h3>
-            <p className="muted small">{target} has no preset like this one, so the nearest one is used.</p>
+            <h3>{t('engineSwitch.presetsTitle')}</h3>
+            <p className="muted small">{t('engineSwitch.presetsText', { engine: target })}</p>
             <ul className="engine-switch-presets">
               {plan.presets.map((m) => (
                 <li key={`${m.type}:${m.from}`}>
-                  <span className="muted small">{TYPE_LABEL[m.type]}</span> {m.from} → <b>{m.to}</b>
+                  <span className="muted small">{t(TYPE_LABEL[m.type])}</span> {m.from} → <b>{m.to}</b>
                 </li>
               ))}
             </ul>
           </section>
         )}
         <p className="muted small">
-          Switching back to {engineName(from)} later won't bring these back.{hasModel && ' Slice again after switching.'}
+          {t('engineSwitch.noWayBack', { engine: engineName(from) })}
+          {hasModel && ` ${t('engineSwitch.sliceAgain')}`}
         </p>
       </div>
     </Dialog>

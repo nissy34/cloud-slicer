@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { minShare, mixSuggestions, recipeFromDraft, spreadWeights, type MixDraft, type MixSuggestion } from '../lib/mixing';
 import { useSlicer } from '../state/store';
 
@@ -9,6 +10,7 @@ type Shown = MixSuggestion & { colour: string };
  * mixes of your filaments for the current mode. Tapping one fills the dialog.
  */
 export function MixSuggestions({ draft, colours, onPick }: { draft: MixDraft; colours: string[]; onPick: (s: MixSuggestion, colour: string) => void }) {
+  const { t } = useTranslation();
   const { blendFilaments, previewMix } = useSlicer.getState();
   const rows = draft.mode === 'ratio' ? draft.filaments.length : 2;
   const all = useMemo(() => mixSuggestions(draft.mode, rows, colours.length), [draft.mode, rows, colours.length]);
@@ -59,8 +61,8 @@ export function MixSuggestions({ draft, colours, onPick }: { draft: MixDraft; co
   const visible = draft.mode === 'match' ? list.filter((s) => minShare(s) >= draft.minPercent) : list;
   if (!visible.length) return null;
   return (
-    <section className="mix-suggestions" aria-label="Mixing recommendations">
-      <h4>Mixing recommendations</h4>
+    <section className="mix-suggestions" aria-label={t('colorMixing.recommendations')}>
+      <h4>{t('colorMixing.recommendations')}</h4>
       <div className="mix-suggestion-grid">
         {visible.map((s) => (
           <button
@@ -68,7 +70,7 @@ export function MixSuggestions({ draft, colours, onPick }: { draft: MixDraft; co
             className="mix-suggestion"
             style={{ background: draft.mode === 'gradient' ? `linear-gradient(to top, ${colours[s.filaments[0] - 1]}, ${colours[s.filaments[1] - 1]})` : s.colour }}
             title={s.label}
-            aria-label={`Use ${s.label}`}
+            aria-label={t('colorMixing.useSuggestion', { label: s.label })}
             onClick={() => onPick(s, s.colour)}
           />
         ))}

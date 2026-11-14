@@ -18,7 +18,7 @@
 .panel {
   overflow-y: auto;
   background: var(--surface);
-  border-right: 1px solid var(--border);
+  border-inline-end: 1px solid var(--border);
 }
 /* The sidebar's edge: a strip to drag, a blue line while pointed at or dragged. */
 .side-resize {
@@ -26,7 +26,7 @@
   z-index: 4;
   top: 0;
   bottom: 0;
-  left: calc(var(--side) - 4px);
+  inset-inline-start: calc(var(--side) - 4px);
   width: 8px;
   cursor: col-resize;
   touch-action: none;
@@ -48,7 +48,7 @@
   position: absolute;
   z-index: 3;
   top: var(--s-4);
-  left: var(--s-4);
+  inset-inline-start: var(--s-4);
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-1);
@@ -242,7 +242,8 @@
 /* Diagonal stripes slide across the filled part, so the bar always moves. */
 .progress-fill {
   position: absolute;
-  inset: 0 auto 0 0;
+  inset-block: 0;
+  inset-inline-start: 0;
   border-radius: inherit;
   background-color: var(--accent);
   background-image: linear-gradient(
@@ -266,7 +267,7 @@
 .progress-pct {
   flex: none;
   min-width: 3.5ch;
-  text-align: right;
+  text-align: end;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
@@ -325,11 +326,11 @@
 }
 .warnings-list li {
   padding: 2px 0 2px 10px;
-  border-left: 3px solid var(--warn);
+  border-inline-start: 3px solid var(--warn);
   margin-bottom: 4px;
 }
 .warnings-list li.serious {
-  border-left-color: var(--danger);
+  border-inline-start-color: var(--danger);
   color: var(--danger);
 }
 
@@ -418,7 +419,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: left;
+  text-align: start;
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: var(--r-md);
@@ -653,7 +654,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: left;
+  text-align: start;
 }
 .object-name {
   border: 0;
@@ -797,7 +798,7 @@
   width: 64px;
 }
 .layer-range-head .icon-btn:last-child {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 /* A setting another setting switched off, like desktop's greyed fields. */
 .option.disabled {

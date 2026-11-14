@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../../i18n';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { currentSession, useDevice } from '../../state/device';
 import type { Webcam } from '../camera';
@@ -23,6 +25,7 @@ export const isPageCamera = (cam: Webcam) => cam.service === 'iframe' && !!cam.s
  * side answers its requests through the bridge (src/device/printer-page.ts).
  */
 function PageView({ cam, link, onError }: { cam: Webcam; link: PrinterLink; onError(message: string): void }) {
+  const { t } = useTranslation();
   const frame = useRef<HTMLIFrameElement>(null);
   const [sid] = useState(newSid);
   const [route, setRoute] = useState<PageRoute>('connecting');
@@ -48,7 +51,7 @@ function PageView({ cam, link, onError }: { cam: Webcam; link: PrinterLink; onEr
     const channel = new MessageChannel();
     channel.port1.onmessage = (e: MessageEvent) => {
       const d = e.data as { type?: string; message?: string; method?: string; path?: string; headers?: Record<string, string>; body?: ArrayBuffer };
-      if (d?.type === 'error') error.current(d.message ?? 'The page could not be opened.');
+      if (d?.type === 'error') error.current(d.message ?? i18n.t('deviceCamera.pageNotOpened'));
       if (d?.type !== 'request' || !e.ports[0]) return;
       const reply = e.ports[0];
       carrier
@@ -72,7 +75,7 @@ function PageView({ cam, link, onError }: { cam: Webcam; link: PrinterLink; onEr
 
   return (
     <div className="dv-page" style={{ '--aspect': String(cam.aspect) } as CSSProperties} data-testid="printer-page" data-route={route}>
-      {host && <iframe ref={frame} src={`${host}/page/shell.html?sid=${sid}`} title={`${cam.name} page`} allow="fullscreen" referrerPolicy="no-referrer" />}
+      {host && <iframe ref={frame} src={`${host}/page/shell.html?sid=${sid}`} title={t('deviceCamera.pageTitle', { name: cam.name })} allow="fullscreen" referrerPolicy="no-referrer" />}
     </div>
   );
 }
@@ -95,6 +98,7 @@ function useTabVisible() {
  * printer it is framed straight from the printer.
  */
 export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record<string, CamCardId>; onPick(name: string): void }) {
+  const { t } = useTranslation();
   const online = useDevice((s) => s.conn.state === 'online');
   const reconnecting = useDevice((s) => s.conn.state === 'connecting');
   const facts = useDevice((s) => s.facts);
@@ -131,14 +135,14 @@ export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record
 
   return (
     <Card
-      title={cam?.name ?? 'Page card'}
+      title={cam?.name ?? t('deviceCamera.pageCard')}
       className="dv-page-card"
       testId={`page-card-${card.slice(card.indexOf(':') + 1)}`}
       actions={
         <>
           {pages && pages.length > 0 && (cam ? pages.length > 1 : true) && (
             <button className="quiet" onClick={() => setChoosing(!choosing)} aria-expanded={choosing}>
-              {choosing ? 'Done' : 'Choose'}
+              {choosing ? t('deviceCamera.done') : t('deviceCamera.choose')}
             </button>
           )}
         </>
@@ -146,12 +150,12 @@ export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record
     >
       {(choosing || (!cam && pages && pages.length > 0)) && (
         <fieldset className="dv-camera-pick" data-testid="page-pick">
-          <legend>Show this page</legend>
+          <legend>{t('deviceCamera.showPage')}</legend>
           {pages!.map((c) => (
             <label key={c.id}>
               <input type="radio" name={`page-${card}`} checked={cam?.name === c.name} onChange={() => pick(c.name)} />
               {c.name}
-              {cameraCardOf({ cameraHome: home }, c.name) !== 'camera' && cameraCardOf({ cameraHome: home }, c.name) !== card && <span className="muted"> (in another card)</span>}
+              {cameraCardOf({ cameraHome: home }, c.name) !== 'camera' && cameraCardOf({ cameraHome: home }, c.name) !== card && <span className="muted"> {t('deviceCamera.inAnotherCard')}</span>}
             </label>
           ))}
         </fieldset>
@@ -162,28 +166,28 @@ export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record
             <PageView key={`${cam.id}-${round}`} cam={cam} link={link} onError={setError} />
           ) : (
             <div className="dv-camera">
-              <span className="muted">Update the bridge to show printer pages.</span>
+              <span className="muted">{t('deviceCamera.updateBridgePages')}</span>
             </div>
           )
         ) : direct ? (
           <div className="dv-page" style={{ '--aspect': String(cam.aspect) } as CSSProperties} data-testid="printer-page" data-route="printer">
-            <iframe src={direct} title={`${cam.name} page`} allow="fullscreen" referrerPolicy="no-referrer" {...{ credentialless: '' }} />
+            <iframe src={direct} title={t('deviceCamera.pageTitle', { name: cam.name })} allow="fullscreen" referrerPolicy="no-referrer" {...{ credentialless: '' }} />
           </div>
         ) : null
       ) : (
         <div className="dv-camera">
           <span className="muted">
             {!online
-              ? reconnecting ? 'Reconnecting…' : 'Not connected'
+              ? reconnecting ? t('deviceCamera.reconnecting') : t('deviceCamera.notConnected')
               : !pages
-                ? 'Looking for pages…'
+                ? t('deviceCamera.lookingPages')
                 : !pages.length
-                  ? 'This printer has no page set up in Moonraker. A page is a camera with the "iframe" service, such as a printer screen.'
+                  ? t('deviceCamera.noPages')
                   : !cam
-                    ? 'Pick the page to show here.'
+                    ? t('deviceCamera.pickPage')
                     : error
                         ? error
-                        : 'Paused'}
+                        : t('deviceCamera.paused')}
           </span>
           {error && (
             <button
@@ -194,7 +198,7 @@ export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record
               }}
               data-testid="page-again"
             >
-              Keep going
+              {t('deviceCards.keepGoing')}
             </button>
           )}
         </div>

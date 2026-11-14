@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "Save “{{name}}”?",
+    "saveText": "It isn't in your online projects yet. Don't save throws it away.",
+    "save": "Save",
+    "dontSave": "Don't save",
+    "discardTitle": "Discard unsaved changes?",
+    "discard": "Discard changes",
+    "openTitle": "Open {{what}}",
+    "addToText": "You were working on “{{project}}”. Add it there, or start a new project with it?",
+    "newProject": "New project",
+    "addTo": "Add to {{project}}"
+  }
+}

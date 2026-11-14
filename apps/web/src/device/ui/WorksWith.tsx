@@ -3,11 +3,13 @@
 // "See what each can do" opens a table of what works on each (open on wide
 // screens). It says just as plainly that slicing doesn't depend on it.
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PHONE } from '../../lib/breakpoints';
 import { WORKS_FEATURES, WORKS_WITH } from '../brands';
 
 /** folded: the table starts closed (in the Add a printer window, so its steps come first). */
 export function WorksWith({ folded = false }: { folded?: boolean }) {
+  const { t } = useTranslation();
   const [open] = useState(() => {
     if (folded) return false;
     try {
@@ -19,25 +21,25 @@ export function WorksWith({ folded = false }: { folded?: boolean }) {
   return (
     <div className="dv-works" data-testid="works-with">
       <p>
-        <strong>Sending prints and controlling the printer works with</strong> Klipper printers (Snapmaker U1, Voron, Qidi, Sovol…), Prusa with PrusaLink, OctoPrint, the Elegoo Centauri Carbon, and Bambu Lab printers.
+        <strong>{t('deviceScreen.worksWithLead')}</strong> {t('deviceScreen.worksWithList')}
       </p>
-      <p className="dv-works-slicing">✓ Slicing works for every printer in the slicer's printer list, listed here or not: download the file to print it.</p>
+      <p className="dv-works-slicing">✓ {t('deviceScreen.worksSlicing')}</p>
       <details open={open}>
-        <summary>See what each can do</summary>
+        <summary>{t('deviceScreen.worksSee')}</summary>
         <div className="dv-works-scroll">
           <table className="dv-works-table">
             <thead>
               <tr>
-                <th scope="col">Printer</th>
+                <th scope="col">{t('deviceScreen.printer')}</th>
                 {WORKS_FEATURES.map((f) => (
-                  <th key={f.name} scope="col" aria-label={f.name}>
+                  <th key={f.name} scope="col" aria-label={t(f.name)}>
                     {f.short ? (
                       <>
-                        <span className="dv-works-long">{f.name}</span>
-                        <span className="dv-works-short">{f.short}</span>
+                        <span className="dv-works-long">{t(f.name)}</span>
+                        <span className="dv-works-short">{t(f.short)}</span>
                       </>
                     ) : (
-                      f.name
+                      t(f.name)
                     )}
                   </th>
                 ))}
@@ -47,11 +49,11 @@ export function WorksWith({ folded = false }: { folded?: boolean }) {
               {WORKS_WITH.map((w) => (
                 <tr key={w.name}>
                   <th scope="row">
-                    {w.name}
-                    <span className="muted"> ({w.examples})</span>
+                    {t(w.name)}
+                    <span className="muted"> ({t(w.examples)})</span>
                   </th>
                   {w.can.map((yes, i) => (
-                    <td key={WORKS_FEATURES[i].name} className={yes ? 'yes' : 'no'} aria-label={yes ? 'Yes' : 'No'}>
+                    <td key={WORKS_FEATURES[i].name} className={yes ? 'yes' : 'no'} aria-label={yes ? t('deviceScreen.yes') : t('deviceScreen.no')}>
                       {yes ? '✓' : '–'}
                     </td>
                   ))}

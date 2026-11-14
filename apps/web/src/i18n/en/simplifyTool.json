@@ -1,0 +1,29 @@
+{
+  "simplifyTool": {
+    "title": "Simplify",
+    "done": "Done",
+    "hint": "Fewer triangles make a big model open, slice and preview faster. Fine details can soften; Undo brings the old mesh back.",
+    "trianglesLabel": "Triangles",
+    "triangles_one": "{{n}} triangles",
+    "triangles_other": "{{n}} triangles",
+    "trianglesUnknown": "… triangles",
+    "workingOut": "(working out…)",
+    "by": "Simplify by",
+    "detailLevel": "Detail level",
+    "ratio": "Decimate ratio",
+    "detail": "Detail",
+    "removeTip": "Share of the triangles to remove",
+    "remove": "Remove",
+    "paintKept": "This object's painting (colours, supports, seams, fuzzy skin) is kept on the simplified mesh.",
+    "apply": "Apply",
+    "extraHigh": "Extra high",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "extraLow": "Extra low",
+    "million": "{{n}} million",
+    "heavyPlates": "{{n}} plates have more than {{limit}} triangles (up to {{most}}), which can be more than this device can hold. Simplifying each to about {{light}} keeps plenty of detail for printing.",
+    "heavyPlate": "Plate {{n}} has {{triangles}} triangles, which can be more than this device can hold. Simplifying it to about {{light}} keeps plenty of detail for printing.",
+    "heavyModel": "This model has {{triangles}} triangles, which can be more than this device can hold. Simplifying it to about {{light}} keeps plenty of detail for printing."
+  }
+}

@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from 'react-i18next';
 import { engineName } from '../lib/engines';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
@@ -7,6 +8,7 @@ import { Dialog } from './Dialog';
  * slice with the engine's own G-code for the printer instead, or see the error.
  */
 export function GcodeFallbackDialog() {
+  const { t } = useTranslation();
   const question = useSlicer((s) => s.gcodeFallback);
   const flavor = useSlicer((s) => s.flavor);
   if (!question) return null;
@@ -14,23 +16,22 @@ export function GcodeFallbackDialog() {
   const engine = engineName(flavor);
   return (
     <Dialog
-      title={`Use ${engine}'s start and filament change G-code?`}
+      title={t('gcodeFallback.title', { engine })}
       testId="gcode-fallback"
       onClose={() => void answerGcodeFallback(false)}
       footer={
         <>
           <button className="secondary" onClick={() => void answerGcodeFallback(false)}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="primary" autoFocus onClick={() => void answerGcodeFallback(true)}>
-            Yes, slice
+            {t('gcodeFallback.yes')}
           </button>
         </>
       }
     >
       <p>
-        This file's start and filament change G-code was written for {question.app}, and {engine} can't use it. {engine} has its own for <b>{question.printer}</b>,
-        which works. This choice is saved with this project.
+        <Trans i18nKey={'gcodeFallback.body'} values={{ app: question.app, engine, printer: question.printer }} components={{ b: <b /> }} />
       </p>
     </Dialog>
   );

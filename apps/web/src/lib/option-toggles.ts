@@ -7,6 +7,7 @@
 // (it still shows), toggle_line hides its row. Both are kept: `disabled` and
 // `hidden` below. A later toggle of the same setting wins, like desktop.
 import type { OrcaConfig } from '../engine/protocol';
+import { i18n } from '../i18n';
 import { isVectorType, processFlowModes, splitValues } from './flow-variants';
 import { decodeString, slotEntryIndex, splitStrings } from './slot-values';
 
@@ -453,7 +454,6 @@ export interface ChangeReview {
 }
 
 const SPIRAL_KEYS = ['spiral_mode', 'wall_loops', 'top_shell_layers', 'sparse_infill_density', 'enable_support', 'enforce_support_layers', 'detect_thin_wall', 'overhang_reverse', 'wall_direction', 'timelapse_type'];
-const RESET_SMALL_TUNING = 'This setting is only for fine tuning a model\'s size by a small amount, for example when a model is slightly off and hard to assemble. For large changes use the model\'s scale.\n\nThe value will be reset to 0.';
 
 /**
  * The checks desktop runs after a setting changes (update_print_fff_config and
@@ -474,27 +474,29 @@ export function reviewChange(before: OrcaConfig, after: OrcaConfig, changed: str
     const i = c.index(k);
     return all.map((e, j) => (j === i ? v : e)).join(',');
   };
-  const reset = (message: string, k: string, v: string) => prompts.push({ message, answers: [{ label: 'OK', changes: { [k]: entry(k, v) } }] });
-  const warn = (message: string) => prompts.push({ message, answers: [{ label: 'OK', changes: {} }] });
-  const yesNo = (message: string, yes: OrcaConfig, no: OrcaConfig, yesLabel = 'Yes', noLabel = 'No') =>
+  const OK = i18n.t('settingsCheck.ok');
+  const askChange = (message: string) => `${message}\n\n${i18n.t('settingsCheck.changeAuto')}`;
+  const reset = (message: string, k: string, v: string) => prompts.push({ message, answers: [{ label: OK, changes: { [k]: entry(k, v) } }] });
+  const warn = (message: string) => prompts.push({ message, answers: [{ label: OK, changes: {} }] });
+  const yesNo = (message: string, yes: OrcaConfig, no: OrcaConfig, yesLabel = i18n.t('settingsCheck.yes'), noLabel = i18n.t('settingsCheck.no')) =>
     prompts.push({ message, answers: [{ label: noLabel, changes: no }, { label: yesLabel, changes: yes }] });
 
   // ---- Process (update_print_fff_config) ----
   const layerHeight = c.num('layer_height');
   if (c.has('layer_height') && touched('layer_height')) {
     const maxLh = c.num('max_layer_height');
-    if (layerHeight < 1e-6) reset('Too small layer height.\nReset to 0.2.', 'layer_height', '0.2');
-    else if (maxLh > 0.2 && layerHeight > maxLh + 1e-6) reset(`Too large layer height.\nReset to ${maxLh.toFixed(3)}.`, 'layer_height', String(maxLh));
+    if (layerHeight < 1e-6) reset(i18n.t('settingsCheck.layerTooSmall'), 'layer_height', '0.2');
+    else if (maxLh > 0.2 && layerHeight > maxLh + 1e-6) reset(i18n.t('settingsCheck.layerTooLarge', { max: maxLh.toFixed(3) }), 'layer_height', String(maxLh));
   }
   for (const k of ['ironing_spacing', 'support_ironing_spacing'])
-    if (c.has(k) && touched(k) && c.num(k) < 0.05) reset('Too small ironing spacing.\nReset to 0.1.', k, '0.1');
+    if (c.has(k) && touched(k) && c.num(k) < 0.05) reset(i18n.t('settingsCheck.ironingTooSmall'), k, '0.1');
   if (c.has('initial_layer_print_height') && touched('initial_layer_print_height') && c.num('initial_layer_print_height') < 1e-6)
-    reset('Zero initial layer height is invalid.\n\nThe first layer height will be reset to 0.2.', 'initial_layer_print_height', '0.2');
+    reset(i18n.t('settingsCheck.firstLayerZero'), 'initial_layer_print_height', '0.2');
   for (const k of ['xy_hole_compensation', 'xy_contour_compensation'])
-    if (c.has(k) && touched(k) && Math.abs(c.num(k)) > 2) reset(RESET_SMALL_TUNING, k, '0');
+    if (c.has(k) && touched(k) && Math.abs(c.num(k)) > 2) reset(i18n.t('settingsCheck.smallTuning'), k, '0');
   if (c.has('elefant_foot_compensation') && touched('elefant_foot_compensation') && c.num('elefant_foot_compensation') > 1)
     reset(
-      'Too large elephant foot compensation is unreasonable.\nIf the first layers really spread a lot, check other settings, for example whether the bed temperature is too high.\n\nThe value will be reset to 0.',
+      i18n.t('settingsCheck.elephantFoot'),
       'elefant_foot_compensation',
       '0',
     );
@@ -526,17 +528,17 @@ export function reviewChange(before: OrcaConfig, after: OrcaConfig, changed: str
       timelapse_type: '0',
     };
     for (const k of Object.keys(fix)) if (!c.has(k)) delete fix[k];
-    const message = 'Spiral vase only works when wall loops is 1, support is off, top shell layers is 0, sparse infill density is 0 and timelapse type is traditional.';
-    if (global) yesNo(`${message}\n\nChange these settings automatically?`, fix, { spiral_mode: '0' }, 'Change them', 'Turn spiral vase off');
-    else prompts.push({ message, answers: [{ label: 'OK', changes: fix }] });
+    const message = i18n.t('settingsCheck.spiral');
+    if (global) yesNo(askChange(message), fix, { spiral_mode: '0' }, i18n.t('settingsCheck.changeThem'), i18n.t('settingsCheck.spiralOff'));
+    else prompts.push({ message, answers: [{ label: OK, changes: fix }] });
   }
 
   if (touched('alternate_extra_wall', 'ensure_vertical_shell_thickness') && c.bool('alternate_extra_wall') && c.str('ensure_vertical_shell_thickness') === 'ensure_all') {
-    const message = "Alternate extra wall doesn't work well when ensure vertical shell thickness is set to All.";
+    const message = i18n.t('settingsCheck.alternateWall');
     const yes = { ensure_vertical_shell_thickness: 'ensure_moderate', alternate_extra_wall: '1' };
     if (global)
-      yesNo(`${message}\n\nChange these settings automatically?`, yes, { ensure_vertical_shell_thickness: 'ensure_all', alternate_extra_wall: '0' }, 'Use Moderate', "Don't use alternate extra wall");
-    else prompts.push({ message, answers: [{ label: 'OK', changes: yes }] });
+      yesNo(askChange(message), yes, { ensure_vertical_shell_thickness: 'ensure_all', alternate_extra_wall: '0' }, i18n.t('settingsCheck.useModerate'), i18n.t('settingsCheck.noAlternateWall'));
+    else prompts.push({ message, answers: [{ label: OK, changes: yes }] });
   }
 
   // A sparse pattern that can't fill 100%: switch to rectilinear, or put the density back.
@@ -546,11 +548,11 @@ export function reviewChange(before: OrcaConfig, after: OrcaConfig, changed: str
     const def = ctx.options.sparse_infill_pattern;
     if (topPatterns && !topPatterns.includes(pattern)) {
       const label = def?.enumLabels?.[def.enumValues?.indexOf(pattern) ?? -1] ?? pattern;
-      const message = `${label} infill pattern doesn't support 100% density.`;
+      const message = i18n.t('settingsCheck.patternNot100', { pattern: label });
       const back = was.num('sparse_infill_density') === 100 ? '15%' : `${was.num('sparse_infill_density')}%`;
       const yes = { sparse_infill_pattern: 'rectilinear', sparse_infill_density: '100%' };
-      if (global) yesNo(`${message}\n\nSwitch to the rectilinear pattern?`, yes, { sparse_infill_density: back }, 'Use rectilinear', 'Put density back');
-      else prompts.push({ message, answers: [{ label: 'OK', changes: yes }] });
+      if (global) yesNo(`${message}\n\n${i18n.t('settingsCheck.switchRectilinear')}`, yes, { sparse_infill_density: back }, i18n.t('settingsCheck.useRectilinear'), i18n.t('settingsCheck.densityBack'));
+      else prompts.push({ message, answers: [{ label: OK, changes: yes }] });
     }
   }
 
@@ -567,17 +569,17 @@ export function reviewChange(before: OrcaConfig, after: OrcaConfig, changed: str
     if (c.has(k) && touched(k) && c.num(k) > ctx.slots) changes[k] = '0';
 
   if (touched('seam_slope_type', 'seam_slope_start_height', 'layer_height') && c.has('seam_slope_type') && c.str('seam_slope_type') !== 'none' && c.abs('seam_slope_start_height', layerHeight) >= layerHeight)
-    reset('The scarf start height needs to be smaller than the layer height.\nReset to 0.', 'seam_slope_start_height', '0');
+    reset(i18n.t('settingsCheck.scarfHeight'), 'seam_slope_start_height', '0');
   if (touched('infill_lock_depth', 'skin_infill_depth') && c.has('infill_lock_depth') && c.num('infill_lock_depth') > c.num('skin_infill_depth'))
-    reset('Lock depth should be smaller than skin depth.\nReset to 50% of skin depth.', 'infill_lock_depth', String(c.num('skin_infill_depth') / 2));
+    reset(i18n.t('settingsCheck.lockDepth'), 'infill_lock_depth', String(c.num('skin_infill_depth') / 2));
 
   if (touched('fuzzy_skin_mode', 'wall_generator') && c.has('fuzzy_skin_mode') && c.str('fuzzy_skin_mode') !== 'displacement' && c.str('wall_generator') !== 'arachne')
     yesNo(
-      'Both the Extrusion and Combined fuzzy skin modes need the Arachne wall generator.\n\nChange these settings automatically?',
+      askChange(i18n.t('settingsCheck.fuzzyArachne')),
       { wall_generator: 'arachne' },
       { fuzzy_skin_mode: 'displacement' },
-      'Use Arachne',
-      'Use Displacement',
+      i18n.t('settingsCheck.useArachne'),
+      i18n.t('settingsCheck.useDisplacement'),
     );
 
   // Fixes toggle_print_fff_options makes while greying settings out.
@@ -600,25 +602,25 @@ export function reviewChange(before: OrcaConfig, after: OrcaConfig, changed: str
   const hasRange = c.has('nozzle_temperature_range_low') && c.has('nozzle_temperature_range_high');
   if (hasRange && touched('nozzle_temperature_range_low', 'nozzle_temperature_range_high')) {
     let msg = '';
-    if (low < 190 || high > 300) msg += 'The recommended minimum temperature is less than 190°C or the recommended maximum temperature is greater than 300°C.\n';
-    if (low > high) msg += 'The recommended minimum temperature cannot be higher than the recommended maximum temperature.\n';
-    if (msg) warn(`${msg}Please check.`);
+    if (low < 190 || high > 300) msg += `${i18n.t('settingsCheck.tempRangeWide')}\n`;
+    if (low > high) msg += `${i18n.t('settingsCheck.tempRangeOrder')}\n`;
+    if (msg) warn(`${msg}${i18n.t('settingsCheck.pleaseCheck')}`);
   }
   for (const k of ['nozzle_temperature', 'nozzle_temperature_initial_layer'])
     if (hasRange && c.has(k) && touched(k) && (c.num(k) < low || c.num(k) > high))
       warn(
-        `The nozzle may clog when the temperature is outside the recommended range.\nMake sure you want to print at this temperature.\n\nThe recommended nozzle temperature for this filament type is ${low} to ${high}°C.`,
+        i18n.t('settingsCheck.nozzleClog', { low, high }),
       );
   if (touched('filament_max_volumetric_speed') && c.has('filament_max_volumetric_speed')) {
     const all = splitValues(after.filament_max_volumetric_speed);
     if (all.some((v) => parseFloat(v) < 0.5))
-      prompts.push({ message: 'Too small max volumetric speed.\nReset to 0.5.', answers: [{ label: 'OK', changes: { filament_max_volumetric_speed: all.map((v) => (parseFloat(v) < 0.5 ? '0.5' : v)).join(',') } }] });
+      prompts.push({ message: i18n.t('settingsCheck.volumetricTooSmall'), answers: [{ label: OK, changes: { filament_max_volumetric_speed: all.map((v) => (parseFloat(v) < 0.5 ? '0.5' : v)).join(',') } }] });
   }
   if (touched('chamber_temperatures', 'filament_type') && c.bool('support_chamber_temp_control') && c.has('chamber_temperatures')) {
     const safe: Record<string, number> = { PLA: 45, 'PLA-CF': 45, PVA: 45, TPU: 50, PETG: 55, PCTG: 55, 'PETG-CF': 55 };
     const type = (after.filament_type ?? '').split(';')[ctx.slot ?? 0]?.replace(/"/g, '') ?? '';
     if (safe[type] !== undefined && safe[type] < c.num('chamber_temperatures'))
-      warn(`The chamber temperature is higher than this material's safe temperature, which may soften the filament and clog the nozzle. The highest safe temperature for this material is ${safe[type]}°C.`);
+      warn(i18n.t('settingsCheck.chamberHot', { safe: safe[type] }));
   }
 
   // ---- Printer (TabPrinter::toggle_options) ----
@@ -627,11 +629,11 @@ export function reviewChange(before: OrcaConfig, after: OrcaConfig, changed: str
   if (touched('use_firmware_retraction', 'wipe', 'retraction_length') && c.bool('use_firmware_retraction') && c.bool('wipe')) {
     const wipeOff = splitValues(after.wipe ?? '0').map(() => '0').join(',');
     yesNo(
-      'The Wipe option is not available when using firmware retraction.\n\nTurn Wipe off to use firmware retraction?',
+      i18n.t('settingsCheck.wipeFirmware'),
       { wipe: wipeOff },
       { use_firmware_retraction: '0' },
-      'Turn Wipe off',
-      'Keep Wipe',
+      i18n.t('settingsCheck.wipeOff'),
+      i18n.t('settingsCheck.keepWipe'),
     );
   }
   return { changes, prompts };
@@ -657,7 +659,8 @@ function supportFilamentChecks(after: OrcaConfig, changed: string[], ctx: Toggle
   const modelHas = (list: string[]) => list.some((t) => modelTypes.has(t));
   const ask = (message: string, yes: OrcaConfig, no: OrcaConfig, yesLabel: string, noLabel: string) =>
     prompts.push({ message, answers: [{ label: noLabel, changes: no }, { label: yesLabel, changes: yes }] });
-  const baseWarning = 'Non-soluble support materials are not recommended for support base.\nAre you sure to use them for support base?';
+  const askChange = (message: string) => `${message}\n\n${i18n.t('settingsCheck.changeAuto')}`;
+  const baseWarning = i18n.t('settingsCheck.nonSolubleBase');
   const base = c.num('support_filament') - 1;
   const iface = c.num('support_interface_filament') - 1;
   const interlaced = 'rectilinear_interlaced';
@@ -666,23 +669,23 @@ function supportFilamentChecks(after: OrcaConfig, changed: string[], ctx: Toggle
     const isSupport = (id: number) => (Object.hasOwn(ORCA_SUPPORT_FOR, typeOf(id)) && modelHas(ORCA_SUPPORT_FOR[typeOf(id)])) || ofFilament('filament_is_support', id);
     const soluble = (id: number) => ofFilament('filament_soluble', id);
     if (touched('support_filament') && isSupport(base) && !soluble(base) && !modelHas(['TPU', 'TPU-AMS']))
-      ask(baseWarning, {}, { support_filament: '0' }, 'Use it', 'Use Default');
+      ask(baseWarning, {}, { support_filament: '0' }, i18n.t('settingsCheck.useIt'), i18n.t('settingsCheck.useDefault'));
     if (touched('support_interface_filament')) {
       const tuned = c.num('support_top_z_distance') === 0 && c.num('support_interface_spacing') === 0 && c.str('support_interface_pattern') === interlaced;
       if ((isSupport(iface) && !tuned) || (soluble(iface) && !soluble(base))) {
         const yes: OrcaConfig = { support_top_z_distance: '0', support_interface_spacing: '0', support_interface_pattern: interlaced, independent_support_layer_height: '0' };
         if ((typeOf(iface) === 'PLA' && modelHas(['TPU', 'TPU-AMS'])) || (soluble(iface) && !soluble(base))) yes.support_filament = String(iface + 1);
         const message = soluble(iface)
-          ? 'When using soluble material for the support interface, we recommend the following settings:\n0 top Z distance, 0 interface spacing, interlaced rectilinear pattern, disable independent support layer height\nand use soluble materials for both support interface and support base.'
-          : 'When using support material for the support interface, we recommend the following settings:\n0 top Z distance, 0 interface spacing, interlaced rectilinear pattern and disable independent support layer height.';
-        ask(`${message}\n\nChange these settings automatically?`, yes, {}, 'Change them', 'Leave them');
+          ? i18n.t('settingsCheck.solubleInterface')
+          : `${i18n.t('settingsCheck.supportInterface')}.`;
+        ask(askChange(message), yes, {}, i18n.t('settingsCheck.changeThem'), i18n.t('settingsCheck.leaveThem'));
       }
     }
     return;
   }
 
   const pairWithModel = (id: number) => Object.hasOwn(INCOMPATIBLE_SUPPORT, typeOf(id)) && modelHas(INCOMPATIBLE_SUPPORT[typeOf(id)]);
-  if (touched('support_filament') && pairWithModel(base)) ask(baseWarning, {}, { support_filament: '0' }, 'Use it', 'Use Default');
+  if (touched('support_filament') && pairWithModel(base)) ask(baseWarning, {}, { support_filament: '0' }, i18n.t('settingsCheck.useIt'), i18n.t('settingsCheck.useDefault'));
   if (touched('support_interface_filament') && iface >= 0) {
     const material = ofFilament('filament_is_support', iface);
     const pair = !material && pairWithModel(iface);
@@ -702,9 +705,9 @@ function supportFilamentChecks(after: OrcaConfig, changed: string[], ctx: Toggle
     if (differ.length) {
       const model = typeOf(iface) === 'PLA' ? 'PETG' : 'PLA';
       const message = material
-        ? 'When using support material for the support interface, we recommend the following settings:\n0 top Z distance, 0 interface spacing, interlaced rectilinear pattern and disable independent support layer height'
-        : `Detected ${typeOf(iface)} as support interface material for ${model} models. PLA and PETG do not bond together — we recommend adjusting the following parameters:\n\n${differ.map(([, , line]) => `  • ${line}`).join('\n')}`;
-      ask(`${message}\n\nChange these settings automatically?`, Object.fromEntries(differ.map(([k, v]) => [k, v])), {}, 'Change them', 'Leave them');
+        ? i18n.t('settingsCheck.supportInterface')
+        : `${i18n.t('settingsCheck.plaPetg', { material: typeOf(iface), model })}\n\n${differ.map(([, , line]) => `  • ${line}`).join('\n')}`;
+      ask(askChange(message), Object.fromEntries(differ.map(([k, v]) => [k, v])), {}, i18n.t('settingsCheck.changeThem'), i18n.t('settingsCheck.leaveThem'));
     }
   }
 }

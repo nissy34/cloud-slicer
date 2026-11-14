@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Move",
+    "rotate": "Rotate",
+    "scale": "Scale",
+    "rotateText": "Rotate text",
+    "moveSvgSurface": "Move SVG over surface",
+    "moveTextSurface": "Move text over surface",
+    "movePart": "Move part",
+    "rotatePart": "Rotate part",
+    "scalePart": "Scale part",
+    "plates": "Plates",
+    "ownSettingsTip": "This plate has settings of its own",
+    "ownSettings": "has its own settings",
+    "plateSettings": "Plate settings",
+    "plateNSettings": "Plate {{n}} settings"
+  }
+}

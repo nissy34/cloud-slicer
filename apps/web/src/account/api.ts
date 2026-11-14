@@ -1,4 +1,5 @@
 // Client for the account API in functions/api (Cloudflare Pages Functions).
+import { i18n } from '../i18n';
 import type { EngineFlavor } from '../lib/engines';
 import type { PresetEngines } from '../lib/preset-engines';
 import type { PrintRecord } from '../lib/prints';
@@ -163,7 +164,7 @@ async function call<T>(path: string, init: RequestInit = {}, contentType = 'appl
     });
     const type = res.headers.get('Content-Type') ?? '';
     // Without Functions (vite dev/preview) /api/* falls through to index.html.
-    if (!type.includes('application/json')) throw new ApiError(404, 'Accounts are not available on this server');
+    if (!type.includes('application/json')) throw new ApiError(404, i18n.t('accountErrors.noAccounts'));
     const body = (await res.json()) as Record<string, unknown>;
     if (!res.ok) {
       if (body.code === 'drive-connect') driveLost();
@@ -172,7 +173,7 @@ async function call<T>(path: string, init: RequestInit = {}, contentType = 'appl
     return body as T;
   } catch (e) {
     const why = failure(e, limit, cancel);
-    if (why instanceof TimedOut) throw new ApiError(504, "Cloud Slicer didn't answer. Check your connection, then try again.", { code: 'timeout' });
+    if (why instanceof TimedOut) throw new ApiError(504, i18n.t('accountErrors.siteNoAnswer'), { code: 'timeout' });
     throw why;
   }
 }
@@ -353,6 +354,6 @@ export function presetNameError(name: string): string | null {
   const n = name.trim();
   // eslint-disable-next-line no-control-regex
   if (!n || n.length > 128 || /[/\\:*?"<>|\u0000-\u001f]/.test(n))
-    return 'Use 1-128 characters, without / \\ : * ? " < > |';
+    return i18n.t('presetSave.nameRule');
   return null;
 }

@@ -1,0 +1,23 @@
+{
+  "presetChanges": {
+    "filamentN": "Filament {{n}}",
+    "process": "Process",
+    "printer": "Printer",
+    "changes_one": "{{count}} change",
+    "changes_other": "{{count}} changes",
+    "saveTitle": "Save changed settings",
+    "back": "Back",
+    "saving": "Saving…",
+    "save": "Save",
+    "namesText": "Your own presets keep their name and take the changes. Give a new name to save a copy instead.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Keep your changed settings?",
+    "discard": "Discard",
+    "saveMenu": "Save…",
+    "keep": "Keep",
+    "text": "Some presets have changed settings. Keep them in the new project, discard them, or save them into presets.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Remember my choice (Keep or Discard)"
+  }
+}

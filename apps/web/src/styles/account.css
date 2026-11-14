@@ -114,7 +114,7 @@
 }
 .preset-pop {
   width: 300px;
-  text-align: left;
+  text-align: start;
 }
 .preset-pop .small {
   font-size: var(--t-sm);
@@ -194,4 +194,18 @@
 }
 .preset-pop-field input {
   width: 100%;
+}
+/* The last lines: the language, then Privacy · Terms. */
+.account-legal {
+  display: grid;
+  gap: var(--s-3);
+}
+.account-legal p {
+  margin: 0;
+}
+.account-language {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
 }

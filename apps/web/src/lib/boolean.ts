@@ -1,12 +1,14 @@
 // Mesh boolean of two volumes of one object, or of one and all the others (the object menu joins all parts) (engine/src/boolean_api.cpp),
 // like desktop Orca's Mesh Boolean tool.
 import type { VolumeInfo } from '../engine/protocol';
+import { i18n } from '../i18n';
 
 export type BooleanOp = 'union' | 'difference' | 'intersection';
+/** Each operation and its name (a word key). */
 export const BOOLEAN_OPS: { op: BooleanOp; label: string }[] = [
-  { op: 'union', label: 'Union' },
-  { op: 'difference', label: 'Difference' },
-  { op: 'intersection', label: 'Intersection' },
+  { op: 'union', label: 'booleanTool.union' },
+  { op: 'difference', label: 'booleanTool.difference' },
+  { op: 'intersection', label: 'booleanTool.intersection' },
 ];
 
 /** The second picker's "All the other parts": every other part of the object (and negative part, for a difference). */
@@ -24,7 +26,9 @@ export interface BooleanRequest {
 
 /** Desktop's captions for the two pickers. */
 export function pickerLabels(op: BooleanOp): [string, string] {
-  return op === 'difference' ? ['Subtract from', 'Subtract with'] : ['Part 1', 'Part 2'];
+  return op === 'difference'
+    ? [i18n.t('booleanTool.subtractFrom'), i18n.t('booleanTool.subtractWith')]
+    : [i18n.t('booleanTool.part', { n: 1 }), i18n.t('booleanTool.part', { n: 2 })];
 }
 
 /** The starting pair: the picked volume (else the first) and the next one along. */

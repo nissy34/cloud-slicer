@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDevice } from '../../state/device';
 import { activeFilterCount, BUILT_IN_FILTERS, isHidden, readConsoleFilters, type ConsoleFilters } from '../console-filters';
 import { Card } from './parts';
@@ -24,6 +25,7 @@ function saveFilters(f: ConsoleFilters) {
 }
 
 export function ConsoleCard() {
+  const { t } = useTranslation();
   const lines = useDevice((s) => s.console);
   const run = useDevice((s) => s.run);
   const [text, setText] = useState('');
@@ -51,30 +53,30 @@ export function ConsoleCard() {
   }, [lines, filters]);
   return (
     <Card
-      title="Console"
+      title={t('deviceCards.console')}
       className="dv-console-card"
       testId="console-card"
       actions={
         <button className="quiet" onClick={() => setEditing(!editing)} aria-expanded={editing} data-testid="console-filter-button">
-          {editing ? 'Done' : active ? `Filters (${active})` : 'Filters'}
+          {editing ? t('deviceConsole.done') : active ? t('deviceConsole.filtersN', { n: active }) : t('deviceConsole.filters')}
         </button>
       }
     >
       {editing && (
-        <div className="dv-console-filters" role="group" aria-label="Hide these lines" data-testid="console-filters">
-          <span className="dv-console-filters-title">Hide these lines</span>
+        <div className="dv-console-filters" role="group" aria-label={t('deviceConsole.hideThese')} data-testid="console-filters">
+          <span className="dv-console-filters-title">{t('deviceConsole.hideThese')}</span>
           <div className="chips">
             {BUILT_IN_FILTERS.map((b) => (
-              <button key={b.key} className="chip" aria-pressed={filters[b.key]} title={`Hide lines like: ${b.example}`} onClick={() => setFilters({ ...filters, [b.key]: !filters[b.key] })}>
-                {b.label}
+              <button key={b.key} className="chip" aria-pressed={filters[b.key]} title={t('deviceConsole.hideLike', { example: b.exampleWords ? t(b.exampleWords) : b.example })} onClick={() => setFilters({ ...filters, [b.key]: !filters[b.key] })}>
+                {t(b.label)}
               </button>
             ))}
             {filters.custom.map((c, i) => (
               <span key={c.text} className={c.on ? 'chip dv-filter-word on' : 'chip dv-filter-word'}>
-                <button aria-pressed={c.on} title={`Hide lines containing “${c.text}”`} onClick={() => setFilters({ ...filters, custom: filters.custom.map((x, j) => (j === i ? { ...x, on: !x.on } : x)) })}>
+                <button aria-pressed={c.on} title={t('deviceConsole.hideContaining', { text: c.text })} onClick={() => setFilters({ ...filters, custom: filters.custom.map((x, j) => (j === i ? { ...x, on: !x.on } : x)) })}>
                   “{c.text}”
                 </button>
-                <button className="dv-filter-remove" aria-label={`Remove the “${c.text}” filter`} title="Remove" onClick={() => setFilters({ ...filters, custom: filters.custom.filter((_, j) => j !== i) })}>
+                <button className="dv-filter-remove" aria-label={t('deviceConsole.removeFilter', { text: c.text })} title={t('deviceConsole.remove')} onClick={() => setFilters({ ...filters, custom: filters.custom.filter((_, j) => j !== i) })}>
                   <X size={12} aria-hidden />
                 </button>
               </span>
@@ -93,22 +95,22 @@ export function ConsoleCard() {
                   onChange={(e) => setWord(e.target.value)}
                   onKeyDown={(e) => e.key === 'Escape' && (setWord(''), setAdding(false))}
                   onBlur={() => !word.trim() && setAdding(false)}
-                  placeholder="Hide lines containing…"
-                  aria-label="Hide lines containing"
+                  placeholder={t('deviceConsole.hideContainingPlaceholder')}
+                  aria-label={t('deviceConsole.hideContainingLabel')}
                   spellCheck={false}
                   autoCapitalize="off"
                 />
                 <button className="chip" type="submit" disabled={!word.trim()}>
-                  Add
+                  {t('deviceConsole.add')}
                 </button>
               </form>
             ) : (
               <button className="chip dv-filter-new" onClick={() => setAdding(true)}>
-                + Add
+                + {t('deviceConsole.add')}
               </button>
             )}
           </div>
-          <p className="muted">Tap a chip to switch it. What you send and errors always show.</p>
+          <p className="muted">{t('deviceConsole.filtersHelp')}</p>
         </div>
       )}
       <ol className="dv-console" ref={log} aria-live="polite">
@@ -121,7 +123,7 @@ export function ConsoleCard() {
       </ol>
       {hidden > 0 && (
         <p className="dv-console-hidden muted" data-testid="console-hidden">
-          {hidden === 1 ? '1 line hidden by filters' : `${hidden} lines hidden by filters`}
+          {t('deviceConsole.linesHidden', { count: hidden })}
         </p>
       )}
       <form
@@ -134,9 +136,9 @@ export function ConsoleCard() {
           void run(script);
         }}
       >
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Send G-code, e.g. M115" aria-label="G-code command" spellCheck={false} autoCapitalize="off" />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t('deviceConsole.sendPlaceholder')} aria-label={t('deviceConsole.commandLabel')} spellCheck={false} autoCapitalize="off" />
         <button className="secondary" type="submit">
-          Send
+          {t('deviceConsole.send')}
         </button>
       </form>
     </Card>

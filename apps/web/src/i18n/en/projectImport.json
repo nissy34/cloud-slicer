@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "another printer",
+    "slicedFile": "{{name}} is a sliced file: it holds G-code for another printer but no models. Open the original project (.3mf) instead.",
+    "noObjects": "{{name}} has no objects to print."
+  }
+}

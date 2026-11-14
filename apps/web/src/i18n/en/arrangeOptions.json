@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Spacing",
+    "spacingMm": "Spacing in mm",
+    "autoNote": "0 means auto spacing.",
+    "rotate": "Auto rotate for arrangement",
+    "multiMaterial": "Allow multiple materials on same plate",
+    "alignYOff": "Turn off Auto rotate to use this",
+    "alignYTip": "Turns each object so its long side runs front to back",
+    "alignY": "Align to Y axis",
+    "arrange": "Arrange",
+    "reset": "Reset"
+  }
+}

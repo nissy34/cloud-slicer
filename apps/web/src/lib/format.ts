@@ -1,11 +1,13 @@
-/** 5025 -> "1 h 24 min"; 59 -> "1 min". */
+import { i18n } from '../i18n';
+
+/** 5025 -> "1 h 24 min"; 59 -> "1 min" (in the page's language). */
 export function formatDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return '–';
   const minutes = Math.max(1, Math.round(seconds / 60));
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (h === 0) return `${m} min`;
-  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+  if (h === 0) return i18n.t('timeFormat.minutes', { m });
+  return m === 0 ? i18n.t('timeFormat.hours', { h }) : i18n.t('timeFormat.hoursMinutes', { h, m });
 }
 
 /** To the second, like desktop's time estimates: 3007 -> "50m 7s", 5045 -> "1h 24m 5s", 19 -> "19s". */
@@ -14,7 +16,7 @@ export function formatClock(seconds: number): string {
   // Whole seconds dropped, like desktop's get_time_dhms (the G-code footer's times).
   const s = Math.floor(seconds);
   const [h, m, r] = [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60];
-  return [h && `${h}h`, (h || m) && `${m}m`, `${r}s`].filter(Boolean).join(' ');
+  return [h && i18n.t('timeFormat.clockH', { n: h }), (h || m) && i18n.t('timeFormat.clockM', { n: m }), i18n.t('timeFormat.clockS', { n: r })].filter(Boolean).join(' ');
 }
 
 /** 12.345 -> "12.3 g"; 0 -> "–". */

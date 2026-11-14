@@ -2,21 +2,31 @@
 // upstream OrcaSlicer. Each project slices with one of them; new projects use
 // the default picked in the setup wizard.
 import { Unzip, UnzipInflate } from 'fflate';
+import { i18n } from '../i18n';
 
 export type EngineFlavor = 'snapmaker' | 'orca';
 
-export const ENGINES: { id: EngineFlavor; name: string; blurb: string; examples: string[] }[] = [
+// The names are the programs' own; the blurb and examples are read in the page's language each time.
+export const ENGINES: { id: EngineFlavor; name: string; readonly blurb: string; readonly examples: string[] }[] = [
   {
     id: 'snapmaker',
     name: 'Snapmaker Orca',
-    blurb: "Snapmaker's own OrcaSlicer, made for the U1.",
-    examples: ['Colour mixing: print two filaments as a new colour', 'Standard and high flow filament settings', "Snapmaker's U1 presets"],
+    get blurb() {
+      return i18n.t('engineSwitch.snapmakerBlurb');
+    },
+    get examples() {
+      return [i18n.t('engineSwitch.snapmakerMixing'), i18n.t('engineSwitch.snapmakerFlow'), i18n.t('engineSwitch.snapmakerPresets')];
+    },
   },
   {
     id: 'orca',
     name: 'OrcaSlicer',
-    blurb: 'The community OrcaSlicer, with its own presets.',
-    examples: ['The newest OrcaSlicer fixes and settings', "OrcaSlicer's own U1 presets", 'No colour mixing'],
+    get blurb() {
+      return i18n.t('engineSwitch.orcaBlurb');
+    },
+    get examples() {
+      return [i18n.t('engineSwitch.orcaNewest'), i18n.t('engineSwitch.orcaPresets'), i18n.t('engineSwitch.orcaNoMixing')];
+    },
   },
 ];
 

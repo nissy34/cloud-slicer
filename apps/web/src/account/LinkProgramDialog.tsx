@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import { i18n } from '../i18n';
 import { Dialog } from '../components/Dialog';
 import { Note } from '../components/Note';
 import { useAccount } from '../state/account';
@@ -27,9 +29,9 @@ async function authCall(path: string, init?: RequestInit): Promise<Record<string
   if (!r.ok) {
     const code = String(body.error ?? body.code ?? '');
     if (code === 'expired_token' || /expired/i.test(String(body.error_description ?? body.message ?? '')))
-      throw new Error('This code has expired. Ask your AI app to sign in again for a new one.');
-    if (code === 'invalid_request' || r.status === 404 || r.status === 400) throw new Error("This code isn't valid. Check it against the one your AI app shows, or ask it to sign in again.");
-    throw new Error(String(body.error_description ?? body.message ?? `The site answered ${r.status}`));
+      throw new Error(i18n.t('linkProgram.expired'));
+    if (code === 'invalid_request' || r.status === 404 || r.status === 400) throw new Error(i18n.t('linkProgram.invalid'));
+    throw new Error(String(body.error_description ?? body.message ?? i18n.t('linkProgram.siteAnswered', { status: r.status })));
   }
   return body;
 }
@@ -39,6 +41,7 @@ async function authCall(path: string, init?: RequestInit): Promise<Record<string
  * on their computer asked for. Signed out, it asks them to sign in first.
  */
 export function LinkProgramDialog() {
+  const { t } = useTranslation();
   const [code, setCode] = useState(() => (typeof location === 'undefined' ? null : linkCode(location.search, location.hash)));
   const [typed, setTyped] = useState('');
   const [stage, setStage] = useState<Stage>({ kind: 'checking' });
@@ -83,15 +86,15 @@ export function LinkProgramDialog() {
   let body: React.ReactNode;
   let footer: React.ReactNode = (
     <button className="secondary" onClick={close}>
-      Close
+      {t('common.close')}
     </button>
   );
-  if (status === 'loading') body = <p className="muted">Checking your account…</p>;
+  if (status === 'loading') body = <p className="muted">{t('linkProgram.checkingAccount')}</p>;
   else if (!user)
     body = (
       <>
-        <p>Sign in to Cloud Slicer first. Then this window asks you to connect your AI app.</p>
-        {providers.google ? null : <Note tone="warn">Sign-in isn't set up on this site.</Note>}
+        <p>{t('linkProgram.signInFirst')}</p>
+        {providers.google ? null : <Note tone="warn">{t('linkProgram.noSignIn')}</Note>}
       </>
     );
   else if (!code)
@@ -105,31 +108,30 @@ export function LinkProgramDialog() {
         }}
       >
         <label className="field">
-          <span>The code your AI app shows</span>
+          <span>{t('linkProgram.codeLabel')}</span>
           <input value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus autoComplete="off" spellCheck={false} placeholder="ABCD1234" />
         </label>
       </form>
     );
-  else if (stage.kind === 'checking') body = <p className="muted">Checking the code…</p>;
+  else if (stage.kind === 'checking') body = <p className="muted">{t('linkProgram.checkingCode')}</p>;
   else if (stage.kind === 'error') body = <Note tone="error">{stage.message}</Note>;
   else if (stage.kind === 'done')
     body = stage.approved ? (
-      <p>Connected. Go back to your AI app: it's signed in as {user.name}.</p>
+      <p>{t('linkProgram.connected', { name: user.name })}</p>
     ) : (
-      <p>Turned down. Your AI app isn't signed in.</p>
+      <p>{t('linkProgram.turnedDown')}</p>
     );
   else
     body = (
       <>
         <p>
-          An AI app on your computer (the Cloud Slicer add-on) asks to use your account, <b>{user.email}</b>. Check that it shows this code:
+          <Trans i18nKey={'linkProgram.asks'} values={{ email: user.email }} components={{ b: <b /> }} />
         </p>
         <p className="link-code" data-testid="link-code">
           {code}
         </p>
         <p className="muted small">
-          It will see your saved presets and printers, and can check your printers and upload to them. It asks you every time before it starts a
-          print. You can sign it out from the AI app.
+          {t('linkProgram.willSee')}
         </p>
       </>
     );
@@ -138,10 +140,10 @@ export function LinkProgramDialog() {
     footer = (
       <>
         <button className="secondary" onClick={close}>
-          Not now
+          {t('common.notNow')}
         </button>
         <button className="primary" onClick={() => void useAccount.getState().signIn('google')}>
-          Continue with Google
+          {t('linkProgram.continueGoogle')}
         </button>
       </>
     );
@@ -149,10 +151,10 @@ export function LinkProgramDialog() {
     footer = (
       <>
         <button className="secondary" onClick={close}>
-          Cancel
+          {t('common.cancel')}
         </button>
         <button type="submit" form="link-code-form" className="primary" disabled={!typed.trim()}>
-          Next
+          {t('common.next')}
         </button>
       </>
     );
@@ -160,22 +162,22 @@ export function LinkProgramDialog() {
     footer = (
       <>
         <button className="secondary" onClick={() => void answer(false)}>
-          Don't connect
+          {t('linkProgram.dontConnect')}
         </button>
         <button className="primary" onClick={() => void answer(true)}>
-          Connect
+          {t('linkProgram.connect')}
         </button>
       </>
     );
   else if (stage.kind === 'done')
     footer = (
       <button className="primary" onClick={close}>
-        Done
+        {t('common.done')}
       </button>
     );
 
   return (
-    <Dialog title="Connect an AI app" testId="link-program-dialog" onClose={close} footer={footer}>
+    <Dialog title={t('linkProgram.title')} testId="link-program-dialog" onClose={close} footer={footer}>
       <div className="link-program">{body}</div>
     </Dialog>
   );

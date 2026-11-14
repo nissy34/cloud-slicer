@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDevice } from '../../state/device';
 import { dialect, takesCommands } from '../addons';
 import { purifierGcode, U1_LIGHT, u1Fans, u1LightGcode, u1Purifier } from '../addons/u1';
@@ -8,6 +9,7 @@ import { Card, PercentSlider, Temperature } from './parts';
 
 /** Bed, chamber, other sensors, fans and lights; on a U1 also the top cover's purifier. */
 export function ClimateCard() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState<string | null>(null);
   const objects = useDevice((s) => s.objects);
   const addons = useDevice((s) => s.addons);
@@ -21,12 +23,12 @@ export function ClimateCard() {
   const purifier = isU1 ? u1Purifier(objects) : null;
 
   return (
-    <Card title="Bed and chamber" testId="climate-card">
+    <Card title={t('deviceCards.climate')} testId="climate-card">
       <ul className="dv-list">
         {hs.map((h) => (
           <li key={h.name}>
             <span>{h.label}</span>
-            <Temperature label={h.label} temp={h.temp} target={h.target} max={h.max} onSet={(t) => void run(setHeaterGcode(h.name, t, h.max, dialect(addons)))} disabled={!commands} />
+            <Temperature label={h.label} temp={h.temp} target={h.target} max={h.max} onSet={(v) => void run(setHeaterGcode(h.name, v, h.max, dialect(addons)))} disabled={!commands} />
           </li>
         ))}
         {ss.map((s) => (
@@ -40,13 +42,13 @@ export function ClimateCard() {
         ))}
         {ls.map((l) => (
           <li key={l.name}>
-            <span>{isU1 && l.name === U1_LIGHT ? 'Chamber light' : l.label}</span>
+            <span>{isU1 && l.name === U1_LIGHT ? t('deviceCards.chamberLight') : l.label}</span>
             <input
               className="switch"
               type="checkbox"
               role="switch"
               checked={l.on}
-              aria-label={isU1 && l.name === U1_LIGHT ? 'Chamber light' : l.label}
+              aria-label={isU1 && l.name === U1_LIGHT ? t('deviceCards.chamberLight') : l.label}
               onChange={(e) => void run(isU1 && l.name === U1_LIGHT ? u1LightGcode(e.target.checked) : lightGcode(l.name, e.target.checked))}
             />
           </li>
@@ -59,8 +61,8 @@ export function ClimateCard() {
           ...fs.map((f) => ({ id: f.name, label: f.label, speed: f.speed, set: f.settable && commands ? (v: number) => void run(fanGcode(f.name, v)) : null })),
           ...(purifier
             ? [
-                { id: 'purifier-exhaust', label: 'Purifier exhaust', speed: purifier.exhaust ?? 0, set: (v: number) => void run(purifierGcode('exhaust', v)) },
-                { id: 'purifier-inner', label: 'Purifier filter', speed: purifier.inner ?? 0, set: (v: number) => void run(purifierGcode('inner', v)) },
+                { id: 'purifier-exhaust', label: t('deviceCards.purifierExhaust'), speed: purifier.exhaust ?? 0, set: (v: number) => void run(purifierGcode('exhaust', v)) },
+                { id: 'purifier-inner', label: t('deviceCards.purifierFilter'), speed: purifier.inner ?? 0, set: (v: number) => void run(purifierGcode('inner', v)) },
               ]
             : []),
         ]}
@@ -73,6 +75,7 @@ type FanTile = { id: string; label: string; speed: number; set: ((v: number) => 
 
 /** Fans as small tiles with their speed; tap one that can be set to open its slider under the tiles. */
 function FanTiles({ items, open, setOpen }: { items: FanTile[]; open: string | null; setOpen(id: string | null): void }) {
+  const { t } = useTranslation();
   if (!items.length) return null;
   const current = items.find((i) => i.id === open && i.set);
   return (
@@ -86,7 +89,7 @@ function FanTiles({ items, open, setOpen }: { items: FanTile[]; open: string | n
             disabled={!i.set}
             aria-expanded={i.set ? open === i.id : undefined}
             onClick={() => setOpen(open === i.id ? null : i.id)}
-            title={i.set ? undefined : 'The printer runs this fan by itself'}
+            title={i.set ? undefined : t('deviceCards.fanAuto')}
           >
             <span>{i.label}</span>
             <b>{Math.round(i.speed * 100)}%</b>

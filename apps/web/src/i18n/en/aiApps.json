@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Other chat apps",
+    "title": "Use with an AI app",
+    "more": "More about it",
+    "intro": "Ask your AI app to slice for you: “Slice this Benchy for my U1 in PETG with 4 walls and tell me the time.” Install it in Claude Desktop as an extension, or in other chat apps on your computer such as LM Studio and Msty. It slices on your computer with the same engines and presets as this site, and your models stay there.",
+    "whichApp": "Which app",
+    "step1": "Download the Cloud Slicer extension.",
+    "download": "Download for Claude Desktop",
+    "size": "about 11 MB. Installed already? Download it again to update.",
+    "step2": "Open the file. Claude Desktop asks to install it: click <b>Install</b>.",
+    "step3": "Ask Claude to slice a file on your computer.",
+    "otherStep1": "In your chat app's settings, add an MCP server with this (most apps take it as it is):",
+    "otherStep2": "It needs Node 20 or newer on your computer (<a>nodejs.org</a>).",
+    "canDo": "It can open models and projects, choose the printer, process and filaments, set colours and which filament prints each object, change settings, arrange plates and slice. While your computer is on, Claude on your phone can use it too. Signed in, it also uses your presets and printers, and asks you before it starts a print.",
+    "version": "Version {{version}}"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "הוספת חלק",
+    "addNegative": "הוספת חלק שלילי",
+    "addModifier": "הוספת משנה הגדרות",
+    "addBlocker": "הוספת חוסם תמיכות",
+    "addEnforcer": "הוספת מאלץ תמיכות",
+    "part": "חלק",
+    "negative": "חלק שלילי",
+    "modifier": "משנה הגדרות",
+    "enforcer": "מאלץ תמיכות",
+    "blocker": "חוסם תמיכות",
+    "other": "אחר"
+  }
+}

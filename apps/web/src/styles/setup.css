@@ -177,7 +177,7 @@
   margin-top: 6px;
 }
 .wizard-later {
-  margin-right: auto;
+  margin-inline-end: auto;
 }
 /* The welcome page (signed out): printer pictures beside Sign in with Google, or
    Continue without signing in. The window's title is only for screen readers here. */

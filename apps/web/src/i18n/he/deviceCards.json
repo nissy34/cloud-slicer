@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "מצלמות",
+    "climate": "מיטה ותא",
+    "move": "תנועה",
+    "console": "מסוף",
+    "print": "הדפסה",
+    "toolHeads": "ראשי הדפסה",
+    "alerts": "התראות",
+    "files": "קבצים",
+    "unfold": "פתיחת הכרטיס",
+    "fold": "קיפול הכרטיס",
+    "targetOf": "יעד {{label}}",
+    "turnOff": "כיבוי {{label}}",
+    "off": "כיבוי",
+    "keepGoing": "המשך",
+    "chamberLight": "תאורת התא",
+    "purifierExhaust": "פליטת המטהר",
+    "purifierFilter": "מסנן המטהר",
+    "fanAuto": "המדפסת מפעילה את המאוורר הזה בעצמה"
+  }
+}

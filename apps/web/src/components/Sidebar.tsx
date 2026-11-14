@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../i18n';
 import { shortName } from '../lib/presets';
 import { installedFilaments, installedOnly, installedPrinters, SETUP_KEY, type Setup } from '../lib/setup';
 import { canSend } from '../lib/printer-catalog';
@@ -30,6 +32,7 @@ const withMine = (installed: string[] | undefined, list: PresetSummary[]) =>
 
 
 function PrinterSection() {
+  const { t } = useTranslation();
   const allPrinters = useSlicer((s) => s.printers);
   const selection = useSlicer((s) => s.selection);
   const selectPrinter = useSlicer((s) => s.selectPrinter);
@@ -40,18 +43,19 @@ function PrinterSection() {
   const catalog = useSlicer((s) => s.catalog);
   const sends = (name: string) => canSend(catalog, name, allPrinters);
   const selectedSends = selection ? sends(selection.printer) : null;
-  const group = (p: PresetSummary) => (p.user ? 'My printers' : p.vendor || 'Other');
-  const vendors = [...new Set(printers.map(group))].sort((a, b) => Number(b === 'My printers') - Number(a === 'My printers'));
+  const mine = t('sidebar.myPrinters');
+  const group = (p: PresetSummary) => (p.user ? mine : p.vendor || t('sidebar.otherPrinters'));
+  const vendors = [...new Set(printers.map(group))].sort((a, b) => Number(b === mine) - Number(a === mine));
   return (
     <section className="group">
       <div className="group-head">
         <h2>
           <Printer aria-hidden />
-          Printer
+          {t('sidebar.printer')}
         </h2>
         <div className="group-actions">
           <button className="quiet" onClick={() => manage('printers')}>
-            Manage
+            {t('sidebar.manage')}
           </button>
           <EditPresetButton type="printer" />
           <PresetMenu type="printer" />
@@ -59,7 +63,7 @@ function PrinterSection() {
       </div>
       <Picker
         field
-        label="Printer preset"
+        label={t('sidebar.printerPreset')}
         value={selection?.printer ?? null}
         disabled={busy}
         options={vendors.flatMap((v) =>
@@ -69,21 +73,22 @@ function PrinterSection() {
         )}
         onChange={(name) => void selectPrinter(name)}
         // Like desktop's printer list: to add more or remove some.
-        actions={[{ id: 'add', label: 'Add or remove printers…', icon: Settings }]}
+        actions={[{ id: 'add', label: t('sidebar.addRemovePrinters'), icon: Settings }]}
         onAction={() => manage('printers')}
       />
       {selectedSends === true && (
         <p className="muted small printer-send">
-          <SendMark /> Send prints to it from the Device tab.
+          <SendMark /> {t('sidebar.sendsFromDevice')}
         </p>
       )}
-      {selectedSends === false && <p className="muted small printer-send">No direct print for this printer (not Klipper, a Prusa or a Centauri Carbon): download the G-code to print it, or send it from the Device tab if OctoPrint runs the printer.</p>}
-      <OptionField optKey="curr_bed_type" label="Plate type" />
+      {selectedSends === false && <p className="muted small printer-send">{t('sidebar.noDirectPrint')}</p>}
+      <OptionField optKey="curr_bed_type" label={t('sidebar.plateType')} />
     </section>
   );
 }
 
 function FilamentSection() {
+  const { t } = useTranslation();
   const selection = useSlicer((s) => s.selection);
   const allFilaments = useSlicer((s) => s.filaments);
   const filamentOrder = useSlicer((s) => s.filamentOrder);
@@ -100,22 +105,22 @@ function FilamentSection() {
       <div className="group-head">
         <h2>
           <Spool aria-hidden />
-          Filament
+          {t('sidebar.filament')}
         </h2>
         <div className="group-actions spaced">
           <SyncFilamentsButton />
-          <button className="quiet" onClick={() => void addFilament()} aria-label="Add filament">
-            + Add
+          <button className="quiet" onClick={() => void addFilament()} aria-label={t('sidebar.addFilament')}>
+            {t('sidebar.add')}
           </button>
         </div>
       </div>
       <ol className="slots">
         {selection.filaments.map((name, i) => (
           <li key={i} className="slot" data-preset={name}>
-            <ColourPicker label={`Filament ${i + 1} colour`} title="Filament colour" number={i + 1} value={selection.colours[i]} onChange={(hex) => void setColour(i, hex)} />
+            <ColourPicker label={t('sidebar.filamentNColour', { n: i + 1 })} title={t('sidebar.filamentColour')} number={i + 1} value={selection.colours[i]} onChange={(hex) => void setColour(i, hex)} />
             <Picker
               field
-              label={`Filament ${i + 1} preset`}
+              label={t('sidebar.filamentNPreset', { n: i + 1 })}
               value={printerRowFor(onPrinter?.rows, name, selection.colours[i]) ?? name}
               options={[
                 ...printerOptions(onPrinter),
@@ -129,12 +134,12 @@ function FilamentSection() {
               // Connects the Device tab's printer, so its filaments can show at the top.
               onOpen={() => useDevice.getState().start()}
               // Like desktop's filament list.
-              actions={[{ id: 'add', label: 'Add or remove filaments…', icon: Settings }]}
+              actions={[{ id: 'add', label: t('sidebar.addRemoveFilaments'), icon: Settings }]}
               onAction={() => manage('filaments')}
             />
             <EditPresetButton type="filament" slot={i} />
             <PresetMenu type="filament" slot={i} />
-            <IconButton icon={X} label="Remove this filament" aria-label={`Remove filament ${i + 1}`} disabled={selection.filaments.length <= 1} onClick={() => void removeFilament(i)} />
+            <IconButton icon={X} label={t('sidebar.removeFilament')} aria-label={t('sidebar.removeFilamentN', { n: i + 1 })} disabled={selection.filaments.length <= 1} onClick={() => void removeFilament(i)} />
           </li>
         ))}
       </ol>
@@ -150,6 +155,7 @@ function FilamentSection() {
 }
 
 function ProcessSection() {
+  const { t } = useTranslation();
   const processes = useSlicer((s) => s.processes);
   const selection = useSlicer((s) => s.selection);
   const selectProcess = useSlicer((s) => s.selectProcess);
@@ -158,13 +164,13 @@ function ProcessSection() {
       <div className="group-head">
         <h2>
           <SlidersHorizontal aria-hidden />
-          Process
+          {t('sidebar.process')}
         </h2>
         <PresetMenu type="process" />
       </div>
       <label className="field">
-        <span className="sr-only">Process preset</span>
-        <Picker field label="Process preset" value={selection?.process ?? null} options={presetOptions(processes)} onChange={(v) => void selectProcess(v)} />
+        <span className="sr-only">{t('sidebar.processPreset')}</span>
+        <Picker field label={t('sidebar.processPreset')} value={selection?.process ?? null} options={presetOptions(processes)} onChange={(v) => void selectProcess(v)} />
       </label>
     </section>
   );
@@ -179,7 +185,7 @@ const PRINTER_ROW = 'printer-head:';
  */
 function printerOptions(on: ReturnType<typeof usePrinterFilamentRows>): PickerOption[] {
   if (!on) return [];
-  if (on.reading) return [{ value: `${PRINTER_ROW}reading`, label: "Reading the printer's filaments…", group: on.group, disabled: true }];
+  if (on.reading) return [{ value: `${PRINTER_ROW}reading`, label: i18n.t('sidebar.readingFilaments'), group: on.group, disabled: true }];
   return on.rows.map((r) => ({ value: `${PRINTER_ROW}${r.head}`, label: shortName(r.preset), group: on.group, swatch: r.colour, swatchNumber: r.label, tag: r.label }));
 }
 
@@ -200,7 +206,7 @@ function filamentOptions(presets: PresetSummary[], order: FilamentOrder): Picker
     order,
     (p) => shortName(p.name),
   );
-  return [...presets.filter((p) => p.user).map((p) => option(p, 'My presets')), ...brands.flatMap(([brand, list]) => list.map((p) => option(p, brand)))];
+  return [...presets.filter((p) => p.user).map((p) => option(p, i18n.t('sidebar.myPresets'))), ...brands.flatMap(([brand, list]) => list.map((p) => option(p, brand)))];
 }
 
 /** A list's choices: the user's own presets first, under their own heading. */
@@ -208,7 +214,7 @@ function presetOptions(presets: PresetSummary[]): PickerOption[] {
   const mine = presets.filter((p) => p.user);
   const options = (list: PresetSummary[], group?: string) => list.map((p) => ({ value: p.name, label: shortName(p.name), group }));
   if (!mine.length) return options(presets);
-  return [...options(mine, 'My presets'), ...options(presets.filter((p) => !p.user), 'System presets')];
+  return [...options(mine, i18n.t('sidebar.myPresets')), ...options(presets.filter((p) => !p.user), i18n.t('sidebar.systemPresets'))];
 }
 
 export function Sidebar() {

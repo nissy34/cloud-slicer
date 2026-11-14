@@ -1,0 +1,22 @@
+{
+  "deviceFiles": {
+    "print": "Print…",
+    "deleteName": "Delete {{name}}",
+    "delete": "Delete",
+    "title": "Files on the printer",
+    "upload": "Upload G-code…",
+    "timelapses": "Timelapses",
+    "none": "No G-code files yet.",
+    "searchN_one": "Search {{count}} file",
+    "searchN_other": "Search {{count}} files",
+    "search": "Search files",
+    "noMatch": "No file matches “{{query}}”.",
+    "deleteFile": "Delete file",
+    "deleteText": "Delete {{name}} from the printer?",
+    "deleted": "Deleted",
+    "pages": "File pages",
+    "newer": "Newer",
+    "older": "Older",
+    "range": "{{from}}–{{to}} of {{total}}"
+  }
+}

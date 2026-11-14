@@ -10,6 +10,8 @@
 //
 //   Please check the custom G-code or use the default custom G-code.
 
+import { i18n } from '../i18n';
+
 const HEADER = 'Failed to generate G-code for invalid custom G-code.';
 const ONE = /^(\w+) Parsing error at line (\d+)[:.] ?(.*)\n(.*)\n( *)\^/gm;
 
@@ -20,12 +22,11 @@ function variableAt(line: string, col: number): string {
 }
 
 function why(reason: string, variable: string): string {
-  const v = variable ? `“${variable}”` : '';
-  if (/^Not a variable name/i.test(reason))
-    return v ? `${v} isn't a setting this slicer knows (it may come from another slicer or a newer version).` : 'it uses a name this slicer doesn\'t know.';
-  if (/negative index/i.test(reason))
-    return `${v || 'a list'} is read before the first filament is loaded (its index is -1 there); check that index with {if ...} first.`;
-  return v ? `${reason.replace(/\.$/, '')} at ${v}.` : `${reason.replace(/\.$/, '')}.`;
+  // The engine's own reason stays as it gives it (English).
+  const bare = reason.replace(/\.$/, '');
+  if (/^Not a variable name/i.test(reason)) return variable ? i18n.t('gcodeErrors.notSetting', { variable }) : i18n.t('gcodeErrors.unknownName');
+  if (/negative index/i.test(reason)) return variable ? i18n.t('gcodeErrors.negativeIndex', { variable }) : i18n.t('gcodeErrors.negativeIndexList');
+  return variable ? i18n.t('gcodeErrors.reasonAt', { reason: bare, variable }) : i18n.t('gcodeErrors.reason', { reason: bare });
 }
 
 export interface GcodeError {
@@ -51,14 +52,10 @@ export function readableGcodeError(message: string, label: (key: string) => stri
   const lines: string[] = [];
   const where = new Set<string>();
   for (const { key, line, reason, variable } of gcodeErrors(message)) {
-    lines.push(`${label(key) ?? key}, line ${line}: ${why(reason, variable)}`);
+    lines.push(i18n.t('gcodeErrors.line', { setting: label(key) ?? key, line, why: why(reason, variable) }));
     where.add(key.startsWith('filament_') ? 'filament' : 'printer');
   }
   if (!lines.length) return message;
-  const fix = [...where].map((w) => `${w} settings`).join(' or ');
-  return [
-    `Slicing stopped: ${lines.length === 1 ? 'a custom G-code' : 'some custom G-code'} can't be filled in.`,
-    ...lines,
-    `Fix it in the ${fix}, or reset it to the preset's G-code.`,
-  ].join('\n');
+  const fix = [...where].map((w) => (w === 'filament' ? i18n.t('gcodeErrors.filamentSettings') : i18n.t('gcodeErrors.printerSettings'))).join(i18n.t('gcodeErrors.or'));
+  return [lines.length === 1 ? i18n.t('gcodeErrors.stoppedOne') : i18n.t('gcodeErrors.stoppedSome'), ...lines, i18n.t('gcodeErrors.fix', { where: fix })].join('\n');
 }

@@ -2,6 +2,7 @@
 // .orca_printer / .orca_filament bundles, a .zip, or this app's own exports),
 // see what each one is and where it goes, then add them to My presets.
 import { useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { create } from 'zustand';
 import type { OrcaConfig } from '../engine/protocol';
 import {
@@ -41,7 +42,8 @@ export const usePresetImport = create<ImportState>((set) => ({
   hide: () => set({ open: false }),
 }));
 
-const TYPE_LABEL: Record<PresetType, string> = { printer: 'Printer', filament: 'Filament', process: 'Process' };
+const TYPE_LABEL: Record<PresetType, string> = { printer: 'importPresets.printer', filament: 'importPresets.filament', process: 'importPresets.process' };
+const TAKEN: Record<PresetType, string> = { printer: 'importPresets.takenPrinter', filament: 'importPresets.takenFilament', process: 'importPresets.takenProcess' };
 
 /** The diff a row stores on `base`: re-read on that base when it moved. */
 async function prepare(item: ImportItem, text: string): Promise<Row> {
@@ -58,6 +60,7 @@ async function prepare(item: ImportItem, text: string): Promise<Row> {
 }
 
 export function ImportPresetsDialog() {
+  const { t } = useTranslation();
   const open = usePresetImport((s) => s.open);
   const hide = usePresetImport((s) => s.hide);
   const signedIn = useAccount((s) => s.status === 'signedIn');
@@ -144,13 +147,13 @@ export function ImportPresetsDialog() {
           const name = finalName(row, (n) => taken.has(`${row.type}\n${n}`));
           if (!name) continue;
           if (!taken.has(`${row.type}\n${name}`) && listUserPresets().length >= MAX_USER_PRESETS)
-            throw new Error(`You can keep up to ${MAX_USER_PRESETS} presets; ${added} were imported.`);
+            throw new Error(t('importPresets.limitReached', { max: MAX_USER_PRESETS, n: added }));
           await saveFromEngine(row.type, name, { inherits: row.base, edited: row.diff, parent: {} }, { overwrite: true });
           taken.add(`${row.type}\n${name}`);
           added++;
         }
       });
-      done = `Imported ${added} preset${added === 1 ? '' : 's'}. ${signedIn ? 'They are saved to your account.' : 'They are saved in this browser until you sign in.'}`;
+      done = `${t('importPresets.imported', { count: added })} ${signedIn ? t('importPresets.savedAccount') : t('importPresets.savedBrowser')}`;
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -173,68 +176,71 @@ export function ImportPresetsDialog() {
 
   return (
     <Dialog
-      title="Import presets"
+      title={t('importPresets.title')}
       onClose={close}
       className="import-presets"
       footer={
         <>
           <button className="secondary" onClick={close}>
-            {done ? 'Close' : 'Cancel'}
+            {done ? t('common.close') : t('common.cancel')}
           </button>
           {rows && (
             <button className="primary" disabled={working || importable.length === 0} onClick={() => void run()}>
-              {working ? 'Importing…' : `Import ${importable.length} preset${importable.length === 1 ? '' : 's'}`}
+              {working ? t('importPresets.importing') : t('importPresets.importN', { count: importable.length })}
             </button>
           )}
         </>
       }
     >
       <p className="muted small">
-        Orca preset files (.json) and bundles (.orca_printer, .orca_filament, .zip) from desktop Orca, Snapmaker Orca or this app. Each preset must be based on a
-        printer, filament or process preset this app has.
+        {t('importPresets.intro')}
       </p>
       <input
         ref={input}
         type="file"
         multiple
         accept={PRESET_FILE_TYPES}
-        aria-label="Preset files"
+        aria-label={t('importPresets.files')}
         className="sr-only"
         onChange={(e) => void pick(e.target.files)}
       />
       <div>
         <button className="secondary" disabled={working} onClick={() => input.current?.click()}>
-          {rows ? 'Choose other files…' : 'Choose files…'}
+          {rows ? t('importPresets.chooseOther') : t('importPresets.choose')}
         </button>
       </div>
-      {working && !rows && <p className="muted">Reading…</p>}
+      {working && !rows && <p className="muted">{t('importPresets.reading')}</p>}
       {problems.length > 0 && (
-        <ul className="import-problems" aria-label="Files left out">
+        <ul className="import-problems" aria-label={t('importPresets.leftOut')}>
           {problems.map((p) => (
             <li key={p}>{p}</li>
           ))}
         </ul>
       )}
       {rows && rows.length > 0 && (
-        <ul className="import-list" aria-label="Presets to import">
+        <ul className="import-list" aria-label={t('importPresets.toImport')}>
           {rows.map((row) => (
-            <li key={row.key} className={row.rejected || row.problem ? 'import-row rejected' : 'import-row'} aria-label={`${TYPE_LABEL[row.type]} ${row.name}`}>
+            <li key={row.key} className={row.rejected || row.problem ? 'import-row rejected' : 'import-row'} aria-label={t('importPresets.rowLabel', { type: t(TYPE_LABEL[row.type]), name: row.name })}>
               <div className="import-row-head">
-                <span className="import-type">{TYPE_LABEL[row.type]}</span>
+                <span className="import-type">{t(TYPE_LABEL[row.type])}</span>
                 <b>{row.name}</b>
               </div>
               {row.rejected || row.problem ? (
-                <Note tone="error">{row.rejected ?? `Can't import: ${row.problem}`}</Note>
+                <Note tone="error">{row.rejected ?? t('importPresets.cantImport', { problem: row.problem })}</Note>
               ) : (
                 <>
                   {row.converted ? (
                     <label className="field">
                       <span className="small">
-                        Made for {row.inherits ? <b>{row.inherits}</b> : 'another printer'}. Put it on:
+                        {row.inherits ? (
+                          <Trans i18nKey={'importPresets.madeFor'} values={{ printer: row.inherits }} components={{ b: <b /> }} />
+                        ) : (
+                          t('importPresets.madeForOther')
+                        )}
                       </span>
                       <Picker
                         field
-                        label={`Base for ${row.name}`}
+                        label={t('importPresets.baseFor', { name: row.name })}
                         value={row.base}
                         disabled={working}
                         options={[
@@ -245,40 +251,40 @@ export function ImportPresetsDialog() {
                       />
                       <span className="small muted">
                         {row.type === 'process'
-                          ? 'Keeps its layer, wall, infill, support and other model settings; speeds, line widths and the like come from the new base.'
-                          : 'Keeps its material settings; its filament start/end G-code comes from the new base.'}
+                          ? t('importPresets.keepsProcess')
+                          : t('importPresets.keepsFilament')}
                       </span>
                     </label>
                   ) : (
                     <p className="import-note small muted">
-                      Based on {row.base}, {Object.keys(row.diff).length} setting{Object.keys(row.diff).length === 1 ? '' : 's'} changed.
+                      {t('importPresets.basedOn', { base: row.base, count: Object.keys(row.diff).length })}
                     </p>
                   )}
                   {row.taken === 'user' && (
                     <label className="field">
-                      <span className="small">You already have a {row.type} preset with this name.</span>
+                      <span className="small">{t(TAKEN[row.type])}</span>
                       <Picker
                         field
-                        label={`When ${row.name} exists`}
+                        label={t('importPresets.whenExists', { name: row.name })}
                         value={row.collision}
                         options={[
-                          { value: 'overwrite', label: 'Replace mine' },
-                          { value: 'keep', label: 'Keep both' },
-                          { value: 'skip', label: 'Skip' },
+                          { value: 'overwrite', label: t('importPresets.replace') },
+                          { value: 'keep', label: t('importPresets.keepBoth') },
+                          { value: 'skip', label: t('importPresets.skip') },
                         ]}
                         onChange={(v) => update(row.key, { collision: v as Collision })}
                       />
                     </label>
                   )}
-                  {row.name !== row.fileName && !row.taken && <p className="import-note small muted">Saved as “{row.name}” (the name “{row.fileName}” is taken or not allowed).</p>}
+                  {row.name !== row.fileName && !row.taken && <p className="import-note small muted">{t('importPresets.savedAs', { name: row.name, fileName: row.fileName })}</p>}
                   {row.gcode.length > 0 && (
                     <p className="import-note small warn">
-                      Changes custom G-code ({row.gcode.join(', ')}). It runs on your printer as written, so only import it if you trust where it came from.
+                      {t('importPresets.gcodeWarn', { keys: row.gcode.join(', ') })}
                     </p>
                   )}
                   {row.dropped.length > 0 && (
                     <p className="import-note small muted" title={row.dropped.join(', ')}>
-                      {row.dropped.length} setting{row.dropped.length === 1 ? '' : 's'} this version of Orca doesn't have {row.dropped.length === 1 ? 'was' : 'were'} left out.
+                      {t('importPresets.dropped', { count: row.dropped.length })}
                     </p>
                   )}
                 </>
@@ -287,8 +293,8 @@ export function ImportPresetsDialog() {
           ))}
         </ul>
       )}
-      {rows && rows.length === 0 && !problems.length && <p>No presets found.</p>}
-      {rows && importable.length > room && <p className="warn small">You can keep up to {MAX_USER_PRESETS} presets; only {Math.max(0, room)} more fit.</p>}
+      {rows && rows.length === 0 && !problems.length && <p>{t('importPresets.none')}</p>}
+      {rows && importable.length > room && <p className="warn small">{t('importPresets.room', { max: MAX_USER_PRESETS, n: Math.max(0, room) })}</p>}
       {done && (
         <p className="ok" role="status">
           {done}

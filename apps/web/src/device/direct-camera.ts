@@ -4,6 +4,7 @@
 // sends the camera's own live video on one of the link's video slots when it
 // has one, and otherwise pictures on channel "frames:<slot>", each cut into
 // pieces whose first byte is 1 on a picture's last piece.
+import { i18n } from '../i18n';
 import type { DirectCamera } from './camera';
 import type { SharedLink } from './shared-link';
 
@@ -54,7 +55,7 @@ export async function playDirect(
   let undrop = () => {};
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('The direct camera link did not connect in time.')), DIRECT_TIMEOUT_MS);
+    timer = setTimeout(() => reject(new Error(i18n.t('deviceLink.directCameraTimeout'))), DIRECT_TIMEOUT_MS);
   });
   timeout.catch(() => {});
   const up = await Promise.race([link.ready(), timeout]).catch((e: unknown) => {
@@ -77,11 +78,11 @@ export async function playDirect(
   try {
     const started = await Promise.race([link.camera(up, camera), timeout]);
     slot = started.slot;
-    if (stopped) throw new Error('The direct link closed.');
+    if (stopped) throw new Error(i18n.t('deviceLink.directLinkClosed'));
     const first = new Promise<void>((resolve) => {
       if (started.mode === 'video') {
         const stream = up.video(slot);
-        if (!stream) throw new Error('The direct link has no video for this camera.');
+        if (!stream) throw new Error(i18n.t('deviceLink.directNoVideo'));
         show.video.srcObject = stream;
         show.video.addEventListener('loadeddata', () => resolve(), { once: true });
         return;

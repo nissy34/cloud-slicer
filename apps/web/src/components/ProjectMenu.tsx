@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import { i18n } from '../i18n';
 import { api, projectThumbnailUrl, type OnlineProject, type ProjectList } from '../account/api';
 import { filesInDrive } from '../account/drive';
 import { useDriveOpen } from '../account/useDriveOpen';
@@ -26,22 +28,25 @@ const MOD = isMac ? '⌘' : 'Ctrl+';
 
 /** What is said next to the project name ('' when there is nothing to say). */
 function useSaveStatus(): string {
+  const { t } = useTranslation();
   const online = useProjects((s) => s.current.id !== null);
   const dirty = useProjects((s) => s.dirty);
   const keptHere = useProjects((s) => s.keptHere);
   const elsewhere = useProjects((s) => s.elsewhere);
   const hasModel = useSlicer((s) => Boolean(s.project?.objects.length));
   if (!hasModel) return '';
-  if (elsewhere) return 'View only';
+  if (elsewhere) return t('projectMenu.viewOnly');
   // AutoSave keeps unsaved changes in this browser; Save puts them online.
-  if (dirty) return keptHere ? 'Saved in this browser' : 'Not saved';
-  return online ? 'Saved' : '';
+  if (dirty) return keptHere ? t('projectMenu.savedHere') : t('projectMenu.notSaved');
+  return online ? t('projectMenu.saved') : '';
 }
 
 /** The top bar's Project menu (New, Open, Projects, Save, Save a copy, Download 3MF) and its dialogs. */
 export function ProjectMenu() {
+  const { t } = useTranslation();
   const ready = useSlicer((s) => s.engine === 'ready');
-  const name = useProjects((s) => s.current.name);
+  // A new project's stored name is English ("Untitled"); it is shown in the page's language.
+  const name = useProjects((s) => (s.current.name === UNTITLED ? t('projectMenu.untitled') : s.current.name));
   const online = useProjects((s) => s.current.id !== null);
   const dirty = useProjects((s) => s.dirty);
   const busy = useProjects((s) => s.busy);
@@ -95,7 +100,7 @@ export function ProjectMenu() {
   return (
     <div className="project-menu">
       <Menu
-        label="Project"
+        label={t('projectMenu.project')}
         open={open}
         onOpenChange={setOpen}
         button={(props) => (
@@ -103,15 +108,15 @@ export function ProjectMenu() {
             {...props}
             className="project-button"
             disabled={!ready}
-            title={status ? `${name} (${status})` : dirty ? `${name} (unsaved changes)` : name}
+            title={status ? t('projectMenu.nameStatus', { name, status }) : dirty ? t('projectMenu.nameUnsaved', { name }) : name}
           >
-            <span className="project-label">Project</span>
+            <span className="project-label">{t('projectMenu.project')}</span>
             <span className="project-name">
               <span className="project-name-text">{name}</span>
-              {online && <span className="project-cloud" aria-label="saved online" title="Saved in your online projects" />}
+              {online && <span className="project-cloud" aria-label={t('projectMenu.savedOnline')} title={t('projectMenu.savedOnlineTip')} />}
             </span>
-            {saving && <LoaderCircle className="spin project-spin" size={14} aria-label="saving" data-testid="save-spinner" />}
-            {dirty && !saving && <span className="project-dirty" aria-label="unsaved changes" />}
+            {saving && <LoaderCircle className="spin project-spin" size={14} aria-label={t('projectMenu.savingLabel')} data-testid="save-spinner" />}
+            {dirty && !saving && <span className="project-dirty" aria-label={t('projectMenu.unsavedLabel')} />}
             {status && !busy && <span className="project-status" data-testid="save-status">{status}</span>}
             {busy && <span className="project-busy">{busy}</span>}
           </button>
@@ -119,10 +124,11 @@ export function ProjectMenu() {
       >
         {/* The default engine; the sidebar's Slicer engine dropdown picks the other one. */}
         <button role="menuitem" className="menu-item" onClick={run(() => p.startNew())}>
-          New project
+          {t('projectMenu.newProject')}
         </button>
         <button role="menuitem" className="menu-item" onClick={run(() => input.current?.click())}>
-          Open from this device…<kbd>{MOD}O</kbd>
+          {t('projectMenu.openDevice')}
+          <kbd>{MOD}O</kbd>
         </button>
         <button
           role="menuitem"
@@ -132,18 +138,18 @@ export function ProjectMenu() {
           data-testid="open-from-drive"
           onClick={run(() => driveOpen.open('project'))}
         >
-          Open from Google Drive…
+          {t('projectMenu.openDrive')}
         </button>
         <button role="menuitem" className="menu-item" disabled={noDrive} onClick={run(() => p.setListOpen(true))}>
-          Online projects…
+          {t('projectMenu.onlineProjects')}
         </button>
         {/* Drive connected but the site lacks Google's key: say so (the other reasons share the note below). */}
         {!noDrive && signedIn && !driveOpen.available && <p className="menu-note">{driveOpen.reason}</p>}
         {noDrive && (
           <p className="menu-note" data-testid="online-projects-off">
             {projectsOff
-              ? 'Online projects are turned off for your account.'
-              : 'Connect Google Drive in the account menu to open files from it and keep projects online. Until then, Save downloads the 3MF.'}
+              ? t('projectMenu.projectsOff')
+              : t('projectMenu.connectDriveMenu')}
           </p>
         )}
         <hr />
@@ -152,46 +158,46 @@ export function ProjectMenu() {
           <div className="menu-note menu-working" data-testid="menu-saving">
             <LoaderCircle className="spin" size={16} aria-hidden />
             <span>
-              <b>{busy}</b> Save, Save a copy and Download 3MF wait until it is done.
+              <b>{busy}</b> {t('projectMenu.savingWait')}
               <SaveBar />
             </span>
           </div>
         )}
         {saving && saveCancel && (
           <button role="menuitem" className="menu-item" data-testid="menu-cancel-save" onClick={run(() => p.cancelSave())}>
-            Cancel saving
+            {t('projectMenu.cancelSaving')}
           </button>
         )}
         {/* Signed out or without Drive, Save downloads the 3MF: one row for both. */}
         {savesOnline && (
           <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => p.save())}>
-            Save
+            {t('projectMenu.save')}
             <kbd>{MOD}S</kbd>
           </button>
         )}
         <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => p.setSaveAsOpen('copy'))}>
-          Save a copy…
+          {t('projectMenu.saveCopyMenu')}
         </button>
         <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => (savesOnline ? p.download() : p.save()))}>
-          Download 3MF
+          {t('projectMenu.download3mf')}
           {!savesOnline && <kbd>{MOD}S</kbd>}
         </button>
         <hr />
         {/* Also in the account menu; here too because it needs no account (signed-out people never see that menu's item). */}
         <button role="menuitem" className="menu-item" onClick={run(() => setAiApps(true))}>
-          Use with an AI app…
+          {t('projectMenu.aiApps')}
         </button>
         {engineInfo && (
           <p className="menu-note" data-testid="project-engine">
-            This project slices with {engineInfo.name} {engineInfo.version}.
+            {t('projectMenu.slicesWith', { name: engineInfo.name, version: engineInfo.version })}
           </p>
         )}
         <p className="menu-note" data-testid="autosave-note">
           {savesOnline
-            ? 'AutoSave keeps your changes in this browser as you work. They go to your Google Drive when you Save.'
-            : 'AutoSave keeps your changes in this browser as you work.'}
+            ? t('projectMenu.autosaveDrive')
+            : t('projectMenu.autosave')}
         </p>
-        {!signedIn && <p className="menu-note">Sign in to keep projects online and open them on any device.</p>}
+        {!signedIn && <p className="menu-note">{t('projectMenu.signInNote')}</p>}
       </Menu>
       <input
         ref={input}
@@ -228,6 +234,7 @@ function SaveAsDialog() {
 }
 
 function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
+  const { t } = useTranslation();
   const signedIn = useAccount((s) => s.status === 'signedIn');
   const online = useProjects((s) => s.canSaveOnline());
   // Opened from Google Drive: the first Save says plainly that it makes a copy and leaves the Drive file alone.
@@ -237,16 +244,16 @@ function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
   const trimmed = name.trim();
   return (
     <Dialog
-      title={fromDrive ? 'Save a copy to Cloud Slicer' : copy ? 'Save a copy' : 'Save project'}
+      title={fromDrive ? t('projectMenu.saveCopyToCloud') : copy ? t('projectMenu.saveCopy') : t('projectMenu.saveProject')}
       testId="save-as-dialog"
       onClose={close}
       footer={
         <>
           <button type="button" className="secondary" onClick={close}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="submit" form="save-as-form" className="primary" disabled={!trimmed}>
-            {fromDrive ? 'Save copy' : online ? 'Save' : 'Download'}
+            {fromDrive ? t('projectMenu.saveCopyButton') : online ? t('projectMenu.save') : t('projectMenu.download')}
           </button>
         </>
       }
@@ -260,29 +267,27 @@ function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
         }}
       >
         <label className="field">
-          <span>Name</span>
-          <input aria-label="Project name" autoFocus maxLength={128} value={name} placeholder="My project" onChange={(e) => setName(e.target.value)} />
+          <span>{t('projectMenu.name')}</span>
+          <input aria-label={t('projectMenu.projectName')} autoFocus maxLength={128} value={name} placeholder={t('projectMenu.myProject')} onChange={(e) => setName(e.target.value)} />
         </label>
         <p className="muted small" data-testid="save-as-note">
           {fromDrive ? (
             <>
-              Saves a copy in the Cloud Slicer folder in your Google Drive, with its plates, settings and paint.{' '}
+              {t('projectMenu.fromDriveSaves')}{' '}
               {/\.\w+$/.test(fromDrive) ? (
-                <>
-                  Your file <b>{fromDrive}</b> in Drive is not changed.
-                </>
+                <Trans i18nKey={'projectMenu.fromDriveFile'} values={{ name: fromDrive }} components={{ b: <b /> }} />
               ) : (
-                <>Your {fromDrive} in Drive are not changed.</>
+                t('projectMenu.fromDriveFiles', { name: fromDrive })
               )}{' '}
-              After this, Save updates the copy.
+              {t('projectMenu.fromDriveAfter')}
             </>
           ) : !signedIn
-            ? 'Downloaded as a 3MF project file. Sign in to keep projects online.'
+            ? t('projectMenu.downloadedSignIn')
             : !online
-              ? 'Downloaded as a 3MF project file. Connect Google Drive in the account menu to keep projects online.'
+              ? t('projectMenu.downloadedConnect')
             : copy
-              ? 'Saved as a new project in your online projects, with its plates, settings and paint. You carry on in the copy.'
-              : 'Kept in your online projects with its plates, settings and paint. After this, Save puts your changes there.'}
+              ? t('projectMenu.savedAsCopy')
+              : t('projectMenu.keptOnline')}
         </p>
       </form>
     </Dialog>
@@ -290,6 +295,7 @@ function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
 }
 
 function ConflictDialog() {
+  const { t } = useTranslation();
   const conflict = useProjects((s) => s.conflict);
   const name = useProjects((s) => s.current.name);
   if (!conflict) return null;
@@ -297,30 +303,30 @@ function ConflictDialog() {
   const when = conflict.theirs ? formatWhen(conflict.theirs.updatedAt) : null;
   return (
     <Dialog
-      title={conflict.inDrive ? 'Changed in your Google Drive' : 'Saved on another device'}
+      title={conflict.inDrive ? t('projectMenu.changedInDrive') : t('projectMenu.savedElsewhere')}
       role="alertdialog"
       onClose={() => void resolveConflict('cancel')}
       footer={
         <>
           <button className="secondary" onClick={() => void resolveConflict('cancel')}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="secondary" onClick={() => void resolveConflict('copy')}>
-            Save as a copy
+            {t('projectMenu.saveAsCopy')}
           </button>
           <button className="primary" onClick={() => void resolveConflict('overwrite')}>
-            Overwrite
+            {t('projectMenu.overwrite')}
           </button>
         </>
       }
     >
       <p>
         {conflict.inDrive
-          ? `“${name}” was changed in your Google Drive (by another app, say) after you opened it here.`
+          ? t('projectMenu.conflictDrive', { name })
           : conflict.theirs
-          ? `“${conflict.theirs.name}” was saved again ${when}, after you opened it here.`
-          : `“${name}” was deleted from your online projects after you opened it here.`}{' '}
-        Overwrite it with this version, or keep both?
+          ? t('projectMenu.conflictSaved', { name: conflict.theirs.name, when })
+          : t('projectMenu.conflictDeleted', { name })}{' '}
+        {t('projectMenu.conflictAsk')}
       </p>
     </Dialog>
   );
@@ -328,28 +334,29 @@ function ConflictDialog() {
 
 /** A project whose file was deleted in Google Drive: remove it from the list too? */
 function GoneDialog() {
+  const { t } = useTranslation();
   const gone = useProjects((s) => s.gone);
   if (!gone) return null;
   const { removeGone } = useProjects.getState();
   const close = () => useProjects.setState({ gone: null });
   return (
     <Dialog
-      title="Not in your Google Drive"
+      title={t('projectMenu.notInDrive')}
       role="alertdialog"
       testId="project-gone"
       onClose={close}
       footer={
         <>
           <button className="secondary" onClick={close}>
-            Keep in the list
+            {t('projectMenu.keepInList')}
           </button>
           <button className="primary" onClick={() => void removeGone()}>
-            Remove
+            {t('projectMenu.remove')}
           </button>
         </>
       }
     >
-      <p>“{gone.name}” is no longer in your Google Drive. It was deleted there, or is in Drive’s bin. Remove it from your projects?</p>
+      <p>{t('projectMenu.goneAsk', { name: gone.name })}</p>
     </Dialog>
   );
 }
@@ -380,6 +387,7 @@ function useRemembered<T extends string>(key: string, allowed: readonly T[], fal
 }
 
 function ProjectsDialog() {
+  const { t } = useTranslation();
   const open = useProjects((s) => s.listOpen);
   const status = useAccount((s) => s.status);
   const currentId = useProjects((s) => s.current.id);
@@ -442,20 +450,20 @@ function ProjectsDialog() {
 
   const actions = (proj: OnlineProject) => (
     <Menu
-      label={`${proj.name} menu`}
+      label={t('projectMenu.itemMenu', { name: proj.name })}
       placement="bottom-end"
-      button={(props) => <IconButton {...props} icon={MoreHorizontal} label="More" aria-label={`More for ${proj.name}`} className="project-more" disabled={!!opening} />}
+      button={(props) => <IconButton {...props} icon={MoreHorizontal} label={t('projectMenu.more')} aria-label={t('projectMenu.moreFor', { name: proj.name })} className="project-more" disabled={!!opening} />}
     >
       {(closeMenu) => (
         <>
           <button role="menuitem" className="menu-item" onClick={() => (closeMenu(), void openProject(proj))}>
-            Open
+            {t('projectMenu.open')}
           </button>
           <button role="menuitem" className="menu-item" onClick={() => (closeMenu(), setRenaming(proj))}>
-            Rename…
+            {t('projectMenu.renameMenu')}
           </button>
           <button role="menuitem" className="menu-item danger" onClick={() => (closeMenu(), setDeleting(proj))}>
-            Delete…
+            {t('projectMenu.deleteMenu')}
           </button>
         </>
       )}
@@ -464,8 +472,8 @@ function ProjectsDialog() {
   const thumb = (proj: OnlineProject, small?: boolean) => (
     <button
       className={small ? 'project-thumb small' : 'project-thumb'}
-      title={`Open ${proj.name}`}
-      aria-label={small ? `Open ${proj.name}` : undefined}
+      title={t('projectMenu.openName', { name: proj.name })}
+      aria-label={small ? t('projectMenu.openName', { name: proj.name }) : undefined}
       disabled={!!opening}
       onClick={() => void openProject(proj)}
     >
@@ -473,7 +481,7 @@ function ProjectsDialog() {
       {opening === proj.id && (
         <span className="project-opening" role="status">
           <LoaderCircle className="spin" size={16} aria-hidden />
-          Opening…
+          {t('projectMenu.opening')}
         </span>
       )}
     </button>
@@ -487,9 +495,9 @@ function ProjectsDialog() {
     <>
       {missing(proj) && (
         <div className="small project-gone" data-testid="project-not-in-drive">
-          Not in your Google Drive{' '}
+          {t('projectMenu.notInDrive')}{' '}
           <button className="quiet small-btn" onClick={() => useProjects.setState({ gone: proj })}>
-            Remove…
+            {t('projectMenu.removeMenu')}
           </button>
         </div>
       )}
@@ -506,7 +514,7 @@ function ProjectsDialog() {
 
   return (
     <Dialog
-      title="Online projects"
+      title={t('projectMenu.title')}
       wide
       className="projects-dialog"
       onClose={close}
@@ -514,7 +522,7 @@ function ProjectsDialog() {
         <>
           {list && status === 'signedIn' && <DriveNote list={list} />}
           <button className="secondary" onClick={close}>
-            Close
+            {t('common.close')}
           </button>
         </>
       }
@@ -522,50 +530,50 @@ function ProjectsDialog() {
       {status !== 'signedIn' ? (
         <Empty
           icon={FolderOpen}
-          text="Sign in to keep projects online and open them on any device."
+          text={t('projectMenu.signInNote')}
           action={
             status === 'signedOut' && (
               <button className="primary" onClick={() => void useAccount.getState().signIn('google')}>
-                Sign in with Google
+                {t('projectMenu.signInGoogle')}
               </button>
             )
           }
         >
-          {status === 'unavailable' && <Note tone="info">Accounts aren't set up on this site yet. Save still downloads the 3MF.</Note>}
+          {status === 'unavailable' && <Note tone="info">{t('projectMenu.accountsUnavailable')}</Note>}
         </Empty>
       ) : !list ? (
         error ? (
-          <ErrorNote message={`Couldn't load your projects: ${error}`} />
+          <ErrorNote message={t('projectMenu.loadFailed', { error })} />
         ) : (
           <div className="projects-loading" role="status">
-            <PrintLoader loading={{ label: 'Loading your projects…' }} />
+            <PrintLoader loading={{ label: t('projectMenu.loading') }} />
           </div>
         )
       ) : (
         <>
-          {!list.enabled && <Note tone="warn">Online projects are turned off for your account. Save downloads the 3MF instead.</Note>}
+          {!list.enabled && <Note tone="warn">{t('projectMenu.turnedOff')}</Note>}
           {error && <ErrorNote message={error} />}
           <ContinueRow list={list} onOpen={(proj) => void openProject(proj)} />
           {saved.length === 0 ? (
-            <Empty icon={FolderOpen} text="No projects yet. Use Save in the Project menu to keep the open project here." />
+            <Empty icon={FolderOpen} text={t('projectMenu.noProjects')} />
           ) : (
             <>
               <div className="projects-bar">
                 <label className="projects-search">
                   <Search size={16} aria-hidden />
-                  <input type="search" aria-label="Search projects" placeholder="Search projects" value={search} onChange={(e) => setSearch(e.target.value)} />
+                  <input type="search" aria-label={t('projectMenu.search')} placeholder={t('projectMenu.search')} value={search} onChange={(e) => setSearch(e.target.value)} />
                 </label>
-                <Picker label="Sort" value={sort} options={PROJECT_SORTS} onChange={(v) => setSort(v as ProjectSort)} testId="projects-sort" />
-                <div className="chooser" role="radiogroup" aria-label="Show as">
+                <Picker label={t('projectMenu.sort')} value={sort} options={PROJECT_SORTS.map((o) => ({ ...o, label: t(o.label) }))} onChange={(v) => setSort(v as ProjectSort)} testId="projects-sort" />
+                <div className="chooser" role="radiogroup" aria-label={t('projectMenu.showAs')}>
                   {(['cards', 'list'] as const).map((v) => (
                     <button key={v} role="radio" aria-checked={view === v} className={view === v ? 'active' : ''} onClick={() => setView(v)}>
-                      {v === 'cards' ? 'Cards' : 'List'}
+                      {v === 'cards' ? t('projectMenu.cards') : t('projectMenu.list')}
                     </button>
                   ))}
                 </div>
               </div>
               {shown.length === 0 ? (
-                <p className="muted">No projects match “{search.trim()}”.</p>
+                <p className="muted">{t('projectMenu.noMatch', { search: search.trim() })}</p>
               ) : view === 'cards' ? (
                 <ul className="projects-grid">
                   {shown.map((proj) => (
@@ -629,17 +637,19 @@ function ProjectsDialog() {
 
 /** Projects are kept in the person's own Google Drive (Connect is in the account menu, for anyone who said no at sign-in). */
 function DriveNote({ list }: { list: ProjectList }) {
+  const { t } = useTranslation();
   return (
     <p className="muted small projects-usage" data-testid="projects-storage">
       {list.drive?.connected
-        ? `Saved in your own Google Drive, “Cloud Slicer” folder. Projects take up your Google storage space (shared with Gmail and Photos) · ${list.count} ${list.count === 1 ? 'project' : 'projects'}`
-        : 'Connect Google Drive in the account menu to save projects online.'}
+        ? t('projectMenu.inDrive', { count: list.count })
+        : t('projectMenu.connectDriveList')}
     </p>
   );
 }
 
 /** A red note with what went wrong and a Copy button for the words. */
 function ErrorNote({ message }: { message: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const copy = () =>
     navigator.clipboard.writeText(message).then(
@@ -650,7 +660,7 @@ function ErrorNote({ message }: { message: string }) {
     <Note tone="error" className="error-note">
       {message}{' '}
       <button type="button" className="quiet small-btn" onClick={() => void copy()}>
-        {copied ? 'Copied' : 'Copy'}
+        {copied ? t('common.copied') : t('projectMenu.copy')}
       </button>
     </Note>
   );
@@ -669,6 +679,7 @@ function Working({ busy, idle, working }: { busy: boolean; idle: string; working
 }
 
 function RenameProjectDialog({ project, onClose, onDone }: { project: OnlineProject; onClose(): void; onDone(updated: OnlineProject): void }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(project.name);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -681,22 +692,22 @@ function RenameProjectDialog({ project, onClose, onDone }: { project: OnlineProj
     try {
       onDone(await api.renameProject(project.id, trimmed));
     } catch (e) {
-      setError(`Couldn't rename: ${(e as Error).message}`);
+      setError(t('projectMenu.renameFailed', { error: (e as Error).message }));
       setBusy(false);
     }
   };
   return (
     <Dialog
-      title="Rename project"
+      title={t('projectMenu.renameTitle')}
       testId="rename-project"
       onClose={() => !busy && onClose()}
       footer={
         <>
           <button type="button" className="secondary" disabled={busy} onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="submit" form="rename-project-form" className="primary" disabled={!ready && !busy} aria-busy={busy}>
-            <Working busy={busy} idle="Rename" working="Renaming…" />
+            <Working busy={busy} idle={t('projectMenu.rename')} working={t('projectMenu.renaming')} />
           </button>
         </>
       }
@@ -710,8 +721,8 @@ function RenameProjectDialog({ project, onClose, onDone }: { project: OnlineProj
         }}
       >
         <label className="field">
-          <span>Name</span>
-          <input aria-label="Project name" autoFocus maxLength={128} value={name} disabled={busy} onFocus={(e) => e.target.select()} onChange={(e) => setName(e.target.value)} />
+          <span>{t('projectMenu.name')}</span>
+          <input aria-label={t('projectMenu.projectName')} autoFocus maxLength={128} value={name} disabled={busy} onFocus={(e) => e.target.select()} onChange={(e) => setName(e.target.value)} />
         </label>
         {error && <ErrorNote message={error} />}
       </form>
@@ -720,6 +731,7 @@ function RenameProjectDialog({ project, onClose, onDone }: { project: OnlineProj
 }
 
 function DeleteProjectDialog({ project, isOpen, onClose, onDone }: { project: OnlineProject; isOpen: boolean; onClose(): void; onDone(): void }) {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const remove = async () => {
@@ -729,13 +741,13 @@ function DeleteProjectDialog({ project, isOpen, onClose, onDone }: { project: On
       await api.deleteProject(project.id);
       onDone();
     } catch (e) {
-      setError(`Couldn't delete: ${(e as Error).message}`);
+      setError(t('projectMenu.deleteFailed', { error: (e as Error).message }));
       setBusy(false);
     }
   };
   return (
     <Dialog
-      title={`Delete “${project.name}”?`}
+      title={t('projectMenu.deleteTitle', { name: project.name })}
       role="alertdialog"
       describedBy="delete-project-text"
       testId="delete-project"
@@ -743,18 +755,18 @@ function DeleteProjectDialog({ project, isOpen, onClose, onDone }: { project: On
       footer={
         <>
           <button className="secondary" disabled={busy} onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="primary danger" aria-busy={busy} onClick={() => !busy && void remove()}>
-            <Working busy={busy} idle="Delete" working="Deleting…" />
+            <Working busy={busy} idle={t('projectMenu.delete')} working={t('projectMenu.deleting')} />
           </button>
         </>
       }
     >
       <p id="delete-project-text">
         {isOpen
-          ? "It's removed from your online projects for good. You have it open: it stays open here as an unsaved project."
-          : "It's removed from your online projects for good. Files you downloaded stay."}
+          ? t('projectMenu.deleteOpen')
+          : t('projectMenu.deleteClosed')}
       </p>
       {error && <ErrorNote message={error} />}
     </Dialog>
@@ -763,12 +775,13 @@ function DeleteProjectDialog({ project, isOpen, onClose, onDone }: { project: On
 
 /** "6/10 printed" for a project card (lib/prints.ts); the plate count is missing on projects saved before it was kept. */
 function printedText(printed: number, plates: number | null): string {
-  if (plates === 1) return '✓ Printed';
-  return plates ? `✓ ${Math.min(printed, plates)}/${plates} printed` : `✓ ${printed} ${printed === 1 ? 'plate' : 'plates'} printed`;
+  if (plates === 1) return i18n.t('projectMenu.printed');
+  return plates ? i18n.t('projectMenu.printedOf', { printed: Math.min(printed, plates), plates }) : i18n.t('projectMenu.printedPlates', { count: printed });
 }
 
 /** The top of Online projects: the newest project changed on another device. */
 function ContinueRow({ list, onOpen }: { list: ProjectList; onOpen(p: OnlineProject): void }) {
+  const { t } = useTranslation();
   const currentId = useProjects((s) => s.current.id);
   const offer = continueOffer(list.projects, deviceId());
   if (!offer || offer.project.id === currentId) return null;
@@ -779,11 +792,11 @@ function ContinueRow({ list, onOpen }: { list: ProjectList; onOpen(p: OnlineProj
         {proj.hasThumbnail ? <img src={projectThumbnailUrl(proj)} alt="" loading="lazy" /> : <span>3MF</span>}
       </div>
       <div className="continue-text">
-        <b>{`Continue ${proj.name}`}</b>
-        <span className="muted small">{`Edited ${formatWhen(proj.updatedAt)} on ${yourDevice(proj.deviceName)}`}</span>
+        <b>{t('continue.project', { name: proj.name })}</b>
+        <span className="muted small">{t('continue.editedOn', { when: formatWhen(proj.updatedAt), device: yourDevice(proj.deviceName) })}</span>
       </div>
       <button className="primary" onClick={() => onOpen(proj)}>
-        Continue
+        {t('continue.continue')}
       </button>
     </div>
   );

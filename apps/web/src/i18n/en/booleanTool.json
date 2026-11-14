@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Union",
+    "difference": "Difference",
+    "intersection": "Intersection",
+    "subtractFrom": "Subtract from",
+    "subtractWith": "Subtract with",
+    "part": "Part {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Mesh boolean",
+    "done": "Done",
+    "operation": "Operation",
+    "needTwo": "This works on two parts of one object. Add a part, negative part or modifier from the object's menu (right-click it, or the ⋯ button in the object list), place it, then come back here.",
+    "unionHint": "Joins the two into one part.",
+    "differenceHint": "Cuts the second one out of the first.",
+    "intersectionHint": "Keeps only where the two overlap.",
+    "resultHint": "The result takes the first one's place, type and settings. Undo brings both back.",
+    "pickDifferent": "Pick two different parts.",
+    "deleteInput": "Delete input (also remove the second one)",
+    "working": "Working…"
+  }
+}

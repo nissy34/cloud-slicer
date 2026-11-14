@@ -3,6 +3,7 @@
 // it too. state/device.ts keeps the Device tab's state around it.
 import type { Device } from '../account/api';
 import type { PrinterCall } from './addons';
+import { i18n } from '../i18n';
 import { currentRelay } from './config';
 import { RpcError, type PrinterSession } from './session';
 
@@ -67,7 +68,7 @@ export async function runCalls(s: Pick<PrinterSession, 'gcode' | 'rpc'>, calls: 
       throw e;
     }
     const r = result as { state?: unknown; message?: unknown } | null;
-    if (r && typeof r === 'object' && r.state === 'error') throw new Error(typeof r.message === 'string' && r.message ? r.message : 'The printer did not start the print.');
+    if (r && typeof r === 'object' && r.state === 'error') throw new Error(typeof r.message === 'string' && r.message ? r.message : i18n.t('deviceLink.didNotStart'));
   }
 }
 

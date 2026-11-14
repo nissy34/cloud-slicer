@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} of {{size}} MB",
+    "arrivingRelay": "{{got}} of {{size}} MB through the relay",
+    "cannotFetch": "This printer connection cannot fetch videos.",
+    "fetchFailed": "The video could not be fetched.",
+    "delete": "Delete",
+    "download": "Download",
+    "cantPlay": "This kind of video doesn’t play in the browser. Download it to watch it.",
+    "none": "No timelapses yet. Turn on Timelapse when you start a print.",
+    "watch": "Watch",
+    "pages": "Timelapse pages",
+    "refresh": "Refresh",
+    "deleteTitle": "Delete timelapse"
+  }
+}

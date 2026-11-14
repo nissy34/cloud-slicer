@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "ה{{device}} שלכם",
+    "another": "מכשיר אחר",
+    "iPad": "אייפד",
+    "phone": "טלפון",
+    "tablet": "טאבלט",
+    "windows": "מחשב Windows",
+    "mac": "מק",
+    "chromebook": "כרומבוק",
+    "linux": "מחשב Linux",
+    "other": "מכשיר אחר"
+  }
+}

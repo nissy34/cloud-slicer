@@ -1,6 +1,8 @@
 // The print history on screen (state/prints.ts): the mark on each plate tab,
 // "Printed 6 of 10" with the next plate in the top bar, and each plate's
 // history window with Mark as printed / not printed and Keep as printed.
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../i18n';
 import { formatDuration } from '../lib/format';
 import { statusWords, type PlateMark, type PrintRecord } from '../lib/prints';
 import { changesSince, usePlateMarks, usePrintProgress, usePrints } from '../state/prints';
@@ -11,22 +13,22 @@ import { Dialog } from './Dialog';
 
 /** Words for a plate's mark, as the tooltip and the window say it. */
 export function markWords(m: PlateMark): string {
-  if (m.state === 'printed') return m.record.status === 'marked' ? 'Marked as printed' : 'Printed';
-  if (m.state === 'changed') return 'Printed, changed since';
-  if (m.state === 'sent') return m.record.status === 'printing' ? 'Printing' : 'Sent, not finished';
-  return 'Not printed';
+  if (m.state === 'printed') return m.record.status === 'marked' ? i18n.t('printHistory.markedPrinted') : i18n.t('printHistory.printed');
+  if (m.state === 'changed') return i18n.t('printHistory.printedChanged');
+  if (m.state === 'sent') return m.record.status === 'printing' ? i18n.t('printHistory.printing') : i18n.t('printHistory.sentNotFinished');
+  return i18n.t('printHistory.notPrinted');
 }
 
 /** The same in a word, for a phone's top bar (the mark's colour and the tooltip say the rest). */
 export function markShortWords(m: PlateMark): string {
-  if (m.state === 'printed') return 'Printed';
-  if (m.state === 'changed') return 'Changed';
-  if (m.state === 'sent') return m.record.status === 'printing' ? 'Printing' : 'Sent';
-  return 'Not printed';
+  if (m.state === 'printed') return i18n.t('printHistory.printed');
+  if (m.state === 'changed') return i18n.t('printHistory.changed');
+  if (m.state === 'sent') return m.record.status === 'printing' ? i18n.t('printHistory.printing') : i18n.t('printHistory.sent');
+  return i18n.t('printHistory.notPrinted');
 }
 
 const when = (ms: number) =>
-  new Date(ms).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  new Date(ms).toLocaleString(i18n.language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /** One line about a record: when, where, how long. */
 export function recordLine(r: PrintRecord): string {
@@ -42,13 +44,14 @@ export function recordLine(r: PrintRecord): string {
  * `onOpen`: a tap on it opens the plate's history (on a plate tab, without picking the tab).
  */
 export function MarkIcon({ mark, onOpen }: { mark: PlateMark | undefined; onOpen?(): void }) {
+  const { t } = useTranslation();
   if (!mark || mark.state === 'none') return null;
   const words = markWords(mark);
   return (
     <span
       className={`print-mark ${mark.state}`}
       aria-label={words}
-      title={onOpen ? `${words}. Tap for the print history.` : words}
+      title={onOpen ? t('printHistory.tapForHistory', { words }) : words}
       data-testid={`print-mark-${mark.state}`}
       onClick={
         onOpen &&
@@ -71,10 +74,11 @@ export function useHistoryAvailable(): boolean {
 }
 
 /** Why there is no history here, for greyed menu items. */
-export const NO_HISTORY = 'Save the project online (signed in) to keep which plates were printed';
+export const noHistoryWords = () => i18n.t('printHistory.noHistory');
 
 /** "Printed 6 of 10" with a small bar, and "Next: plate 7", beside the project name. */
 export function PrintProgress() {
+  const { t } = useTranslation();
   const progress = usePrintProgress();
   const marks = usePlateMarks();
   const plates = useSlicer((s) => s.project?.plates.length ?? 0);
@@ -86,7 +90,7 @@ export function PrintProgress() {
     const m = marks[0];
     if (!m || m.state === 'none') return null;
     return (
-      <button className={`ghost print-progress single ${m.state}`} onClick={() => open(0)} title={`${markWords(m)}. Tap for the print history.`} data-testid="print-progress">
+      <button className={`ghost print-progress single ${m.state}`} onClick={() => open(0)} title={t('printHistory.tapForHistory', { words: markWords(m) })} data-testid="print-progress">
         <MarkIcon mark={m} />
         <span className="print-progress-text">
           <span className="wide-only">{markWords(m)}</span>
@@ -102,15 +106,14 @@ export function PrintProgress() {
       <button
         className="ghost print-progress"
         onClick={() => open(plate)}
-        title={`${printed} of ${total} plates printed${changed ? `, ${changed} changed since` : ''}. Tap for this plate's history.`}
+        title={changed ? t('printHistory.progressTitleChanged', { printed, total, changed }) : t('printHistory.progressTitle', { printed, total })}
         data-testid="print-progress"
       >
         <span className="print-progress-text">
-          <span className="wide-only">Printed </span>
-          {printed}
-          <span className="wide-only"> of </span>
-          <span className="phone-only">/</span>
-          {total}
+          <span className="wide-only">{t('printHistory.printedOf', { printed, total })}</span>
+          <span className="phone-only">
+            {printed}/{total}
+          </span>
         </span>
         <span className="print-bar" aria-hidden="true">
           <span className="print-bar-ok" style={{ width: pct(printed - changed) }} />
@@ -118,8 +121,8 @@ export function PrintProgress() {
         </span>
       </button>
       {next !== null && next !== plate && (
-        <button className="secondary print-next" onClick={() => void useSlicer.getState().setPlate(next)} title="Show the first plate not printed yet" data-testid="print-next">
-          Next: plate {next + 1}
+        <button className="secondary print-next" onClick={() => void useSlicer.getState().setPlate(next)} title={t('printHistory.nextTitle')} data-testid="print-next">
+          {t('printHistory.next', { plate: next + 1 })}
         </button>
       )}
     </span>
@@ -128,6 +131,7 @@ export function PrintProgress() {
 
 /** A plate's history: its mark, what changed since, the buttons, and every send. */
 export function PrintHistoryDialog() {
+  const { t } = useTranslation();
   const plate = usePrints((s) => s.historyPlate);
   const records = usePrints((s) => s.records);
   const error = usePrints((s) => s.error);
@@ -140,7 +144,12 @@ export function PrintHistoryDialog() {
   const mine = records.filter((r) => r.plate === plate).sort((a, b) => b.at - a.at);
   const changes = mark.state === 'changed' ? changesSince(plate, mark.record) : [];
   const s = usePrints.getState();
-  const title = plates > 1 ? `Plate ${plate + 1}${name ? ` · ${name}` : ''} print history` : 'Print history';
+  const title =
+    plates > 1
+      ? name
+        ? t('printHistory.titlePlateNamed', { plate: plate + 1, name })
+        : t('printHistory.titlePlate', { plate: plate + 1 })
+      : t('printHistory.title');
   const printedNow = mark.state === 'printed' || mark.state === 'changed';
   return (
     <Dialog
@@ -151,20 +160,20 @@ export function PrintHistoryDialog() {
         <>
           {printedNow ? (
             <button className="secondary" onClick={() => void s.unmark(plate)} data-testid="print-unmark">
-              Mark as not printed
+              {t('printHistory.markNotPrinted')}
             </button>
           ) : (
             <button className="secondary" onClick={() => void s.mark(plate)} data-testid="print-mark">
-              Mark as printed
+              {t('printHistory.markPrinted')}
             </button>
           )}
           {mark.state === 'changed' && (
-            <button className="secondary" onClick={() => void s.keep(plate)} title="The plate as it is now counts as the one printed" data-testid="print-keep">
-              Keep as printed
+            <button className="secondary" onClick={() => void s.keep(plate)} title={t('printHistory.keepTitle')} data-testid="print-keep">
+              {t('printHistory.keep')}
             </button>
           )}
           <button className="primary" onClick={close}>
-            Close
+            {t('common.close')}
           </button>
         </>
       }
@@ -177,7 +186,7 @@ export function PrintHistoryDialog() {
         </p>
         {mark.state === 'changed' && (
           <div className="print-changes">
-            <p>Since then:</p>
+            <p>{t('printHistory.sinceThen')}</p>
             {changes.length ? (
               <ul data-testid="print-changes">
                 {changes.map((c) => (
@@ -185,14 +194,12 @@ export function PrintHistoryDialog() {
                 ))}
               </ul>
             ) : (
-              <p className="muted">Something on the plate or in the settings is different.</p>
+              <p className="muted">{t('printHistory.somethingDifferent')}</p>
             )}
           </div>
         )}
         {mark.state === 'none' && !mine.length && (
-          <p className="muted">
-            Sending this plate with Upload and print marks it. When the printer finishes, the mark says Printed. A printer on a bridge counts it however the print was started, even from its own screen. A plate changed after printing shows “changed since”.
-          </p>
+          <p className="muted">{t('printHistory.explain')}</p>
         )}
         {mine.length > 0 && (
           <ul className="print-list" data-testid="print-list">

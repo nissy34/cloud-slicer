@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { filamentChoices } from '../lib/filament-choices';
 import {
   applySuggestion,
@@ -14,6 +15,7 @@ import {
   type MixDraft,
   type MixRow,
 } from '../lib/mixing';
+import { i18n } from '../i18n';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
 import { ArrowDownUp, Delete, TriangleAlert, X } from 'lucide-react';
@@ -33,6 +35,7 @@ import { MixSuggestions } from './MixSuggestions';
  * the engine says which ways of making one it has (engineInfo.mixModes).
  */
 export function ColorMixPanel() {
+  const { t } = useTranslation();
   const mixes = useSlicer((s) => s.mixes);
   const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
   const deleteMix = useSlicer((s) => s.deleteMix);
@@ -43,13 +46,13 @@ export function ColorMixPanel() {
   return (
     <div className="mixes">
       <div className="group-head">
-        <h3>Color mixing</h3>
-        <button className="quiet" onClick={() => setEditing('new')} aria-label="Add mix">
-          + Add mix
+        <h3>{t('colorMixing.title')}</h3>
+        <button className="quiet" onClick={() => setEditing('new')} aria-label={t('colorMixing.addMix')}>
+          + {t('colorMixing.addMix')}
         </button>
       </div>
       {live.length === 0 ? (
-        <p className="muted hint">Blend two or more filaments into a new colour, then use it like any filament.</p>
+        <p className="muted hint">{t('colorMixing.empty')}</p>
       ) : (
         <ol className="slots">
           {live.map(({ row, index }) => (
@@ -58,20 +61,20 @@ export function ColorMixPanel() {
                 className="swatch lg"
                 style={{ background: row.colour, color: textOn(row.colour) }}
                 onClick={() => setEditing({ index })}
-                title="Edit mix"
-                aria-label={`Edit mix ${row.virtualId}`}
+                title={t('colorMixing.editMix')}
+                aria-label={t('colorMixing.editMixN', { n: row.virtualId })}
               >
                 {row.virtualId}
               </button>
               <button className="mix-label" onClick={() => setEditing({ index })} title={mixLabel(row)}>
                 {!row.compatible && (
-                  <span className="danger" title="These materials can't be mixed">
+                  <span className="danger" title={t('colorMixing.cantMix')}>
                     <TriangleAlert size={14} aria-hidden />{' '}
                   </span>
                 )}
                 {mixLabel(row)}
               </button>
-              <IconButton icon={X} label="Delete this mix" aria-label={`Delete mix ${row.virtualId}`} onClick={() => void deleteMix(index)} />
+              <IconButton icon={X} label={t('colorMixing.deleteMix')} aria-label={t('colorMixing.deleteMixN', { n: row.virtualId })} onClick={() => void deleteMix(index)} />
             </li>
           ))}
         </ol>
@@ -85,6 +88,7 @@ export function ColorMixPanel() {
 
 /** Desktop's Add Mix / Edit Mix dialog: Ratio, Cycle, Match and Gradient. */
 function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: number; onClose: () => void }) {
+  const { t } = useTranslation();
   const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
   const names = useSlicer((s) => s.selection?.filaments ?? NO_COLOURS);
   const nextId = useSlicer((s) => s.palette.length + 1);
@@ -171,24 +175,24 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
   const sequence = patternIds(draft.pattern).slice(0, 48);
   return (
     <Dialog
-      title={index < 0 ? 'Add mix' : 'Edit mix'}
+      title={index < 0 ? t('colorMixing.addMix') : t('colorMixing.editMix')}
       onClose={onClose}
       className="mix-dialog"
       footer={
         <>
           <button className="secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="primary" disabled={incompatible || matchMissing} onClick={() => void save()}>
-            {index < 0 ? 'Add' : 'Save'}
+            {index < 0 ? t('colorMixing.add') : t('colorMixing.save')}
           </button>
         </>
       }
     >
-      <div className="chooser" role="radiogroup" aria-label="Mix mode">
+      <div className="chooser" role="radiogroup" aria-label={t('colorMixing.mode')}>
         {modes.map((m) => (
           <button key={m} role="radio" aria-checked={draft.mode === m} className={draft.mode === m ? 'on' : ''} onClick={() => change({ mode: m })}>
-            {MODE_LABELS[m]}
+            {t(MODE_LABELS[m])}
           </button>
         ))}
       </div>
@@ -198,8 +202,8 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
           {row?.virtualId || nextId}
         </span>
         <div>
-          <strong>{matchMissing ? 'No mix found' : mixLabel(recipe)}</strong>
-          <p className="muted small">{MODE_HINTS[draft.mode]}</p>
+          <strong>{matchMissing ? t('colorMixing.noMix') : mixLabel(recipe)}</strong>
+          <p className="muted small">{t(MODE_HINTS[draft.mode])}</p>
         </div>
       </div>
 
@@ -207,18 +211,18 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
         <div className="mix-body">
           {draft.filaments.map((_, k) => (
             <div key={k} className="mix-row">
-              {pick(k, `Filament ${k + 1} of the mix`)}
+              {pick(k, t('colorMixing.filamentOfMix', { n: k + 1 }))}
               {draft.filaments.length === 3 && (
-                <IconButton icon={X} label="Remove this filament from the mix" onClick={() => change({ filaments: draft.filaments.filter((__, i) => i !== k), weights: [34, 33, 33] })} />
+                <IconButton icon={X} label={t('colorMixing.removeFilament')} onClick={() => change({ filaments: draft.filaments.filter((__, i) => i !== k), weights: [34, 33, 33] })} />
               )}
             </div>
           ))}
           {draft.filaments.length === 3 && <MixTriangle filaments={draft.filaments} colours={colours} weights={draft.weights} onChange={(weights) => change({ weights })} />}
           {draft.filaments.length === 2 && (
             <label className="mix-slider">
-              <span className="sr-only">Mix ratio</span>
+              <span className="sr-only">{t('colorMixing.ratioLabel')}</span>
               <Slider
-                aria-label="Mix ratio"
+                aria-label={t('colorMixing.ratioLabel')}
                 min={0}
                 max={100}
                 value={draft.percentB}
@@ -243,7 +247,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
                 change({ filaments: [...draft.filaments, free], weights: [34, 33, 33] });
               }}
             >
-              + Add a third filament
+              + {t('colorMixing.addThird')}
             </button>
           )}
         </div>
@@ -252,9 +256,9 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
       {draft.mode === 'cycle' && (
         <div className="mix-body">
           <label className="field">
-            <span>Layer pattern</span>
+            <span>{t('colorMixing.layerPattern')}</span>
             <input
-              aria-label="Layer pattern"
+              aria-label={t('colorMixing.layerPattern')}
               inputMode="numeric"
               value={draft.pattern}
               onChange={(e) => change({ pattern: normalizePattern(e.target.value) })}
@@ -266,13 +270,13 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
                 +<Swatch colour={c} number={i + 1} />
               </button>
             ))}
-            <button className="secondary" onClick={() => change({ pattern: draft.pattern.replace(/(\[\d+\]|\d|,)$/, '') })} aria-label="Remove the last layer" title="Remove the last layer">
+            <button className="secondary" onClick={() => change({ pattern: draft.pattern.replace(/(\[\d+\]|\d|,)$/, '') })} aria-label={t('colorMixing.removeLast')} title={t('colorMixing.removeLast')}>
               <Delete size={16} aria-hidden />
             </button>
           </div>
-          <div className="mix-sequence" aria-label="Layers, bottom first">
+          <div className="mix-sequence" aria-label={t('colorMixing.layersBottomFirst')}>
             {sequence.map((id, i) => (
-              <span key={i} style={{ background: colours[id - 1] ?? '#ccc' }} title={`Layer ${i + 1}: filament ${id}`} />
+              <span key={i} style={{ background: colours[id - 1] ?? '#ccc' }} title={t('colorMixing.layerFilament', { layer: i + 1, n: id })} />
             ))}
           </div>
         </div>
@@ -281,26 +285,26 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
       {draft.mode === 'match' && (
         <div className="mix-body">
           <div className="mix-row">
-            <ColourPicker label="Target colour" title="Target colour" value={draft.target} onChange={(hex) => change({ target: hex })} />
+            <ColourPicker label={t('colorMixing.target')} title={t('colorMixing.target')} value={draft.target} onChange={(hex) => change({ target: hex })} />
             <input
-              aria-label="Target colour hex"
+              aria-label={t('colorMixing.targetHex')}
               className="mix-hex"
               defaultValue={draft.target}
               key={draft.target}
               onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               onBlur={(e) => /^#?[0-9a-f]{6}$/i.test(e.target.value.trim()) && change({ target: `#${e.target.value.trim().replace('#', '').toUpperCase()}` })}
             />
-            <span className="muted small">{matching ? 'Matching…' : draft.match?.valid ? closeness(draft.match.deltaE) : ''}</span>
+            <span className="muted small">{matching ? t('colorMixing.matching') : draft.match?.valid ? closeness(draft.match.deltaE) : ''}</span>
           </div>
           <label className="transform-row">
-            <span>Min share</span>
-            <Slider aria-label="Minimum share of each filament" min={0} max={50} value={draft.minPercent} onChange={(e) => change({ minPercent: Number(e.target.value) })} />
+            <span>{t('colorMixing.minShare')}</span>
+            <Slider aria-label={t('colorMixing.minShareLabel')} min={0} max={50} value={draft.minPercent} onChange={(e) => change({ minPercent: Number(e.target.value) })} />
             <span className="unit">{draft.minPercent}%</span>
           </label>
           {draft.match?.valid && (
             <div className="mix-compare">
-              <span style={{ background: draft.target }}>Target</span>
-              <span style={{ background: draft.match.colour, color: textOn(draft.match.colour) }}>Mix</span>
+              <span style={{ background: draft.target }}>{t('colorMixing.targetShort')}</span>
+              <span style={{ background: draft.match.colour, color: textOn(draft.match.colour) }}>{t('colorMixing.mixShort')}</span>
             </div>
           )}
         </div>
@@ -309,22 +313,22 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
       {draft.mode === 'gradient' && (
         <div className="mix-body">
           <div className="mix-row">
-            <span className="muted small mix-end">{draft.reversed ? 'Top' : 'Bottom'}</span>
-            {pick(0, 'Gradient filament A')}
+            <span className="muted small mix-end">{draft.reversed ? t('colorMixing.top') : t('colorMixing.bottom')}</span>
+            {pick(0, t('colorMixing.gradientA'))}
           </div>
           <div className="mix-row">
-            <span className="muted small mix-end">{draft.reversed ? 'Bottom' : 'Top'}</span>
-            {pick(1, 'Gradient filament B')}
+            <span className="muted small mix-end">{draft.reversed ? t('colorMixing.bottom') : t('colorMixing.top')}</span>
+            {pick(1, t('colorMixing.gradientB'))}
           </div>
           <div className="mix-gradient" style={{ background: gradient(draft.reversed ? [...strip].reverse() : strip, 'to top') }} aria-hidden />
           <button className="quiet" onClick={() => change({ reversed: !draft.reversed })}>
-            <ArrowDownUp size={16} aria-hidden /> Swap direction
+            <ArrowDownUp size={16} aria-hidden /> {t('colorMixing.swap')}
           </button>
-          {sublayers && <Note tone="warn">The gradient prints only with Mixed color sublayer turned on, in the Quality settings.</Note>}
+          {sublayers && <Note tone="warn">{t('colorMixing.sublayerNote')}</Note>}
         </div>
       )}
 
-      {incompatible && <p className="hint warn">Different filament types cannot be mixed. Please correct the settings.</p>}
+      {incompatible && <p className="hint warn">{t('colorMixing.differentTypes')}</p>}
       {!incompatible && warning && <p className="hint warn">{warning}</p>}
       <MixSuggestions draft={draft} colours={colours} onPick={(s, colour) => setDraft((d) => applySuggestion(d, s, colour))} />
     </Dialog>
@@ -332,10 +336,10 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
 }
 
 const MODE_HINTS: Record<MixDraft['mode'], string> = {
-  ratio: 'Alternates the filaments layer by layer in this ratio.',
-  cycle: 'Repeats this layer sequence from the bottom up: 1122 is two layers of 1, then two of 2.',
-  match: 'Finds the mix of your filaments closest to a colour.',
-  gradient: 'Fades from one filament to the other up the height of the object.',
+  ratio: 'colorMixing.ratioHint',
+  cycle: 'colorMixing.cycleHint',
+  match: 'colorMixing.matchHint',
+  gradient: 'colorMixing.gradientHint',
 };
 
 /** CSS gradient through colours, left to right (or `direction`). */
@@ -346,6 +350,6 @@ function gradient(colours: string[], direction = 'to right'): string | undefined
 /** ΔE2000 in words. */
 function closeness(deltaE: number): string {
   if (deltaE < 0) return '';
-  const words = deltaE < 1 ? 'exact' : deltaE < 3 ? 'very close' : deltaE < 6 ? 'close' : deltaE < 12 ? 'roughly' : 'far off';
-  return `${words} (ΔE ${deltaE.toFixed(1)})`;
+  const words = deltaE < 1 ? 'colorMixing.exact' : deltaE < 3 ? 'colorMixing.veryClose' : deltaE < 6 ? 'colorMixing.close' : deltaE < 12 ? 'colorMixing.roughly' : 'colorMixing.farOff';
+  return i18n.t('colorMixing.closeness', { words: i18n.t(words), deltaE: deltaE.toFixed(1) });
 }

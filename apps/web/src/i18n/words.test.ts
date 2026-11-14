@@ -1,0 +1,57 @@
+import { describe, expect, it } from 'vitest';
+import BUILT_IN from './en';
+import HEBREW from './he';
+
+type Words = { [k: string]: string | Words };
+const flat = (w: Words, pre = ''): Record<string, string> =>
+  Object.fromEntries(Object.entries(w).flatMap(([k, v]) => (typeof v === 'string' ? [[pre + k, v]] : Object.entries(flat(v, `${pre}${k}.`)))));
+const vars = (s: string) => [...s.matchAll(/\{\{\s*(\w+)\s*\}\}/g)].map((m) => m[1]).sort();
+// i18next plural forms: "files_one", "files_other" are used as t('files', { count }).
+const base = (k: string) => k.replace(/_(zero|one|two|few|many|other)$/, '');
+
+const ALL = import.meta.glob<Words>('./*/*.json', { eager: true, import: 'default' });
+const byLang = (lang: string) => Object.entries(ALL).filter(([p]) => p.startsWith(`./${lang}/`));
+const EN = flat(Object.assign({}, ...byLang('en').map(([, w]) => w)));
+const OTHERS = { he: flat(Object.assign({}, ...byLang('he').map(([, w]) => w))) };
+const CODE = import.meta.glob<string>(['../**/*.{ts,tsx}', '!../**/*.test.ts'], { query: '?raw', import: 'default', eager: true });
+// Asked for directly: t('topbar.prepare'), i18n.t('topbar.prepare').
+const asked = new Set(Object.values(CODE).flatMap((src) => [...src.matchAll(/\bt\(\s*'([\w.]+)'/g)].map((m) => m[1])));
+// Or kept in a table first ({ label: 'topbar.prepare' }) and asked for later.
+const named = new Set(Object.values(CODE).flatMap((src) => [...src.matchAll(/'([a-z]\w*\.[\w.]+)'/g)].map((m) => m[1])));
+const areas = new Set(Object.keys(EN).map((k) => k.split('.')[0]));
+
+describe('words', () => {
+  it('en.ts and he.ts list every word file', () => {
+    expect(Object.keys(BUILT_IN).sort()).toEqual(byLang('en').map(([p]) => p.slice(5, -5)).sort());
+    expect(Object.keys(HEBREW).sort()).toEqual(byLang('he').map(([p]) => p.slice(5, -5)).sort());
+  });
+  it('each file holds only its own area', () => {
+    for (const [path, words] of Object.entries(ALL)) {
+      const area = path.split('/').pop()!.replace(/\.json$/, '');
+      expect(Object.keys(words), path).toEqual([area]);
+    }
+  });
+  it('every word the code asks for is in English', () => {
+    const known = new Set(Object.keys(EN).map(base));
+    expect([...asked].filter((k) => !known.has(k))).toEqual([]);
+  });
+  it('every word kept in a table is in English', () => {
+    const known = new Set(Object.keys(EN).map(base));
+    expect([...named].filter((k) => areas.has(k.split('.')[0]) && !known.has(k))).toEqual([]);
+  });
+  it('no English word is left unused', () => {
+    expect(Object.keys(EN).filter((k) => !asked.has(base(k)) && !named.has(base(k)))).toEqual([]);
+  });
+  for (const [lang, words] of Object.entries(OTHERS)) {
+    it(`${lang} has only words English has, with the same {{blanks}}`, () => {
+      const englishBases = new Set(Object.keys(EN).map(base));
+      for (const [k, v] of Object.entries(words)) {
+        expect(englishBases.has(base(k)), `${lang}: ${k} is not in English`).toBe(true);
+        const enText = EN[k] ?? EN[`${base(k)}_other`] ?? '';
+        // A plural form may leave the number out ("one file" in words).
+        if (base(k) !== k) expect(vars(enText), `${lang}: ${k}`).toEqual(expect.arrayContaining(vars(v)));
+        else expect(vars(v), `${lang}: ${k}`).toEqual(vars(enText));
+      }
+    });
+  }
+});

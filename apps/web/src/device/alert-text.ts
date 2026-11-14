@@ -1,7 +1,9 @@
 // The words of a print alert. Used by the relay (apps/device-relay), which sends
 // bridge alerts as Web Push, and by the page for printers it reaches directly,
-// so both read the same. Plain functions with no imports: the relay bundles this file.
+// so both read the same. Plain functions; the words come through say.ts, which has
+// no i18next: the relay bundles this file and writes in English.
 import type { FiredAlert, PrintDetails } from './alerts';
+import { say } from './say';
 
 export interface AlertText {
   title: string;
@@ -13,14 +15,14 @@ function duration(seconds: number): string {
   const minutes = Math.max(1, Math.round(seconds / 60));
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (h === 0) return `${m} min`;
-  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+  if (h === 0) return say('deviceAlertText.min', { m });
+  return m === 0 ? say('deviceAlertText.hours', { h }) : say('deviceAlertText.hoursMin', { h, m });
 }
 
 /** "models/Benchy_PLA.gcode" -> "Benchy_PLA". */
 export function printName(file: string): string {
   const base = file.split('/').pop() ?? '';
-  return base.replace(/\.(gcode|g|gco|bgcode)$/i, '') || 'The print';
+  return base.replace(/\.(gcode|g|gco|bgcode)$/i, '') || say('deviceAlertText.thePrint');
 }
 
 const join = (...parts: (string | number | false | undefined | null)[]) => parts.filter(Boolean).join(' · ');
@@ -57,84 +59,119 @@ function filament(d: PrintDetails, ofTotal = true): string | null {
   if (d.usedMm == null) return null;
   if (d.totalG && d.totalMm) {
     const g = (d.usedMm / d.totalMm) * d.totalG;
-    return ofTotal ? `filament ${grams(g)} of ${grams(d.totalG)}` : `${grams(g)} filament used`;
+    return ofTotal ? say('deviceAlertText.filamentOf', { used: grams(g), total: grams(d.totalG) }) : say('deviceAlertText.filamentUsed', { used: grams(g) });
   }
   const m = (mm: number) => `${(mm / 1000).toFixed(mm < 10_000 ? 1 : 0)} m`;
-  return ofTotal && d.totalMm ? `filament ${m(d.usedMm)} of ${m(d.totalMm)}` : ofTotal ? `filament ${m(d.usedMm)}` : `${m(d.usedMm)} filament used`;
+  return ofTotal && d.totalMm
+    ? say('deviceAlertText.filamentOf', { used: m(d.usedMm), total: m(d.totalMm) })
+    : ofTotal
+      ? say('deviceAlertText.filamentSoFar', { used: m(d.usedMm) })
+      : say('deviceAlertText.filamentUsed', { used: m(d.usedMm) });
 }
 
 /** "layer 120 of 250" */
-const layerOf = (layer: number | undefined, total: number | undefined) => (layer != null ? `layer ${layer}${total ? ` of ${total}` : ''}` : null);
+const layerOf = (layer: number | undefined, total: number | undefined) =>
+  layer != null ? (total ? say('deviceAlertText.layerOf', { layer, total }) : say('deviceAlertText.layer', { layer })) : null;
 
 /** `printer` is the printer's name; `bridge` the bridge's, for the offline alert; `clock` how the reader shows times. */
-export function alertText(a: Partial<FiredAlert> & { event: FiredAlert['event'] }, printer: string, bridge = 'The bridge', clock: Clock = {}): AlertText {
+export function alertText(a: Partial<FiredAlert> & { event: FiredAlert['event'] }, printer: string, bridge = say('deviceAlertText.theBridge'), clock: Clock = {}): AlertText {
   const name = printName(a.file ?? '');
   const d: PrintDetails = a.details ?? {};
   const leftS = a.left ?? d.left;
   const total = a.total ?? d.total;
   // Only in the reader's own time zone: a relay's clock would be hours off.
   const doneAt = leftS != null && leftS > 0 && clock.timeZone ? clockTime((clock.now ?? Date.now()) + leftS * 1000, clock) : '';
-  const left = leftS != null && leftS > 0 ? join(`${duration(leftS)} left`, doneAt && `done about ${doneAt}`) : null;
+  const doneAbout = doneAt && say('deviceAlertText.doneAbout', { time: doneAt });
+  const left = leftS != null && leftS > 0 ? join(say('deviceAlertText.left', { time: duration(leftS) }), doneAbout) : null;
   // "47% · layer 120 of 250"
   const where = join(d.percent != null && `${d.percent}%`, layerOf(d.layer, total));
   // "stopped at 47%, layer 120 of 250"
   const stopLayer = layerOf(d.layer ?? a.layer, total);
-  const stoppedAt = d.percent != null ? `stopped at ${d.percent}%${stopLayer ? `, ${stopLayer}` : ''}` : stopLayer ? `stopped at ${stopLayer}` : '';
+  const stoppedAt =
+    d.percent != null
+      ? stopLayer
+        ? say('deviceAlertText.stoppedAtPercentLayer', { percent: d.percent, layer: stopLayer })
+        : say('deviceAlertText.stoppedAtPercent', { percent: d.percent })
+      : stopLayer
+        ? say('deviceAlertText.stoppedAtLayer', { layer: stopLayer })
+        : '';
   const used = filament(d, false);
   const err = d.error;
   switch (a.event) {
     case 'started':
       return {
-        title: `Printing ${name}`,
-        body: lines(join(printer, total && `${total} layers`), leftS ? join(`about ${duration(leftS)}`, doneAt && `done about ${doneAt}`) : null, d.totalG ? `${grams(d.totalG)} filament` : null),
+        title: say('deviceAlertText.printing', { name }),
+        body: lines(
+          join(printer, total && say('deviceAlertText.layers', { count: total })),
+          leftS ? join(say('deviceAlertText.about', { time: duration(leftS) }), doneAbout) : null,
+          d.totalG ? say('deviceAlertText.filamentTotal', { amount: grams(d.totalG) }) : null,
+        ),
       };
     case 'layer1':
-      return { title: 'First layer done', body: lines(join(printer, where || layerOf(1, total)), left) };
+      return { title: say('deviceAlertText.firstLayerDone'), body: lines(join(printer, where || layerOf(1, total)), left) };
     case 'layer3':
-      return { title: 'Layer 3 done', body: lines(join(printer, where || layerOf(3, total)), left) };
+      return { title: say('deviceAlertText.layer3Done'), body: lines(join(printer, where || layerOf(3, total)), left) };
     case 'layer':
-      return { title: `Layer ${a.layer}${total ? ` of ${total}` : ''} done`, body: lines(join(printer, name, d.percent != null && `${d.percent}%`), left) };
+      return { title: total ? say('deviceAlertText.layerOfDone', { layer: a.layer ?? '', total }) : say('deviceAlertText.layerDone', { layer: a.layer ?? '' }), body: lines(join(printer, name, d.percent != null && `${d.percent}%`), left) };
     case 'progress':
-      return { title: `${name} ${a.percent}% done`, body: lines(join(printer, layerOf(d.layer, total)), left, filament(d)) };
+      return { title: say('deviceAlertText.percentDone', { name, percent: a.percent ?? '' }), body: lines(join(printer, layerOf(d.layer, total)), left, filament(d)) };
     case 'almostDone':
-      return { title: `${name} almost done`, body: lines(join(printer, where), leftS ? join(`about ${duration(leftS)} left`, doneAt && `done about ${doneAt}`) : null) };
+      return { title: say('deviceAlertText.almostDone', { name }), body: lines(join(printer, where), leftS ? join(say('deviceAlertText.aboutLeft', { time: duration(leftS) }), doneAbout) : null) };
     case 'stillPrinting':
-      return { title: `Still printing ${name}`, body: lines(join(printer, where), join((a.duration ?? d.printed) && `printing ${duration((a.duration ?? d.printed)!)}`, leftS && leftS > 0 && `${duration(leftS)} left`)) };
+      return {
+        title: say('deviceAlertText.stillPrinting', { name }),
+        body: lines(
+          join(printer, where),
+          join((a.duration ?? d.printed) && say('deviceAlertText.printingFor', { time: duration((a.duration ?? d.printed)!) }), leftS && leftS > 0 && say('deviceAlertText.left', { time: duration(leftS) })),
+        ),
+      };
     case 'finished': {
       const took = a.duration ?? d.printed;
       return {
-        title: `${name} finished`,
+        title: say('deviceAlertText.finished', { name }),
         body: lines(
-          join(printer, took && `${duration(took)}${d.estimate ? ` (estimate ${duration(d.estimate)})` : ''}`),
-          join(d.totalG ? `${grams(d.totalG)} filament` : filament(d, false), total && `${total} layers`),
+          join(printer, took && (d.estimate ? say('deviceAlertText.tookEstimate', { time: duration(took), estimate: duration(d.estimate) }) : duration(took))),
+          join(d.totalG ? say('deviceAlertText.filamentTotal', { amount: grams(d.totalG) }) : filament(d, false), total && say('deviceAlertText.layers', { count: total })),
         ),
       };
     }
     case 'resumed':
-      return { title: `${name} resumed`, body: lines(join(printer, where), left) };
+      return { title: say('deviceAlertText.resumed', { name }), body: lines(join(printer, where), left) };
     case 'bedCooled':
-      return { title: `Bed cooled down: ${name} can come off`, body: printer };
+      return { title: say('deviceAlertText.bedCooled', { name }), body: printer };
     case 'failed': {
-      const spent = join(d.printed && `after ${duration(d.printed)}`, used);
+      const spent = join(d.printed && say('deviceAlertText.after', { time: duration(d.printed) }), used);
+      const code = err?.code && say('deviceAlertText.code', { code: err.code });
       return a.reason === 'cancelled'
-        ? { title: `${name} was cancelled`, body: lines(join(printer, stoppedAt), spent) }
-        : { title: `${name} failed`, body: lines(join(printer, stoppedAt), spent, err ? err.text : readable(a.reason), err?.code && `Code ${err.code}`) };
+        ? { title: say('deviceAlertText.cancelled', { name }), body: lines(join(printer, stoppedAt), spent) }
+        : { title: say('deviceAlertText.failed', { name }), body: lines(join(printer, stoppedAt), spent, err ? err.text : readable(a.reason), code) };
     }
-    case 'paused':
+    case 'paused': {
       if (a.reason === 'filament') {
-        const what = d.runout ? `${d.runout} ran out of filament` : 'filament ran out';
-        return { title: `Print paused: ${what}`, body: lines(join(printer, name, where), `Load filament${d.runout ? ` in ${d.runout}` : ''}, then resume in the Device tab.`) };
+        const what = d.runout ? say('deviceAlertText.ranOut', { head: d.runout }) : say('deviceAlertText.filamentRanOut');
+        return {
+          title: say('deviceAlertText.pausedWhat', { what }),
+          body: lines(join(printer, name, where), d.runout ? say('deviceAlertText.loadIn', { head: d.runout }) : say('deviceAlertText.load')),
+        };
       }
-      return { title: err ? `Print paused: ${err.title}` : 'Print paused', body: lines(join(printer, name, where), err ? err.text : readable(a.reason), err?.code && `Code ${err.code}`) };
-    case 'error':
+      const code = err?.code && say('deviceAlertText.code', { code: err.code });
+      return { title: err ? say('deviceAlertText.pausedWhat', { what: err.title }) : say('deviceAlertText.paused'), body: lines(join(printer, name, where), err ? err.text : readable(a.reason), code) };
+    }
+    case 'error': {
+      const code = err?.code && say('deviceAlertText.code', { code: err.code });
       return {
-        title: err ? `Printer error: ${err.title}` : 'Printer error',
-        body: lines(join(printer, a.file && `${name} ${stoppedAt || 'stopped'}`), err ? err.text : readable(a.reason) || 'Check the printer’s screen.', err?.code && `Code ${err.code}`),
+        title: err ? say('deviceAlertText.errorWhat', { what: err.title }) : say('deviceAlertText.error'),
+        body: lines(
+          join(printer, a.file && say('deviceAlertText.nameWhere', { name, where: stoppedAt || say('deviceAlertText.stopped') })),
+          err ? err.text : readable(a.reason) || say('deviceAlertText.checkScreen'),
+          code,
+        ),
       };
+    }
     case 'offline':
-      return { title: `${bridge} is offline`, body: 'It stopped answering 10 minutes ago, so its printers can’t send alerts until it’s back.' };
+      return { title: say('deviceAlertText.offline', { bridge }), body: say('deviceAlertText.offlineBody') };
     case 'test':
-      return { title: 'Test alert', body: `Alerts from ${printer} will look like this.` };
+      return { title: say('deviceAlertText.test'), body: say('deviceAlertText.testBody', { printer }) };
   }
 }
 

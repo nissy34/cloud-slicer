@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} filaments on {{heads}} heads: you pick which head prints each one when you send the print.",
+    "warn": "{{n}} filaments on a printer with {{heads}} heads."
+  }
+}

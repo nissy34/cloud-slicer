@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "מפתח API",
+    "klipperHint": "Mainsail ו-Fluidd מציגים אותו בהגדרות שלהם.",
+    "klipperLocked": "המדפסת הזו נעולה: הקלידו את מפתח ה-API שלה",
+    "prusaKey": "סיסמת PrusaLink",
+    "prusaHint": "המדפסת מציגה אותה תחת Settings, Network, PrusaLink (שם המשתמש שם הוא maker).",
+    "prusaLocked": "הקלידו את סיסמת PrusaLink שמופיעה במסך המדפסת",
+    "octoprintKey": "מפתח API של OctoPrint",
+    "octoprintHint": "ב-OctoPrint: Settings, Application Keys, ואז צרו מפתח עבור Cloud Slicer (או העתיקו את מפתח ה-API של המשתמש שלכם תחת Settings, API).",
+    "octoprintLocked": "ה-OctoPrint הזה נעול: הקלידו מפתח API מההגדרות שלו",
+    "bambuKey": "קוד גישה ברשת המקומית (LAN access code)",
+    "bambuHint": "המדפסת מציגה אותו במסך שלה, בהגדרות הרשת ליד LAN Only mode. כדי לשלוח הדפסות ולשלוט בה מכאן, הפעילו שם גם את LAN Only mode ואת Developer Mode (הענן של Bambu והאפליקציה Bambu Handy מפסיקים לעבוד כשהם פועלים).",
+    "bambuLocked": "הקלידו את קוד הגישה שמופיע במסך המדפסת",
+    "featStatus": "מצב",
+    "featSend": "שליחה והדפסה",
+    "featCamera": "מצלמה",
+    "featMove": "תנועה וטמפרטורות",
+    "featMoveShort": "תנועה וטמפ׳",
+    "featConsole": "מסוף",
+    "klipperName": "מדפסות Klipper",
+    "klipperExamples": "Snapmaker U1, Voron, Qidi, Sovol",
+    "prusaName": "Prusa עם PrusaLink",
+    "prusaExamples": "MK4, Core One, XL, Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "כל מדפסת ש-OctoPrint מפעיל",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "עדיין לא Carbon 2",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1, P1, P2S, A1, H2; מצלמה ב-P1 וב-A1; דורש Developer Mode"
+  }
+}

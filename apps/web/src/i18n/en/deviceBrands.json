@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "API key",
+    "klipperHint": "Mainsail and Fluidd show it in their settings.",
+    "klipperLocked": "This printer is locked: type its API key",
+    "prusaKey": "PrusaLink password",
+    "prusaHint": "The printer shows it under Settings, Network, PrusaLink (the user name there is maker).",
+    "prusaLocked": "Type the PrusaLink password from the printer's screen",
+    "octoprintKey": "OctoPrint API key",
+    "octoprintHint": "In OctoPrint: Settings, Application Keys, then make a key for Cloud Slicer (or copy your user's API key under Settings, API).",
+    "octoprintLocked": "This OctoPrint is locked: type an API key from its settings",
+    "bambuKey": "LAN access code",
+    "bambuHint": "The printer shows it on its screen, in its network settings next to LAN Only mode. To send prints and control it from here, also turn on LAN Only mode and Developer Mode there (Bambu's cloud and the Bambu Handy app stop working while they're on).",
+    "bambuLocked": "Type the access code from the printer's screen",
+    "featStatus": "Status",
+    "featSend": "Send & print",
+    "featCamera": "Camera",
+    "featMove": "Move & temperatures",
+    "featMoveShort": "Move & temps",
+    "featConsole": "Console",
+    "klipperName": "Klipper printers",
+    "klipperExamples": "Snapmaker U1, Voron, Qidi, Sovol",
+    "prusaName": "Prusa with PrusaLink",
+    "prusaExamples": "MK4, Core One, XL, Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "any printer OctoPrint runs",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "not the Carbon 2 yet",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1, P1, P2S, A1, H2; camera on P1 and A1; needs Developer Mode"
+  }
+}

@@ -40,7 +40,7 @@
     order: 2;
     flex: none;
     overflow: visible;
-    border-right: 0;
+    border-inline-end: 0;
     border-top: 1px solid var(--border);
   }
   .actionbar {
@@ -88,11 +88,11 @@
   /* Above the layer slider, as the view buttons are. */
   .preview .plate-tabs {
     top: auto;
-    left: 12px;
+    inset-inline-start: 12px;
     bottom: 72px;
   }
   .view-buttons {
-    right: 8px;
+    inset-inline-end: 8px;
     bottom: 8px;
   }
   .view-buttons.over-slider {
@@ -106,7 +106,7 @@
     padding: 8px 12px;
   }
   .workspace-tools {
-    left: 12px;
+    inset-inline-start: 12px;
     gap: 6px;
   }
   /* Bigger touch targets; the row scrolls sideways. As the column scrolls,
@@ -115,7 +115,7 @@
   .toolbar {
     position: sticky;
     top: 8px;
-    left: auto;
+    inset-inline-start: auto;
     margin: 8px 6px 0;
     transform: none;
     max-width: none;
@@ -160,8 +160,8 @@
   .workspace:has(.tool-pop.docked) .toolbar {
     position: relative;
     top: auto;
-    left: auto;
-    right: auto;
+    inset-inline-start: auto;
+    inset-inline-end: auto;
     order: 0;
     flex: none;
     margin: 6px 6px 0;
@@ -281,7 +281,7 @@
     display: inline;
   }
   .filament-use {
-    margin-left: 0;
+    margin-inline-start: 0;
   }
   .stats-total {
     display: flex;

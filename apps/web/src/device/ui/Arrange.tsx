@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { usePhone } from '../../lib/usePhone';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../../i18n';
 import {
   closestCorners,
   DndContext,
@@ -107,7 +109,7 @@ function useLayout(printerId: string): [DeviceLayout, (next: DeviceLayout) => vo
     pending.current++;
     queue.current = queue.current
       .then(() => saveUserSetting(key, next))
-      .catch(() => useDevice.getState().setToast('Could not save the card layout. It is kept until you reload the page.', true))
+      .catch(() => useDevice.getState().setToast(i18n.t('deviceArrange.saveFailed'), true))
       .finally(() => {
         pending.current--;
       });
@@ -125,6 +127,7 @@ const collision: CollisionDetection = (args) => {
 };
 
 export function DeviceCards({ printer, busy, arranging }: { printer: SavedPrinter; busy: boolean; arranging: boolean }) {
+  const { t } = useTranslation();
   const phone = usePhone();
   const [layout, save] = useLayout(printer.id);
   const sensors = useSensors(
@@ -143,10 +146,10 @@ export function DeviceCards({ printer, busy, arranging }: { printer: SavedPrinte
   const setScreen = (next: Partial<PhoneLayout & DesktopLayout>) => save({ ...layout, [kind]: { ...screen, ...next } });
   const nameOf = (id: SlotId) =>
     isPageCard(id)
-      ? `Page card ${layout.cameraCards.filter(isPageCard).indexOf(id) + 1}`
+      ? t('deviceArrange.pageCard', { n: layout.cameraCards.filter(isPageCard).indexOf(id) + 1 })
       : isCamCard(id)
-        ? `Camera card ${layout.cameraCards.filter((c) => !isPageCard(c)).indexOf(id) + 2}`
-        : CARD_NAMES[id];
+        ? t('deviceArrange.cameraCard', { n: layout.cameraCards.filter((c) => !isPageCard(c)).indexOf(id) + 2 })
+        : t(CARD_NAMES[id]);
   const view = (id: SlotId) =>
     isPageCard(id) ? (
       <PageCard card={id} home={layout.cameraHome} onPick={(name) => save(placePage(layout, name, id))} />
@@ -196,16 +199,16 @@ export function DeviceCards({ printer, busy, arranging }: { printer: SavedPrinte
   const bar = arranging && (
     <div className="dv-arrange-bar" data-testid="arrange-bar">
       <p>
-        <strong>Arranging cards for {printer.name}.</strong>{' '}
+        <strong>{t('deviceArrange.arrangingFor', { name: printer.name })}</strong>{' '}
         <span className="muted">
-          {phone ? 'Hold a card by its grip and drag it up or down.' : 'Drag a card by its grip into a column, or across the top or bottom.'} Hidden cards stay here, faded. Other printers keep their own layout.
+          {phone ? t('deviceArrange.helpPhone') : t('deviceArrange.helpDesktop')} {t('deviceArrange.helpRest')}
         </span>
       </p>
       <div className="dv-arrange-actions">
         {!phone && (
           <div className="dv-columns-pick">
-            <span className="muted">Columns</span>
-            <div className="chooser" role="group" aria-label="Columns">
+            <span className="muted">{t('deviceArrange.columns')}</span>
+            <div className="chooser" role="group" aria-label={t('deviceArrange.columns')}>
               {([2, 3] as const).map((n) => (
                 <button key={n} aria-pressed={layout.desktop.cols.length === n} onClick={() => save({ ...layout, desktop: setColumns(layout.desktop, n) })}>
                   {n}
@@ -216,12 +219,12 @@ export function DeviceCards({ printer, busy, arranging }: { printer: SavedPrinte
         )}
         {layout.cameraCards.length < MAX_CAMERA_CARDS && (
           <button className="quiet" onClick={() => save(addCameraCard(layout, `cam:${Math.random().toString(36).slice(2, 8)}` as CamCardId))} data-testid="add-camera-card">
-            Add a camera card
+            {t('deviceArrange.addCameraCard')}
           </button>
         )}
         {layout.cameraCards.length < MAX_CAMERA_CARDS && (
           <button className="quiet" onClick={() => save(addCameraCard(layout, `page:${Math.random().toString(36).slice(2, 8)}` as CamCardId))} data-testid="add-page-card">
-            Add a page card
+            {t('deviceArrange.addPageCard')}
           </button>
         )}
         <button
@@ -234,7 +237,7 @@ export function DeviceCards({ printer, busy, arranging }: { printer: SavedPrinte
           }
           data-testid="arrange-reset"
         >
-          Back to default
+          {t('deviceArrange.backToDefault')}
         </button>
       </div>
     </div>
@@ -315,13 +318,13 @@ export function DeviceCards({ printer, busy, arranging }: { printer: SavedPrinte
       {bar}
       <div className={`dv-board${arranging ? ' dv-arranging' : ''}`} data-columns={desktop.cols.length} data-testid="device-cards">
         <DndContext sensors={sensors} collisionDetection={collision} onDragStart={start} onDragOver={over} onDragEnd={end} onDragCancel={() => setDrag(null)}>
-          {zone('top', 'Across the top', true)}
+          {zone('top', t('deviceArrange.acrossTop'), true)}
           <div className="dv-columns">
             {zoneIds(desktop)
               .filter((z) => z.startsWith('col'))
-              .map((z, i) => zone(z, `Column ${i + 1}`, false))}
+              .map((z, i) => zone(z, t('deviceArrange.column', { n: i + 1 }), false))}
           </div>
-          {zone('bottom', 'Across the bottom', true)}
+          {zone('bottom', t('deviceArrange.acrossBottom'), true)}
           <DragOverlay>{drag && <DragChip name={nameOf(drag.id)} />}</DragOverlay>
         </DndContext>
       </div>
@@ -343,9 +346,9 @@ function Zone({ id, label, band, arranging, empty, children }: { id: ZoneId; lab
 }
 
 const CAMERA_SIZES: { id: CameraSize; label: string }[] = [
-  { id: 's', label: 'Small' },
-  { id: 'm', label: 'Medium' },
-  { id: 'l', label: 'Large' },
+  { id: 's', label: 'deviceArrange.small' },
+  { id: 'm', label: 'deviceArrange.medium' },
+  { id: 'l', label: 'deviceArrange.large' },
 ];
 
 function Slot(props: {
@@ -364,6 +367,7 @@ function Slot(props: {
   onCamera(size: CameraSize): void;
   onRemove?(): void;
 }) {
+  const { t } = useTranslation();
   const { id, name, half, folded, hidden, arranging, phone, camera } = props;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !arranging });
   const style: CSSProperties = {
@@ -375,26 +379,26 @@ function Slot(props: {
     <div ref={setNodeRef} style={style} className={cls} data-card={id}>
       {arranging && (
         <div className="dv-slot-bar">
-          <button ref={setActivatorNodeRef} className="dv-grip" aria-label={`Move ${name}`} {...attributes} {...listeners} data-testid={`grip-${id}`}>
+          <button ref={setActivatorNodeRef} className="dv-grip" aria-label={t('deviceArrange.moveCard', { name })} {...attributes} {...listeners} data-testid={`grip-${id}`}>
             <span aria-hidden="true">⠿</span>
           </button>
           <b>{name}</b>
           <span className="dv-slot-tools">
             {!phone && (
-              <label className="switch-row" title="Half width: two half cards sit side by side">
+              <label className="switch-row" title={t('deviceArrange.halfWidthTip')}>
                 <input className="switch" type="checkbox" checked={half} onChange={(e) => props.onHalf(e.target.checked)} />
-                Half width
+                {t('deviceArrange.halfWidth')}
               </label>
             )}
             {camera && (
-              <Picker field className="dv-camera-size" label="Camera size" value={camera} options={CAMERA_SIZES.map((s) => ({ value: s.id, label: s.label }))} onChange={(v) => props.onCamera(v as CameraSize)} />
+              <Picker field className="dv-camera-size" label={t('deviceArrange.cameraSize')} value={camera} options={CAMERA_SIZES.map((s) => ({ value: s.id, label: t(s.label) }))} onChange={(v) => props.onCamera(v as CameraSize)} />
             )}
             <button className="quiet" onClick={() => props.onHide(!hidden)} data-testid={`hide-${id}`}>
-              {hidden ? 'Show' : 'Hide'}
+              {hidden ? t('common.show') : t('common.hide')}
             </button>
             {props.onRemove && (
               <button className="quiet danger" onClick={props.onRemove} data-testid={`remove-${id}`}>
-                Remove
+                {t('deviceArrange.remove')}
               </button>
             )}
           </span>

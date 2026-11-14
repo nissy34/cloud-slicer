@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatMegabytes } from '../lib/format';
 import type { Loading } from '../state/loading';
 import './print-loader.css';
@@ -38,10 +39,11 @@ function PrintingNozzle() {
 
 /** The loading card: animation, what is happening, and progress when known. */
 export function PrintLoader({ loading }: { loading: Loading }) {
+  const { t } = useTranslation();
   const { label, loaded, total } = loading;
   const progress = loading.progress ?? (total ? Math.min(1, (loaded ?? 0) / total) : undefined);
   const detail =
-    loading.detail ?? (loaded ? (total ? `${formatMegabytes(loaded)} of ${formatMegabytes(total)}` : formatMegabytes(loaded)) : '');
+    loading.detail ?? (loaded ? (total ? t('uiParts.loadedOf', { loaded: formatMegabytes(loaded), total: formatMegabytes(total) }) : formatMegabytes(loaded)) : '');
   return (
     <div className="print-loader" data-testid="print-loader">
       <PrintingNozzle />

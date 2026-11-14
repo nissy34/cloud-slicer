@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../../i18n';
 import { useDevice } from '../../state/device';
 import {
   feedGcode,
@@ -39,6 +41,7 @@ const MATERIALS = ['PLA', 'PETG', 'ABS', 'ASA', 'TPU', 'PA', 'PC', 'PVA', 'HIPS'
  * set by hand) with load, unload and edit, and its nozzle.
  */
 export function ToolheadsCard() {
+  const { t } = useTranslation();
   const objects = useDevice((s) => s.objects);
   const addons = useDevice((s) => s.addons);
   const run = useDevice((s) => s.run);
@@ -79,46 +82,46 @@ export function ToolheadsCard() {
     const scene = scenes[i];
     // In bed while docked, and while getting up after a pick up.
     const inBed = head?.dock === 'parked' || scene === 'waking';
-    const say = scene && scene !== 'asleep' ? SCENE_WORDS[scene] : MOOD_WORDS[mood];
+    const say = t(scene && scene !== 'asleep' ? SCENE_WORDS[scene] : MOOD_WORDS[mood]);
     return { n, i, head, inUse, loaded, mood, label, inBed, scene: inBed ? (scene ?? 'asleep') : undefined, say };
   });
   const one = tiles.length === 1;
-  const sel = tiles.find((t) => t.n.name === chosen) ?? tiles.find((t) => t.inUse) ?? tiles[0];
+  const sel = tiles.find((x) => x.n.name === chosen) ?? tiles.find((x) => x.inUse) ?? tiles[0];
   const { n, head } = sel;
 
   return (
-    <Card title={one ? 'Tool head' : 'Tool heads'} testId="toolheads-card">
+    <Card title={one ? t('deviceHeads.toolHead') : t('deviceHeads.toolHeads')} testId="toolheads-card">
       <ul className={`dv-heads${one ? ' one' : ''}`} style={{ gridTemplateColumns: `repeat(${Math.min(tiles.length, 4)}, minmax(0, 1fr))` }}>
-        {tiles.map((t) => (
+        {tiles.map((x) => (
           <li
-            key={t.n.name}
-            className={`dv-head${t.inUse && !one ? ' active' : ''}${t === sel && !one ? ' selected' : ''}`}
-            data-testid={`head-${t.i}`}
-            data-dock={t.head?.dock ?? undefined}
-            data-mood={t.mood}
-            data-scene={t.scene}
+            key={x.n.name}
+            className={`dv-head${x.inUse && !one ? ' active' : ''}${x === sel && !one ? ' selected' : ''}`}
+            data-testid={`head-${x.i}`}
+            data-dock={x.head?.dock ?? undefined}
+            data-mood={x.mood}
+            data-scene={x.scene}
           >
             <button
               className="dv-head-tile"
-              aria-pressed={one ? undefined : t === sel}
-              aria-label={`${t.label}: ${t.inBed ? 'in its dock, ' : ''}${t.say}, ${Math.round(t.n.temp)}°`}
-              onClick={() => setChosen(t.n.name)}
+              aria-pressed={one ? undefined : x === sel}
+              aria-label={x.inBed ? t('deviceHeads.tileDocked', { name: x.label, say: x.say, temp: Math.round(x.n.temp) }) : t('deviceHeads.tile', { name: x.label, say: x.say, temp: Math.round(x.n.temp) })}
+              onClick={() => setChosen(x.n.name)}
             >
-              <span className="dv-head-say">{t.say}</span>
+              <span className="dv-head-say">{x.say}</span>
               <span className="dv-head-pic">
-                {t.inBed ? (
-                  <HeadBed mood={t.mood} colour={t.head?.colour ?? null} loaded={t.loaded} temp={t.n.temp} scene={t.scene ?? 'asleep'} size={46} />
+                {x.inBed ? (
+                  <HeadBed mood={x.mood} colour={x.head?.colour ?? null} loaded={x.loaded} temp={x.n.temp} scene={x.scene ?? 'asleep'} size={46} />
                 ) : (
-                  <HeadFace mood={t.mood} colour={t.head?.colour ?? null} loaded={t.loaded} temp={t.n.temp} size={one ? 76 : 52} />
+                  <HeadFace mood={x.mood} colour={x.head?.colour ?? null} loaded={x.loaded} temp={x.n.temp} size={one ? 76 : 52} />
                 )}
               </span>
               <span className="dv-head-name">
-                <b>{t.label}</b> <span className="dv-head-temp">{Math.round(t.n.temp)}°</span>
+                <b>{x.label}</b> <span className="dv-head-temp">{Math.round(x.n.temp)}°</span>
               </span>
-              {t.head ? (
-                <span className="dv-head-filament">{filamentWords(t.head)}</span>
+              {x.head ? (
+                <span className="dv-head-filament">{filamentWords(x.head)}</span>
               ) : (
-                t.loaded === false && <span className="dv-head-filament">No filament</span>
+                x.loaded === false && <span className="dv-head-filament">{t('deviceHeads.noFilament')}</span>
               )}
             </button>
           </li>
@@ -138,7 +141,7 @@ export function ToolheadsCard() {
             )}
             {head && (
               <span className="muted">
-                {head.loaded ? [head.material || 'Unknown', head.vendor, head.subType].filter(Boolean).join(' ') : filamentWords(head)}
+                {head.loaded ? [head.material || t('deviceHeads.unknown'), head.vendor, head.subType].filter(Boolean).join(' ') : filamentWords(head)}
               </span>
             )}
           </div>
@@ -146,7 +149,7 @@ export function ToolheadsCard() {
         {!head && sel.loaded != null && (
           <div className="dv-head-sheet-state">
             <span className={sel.loaded ? 'muted' : 'dv-warn-text'} data-testid="head-loaded">
-              {sel.loaded ? 'Filament loaded' : 'No filament: the filament sensor is empty'}
+              {sel.loaded ? t('deviceHeads.loaded') : t('deviceHeads.sensorEmpty')}
             </span>
           </div>
         )}
@@ -155,16 +158,16 @@ export function ToolheadsCard() {
             {feeding && <span data-testid="head-feeding">{u1Activity(objects)}…</span>}
             {head?.dock && (
               <span className={head.dock === 'unknown' ? 'dv-warn-text' : undefined} data-testid="head-dock">
-                {DOCK_LABEL[head.dock]}
+                {t(DOCK_LABEL[head.dock])}
               </span>
             )}
             {head?.nozzle && <span className="muted">{nozzleText(head.nozzle)}</span>}
-            {head?.feed?.error && <span className="dv-error-text">Feeder: {head.feed.error.replace(/_/g, ' ')}</span>}
+            {head?.feed?.error && <span className="dv-error-text">{t('deviceHeads.feeder', { error: head.feed.error.replace(/_/g, ' ') })}</span>}
           </div>
         )}
         <div className="dv-head-sheet-temp">
-          <span>Nozzle temperature</span>
-          <Temperature label={n.label} temp={n.temp} target={n.target} max={n.max} onSet={(t) => void run(setHeaterGcode(n.name, t, n.max, dialect(addons)))} disabled={!takesCommands(addons)} />
+          <span>{t('deviceHeads.nozzleTemp')}</span>
+          <Temperature label={n.label} temp={n.temp} target={n.target} max={n.max} onSet={(v) => void run(setHeaterGcode(n.name, v, n.max, dialect(addons)))} disabled={!takesCommands(addons)} />
         </div>
         {head && (
           <div className="dv-head-actions">
@@ -174,14 +177,14 @@ export function ToolheadsCard() {
                 disabled={printing}
                 onClick={() =>
                   confirm({
-                    action: 'Pick up',
-                    text: `Pick up ${head.label} from its dock? The printer homes X and Y if needed, parks the head on the carriage and moves to ${head.label}'s dock.`,
+                    action: t('deviceHeads.pickUp'),
+                    text: t('deviceHeads.pickUpText', { name: head.label }),
                     run: () => void run(pickHeadGcode(head.index)),
                   })
                 }
               >
                 <Icon name="pickUp" />
-                Pick up
+                {t('deviceHeads.pickUp')}
               </button>
             )}
             {head.dock === 'attached' && (
@@ -190,14 +193,14 @@ export function ToolheadsCard() {
                 disabled={printing}
                 onClick={() =>
                   confirm({
-                    action: 'Park',
-                    text: `Put ${head.label} back in its dock? The carriage moves to the dock.`,
+                    action: t('deviceHeads.park'),
+                    text: t('deviceHeads.parkText', { name: head.label }),
                     run: () => void run(parkHeadGcode(head.index)),
                   })
                 }
               >
                 <Icon name="park" />
-                Park
+                {t('deviceHeads.park')}
               </button>
             )}
             {head.feed && (
@@ -207,48 +210,48 @@ export function ToolheadsCard() {
                   disabled={printing || feeding || head.loaded}
                   title={
                     head.loaded
-                      ? 'Unload the current filament first'
+                      ? t('deviceHeads.unloadFirst')
                       : !head.feed.auto
-                        ? 'Automatic loading is off for this feeder on the printer'
+                        ? t('deviceHeads.autoOff')
                         : head.feed.filamentDetected
                           ? undefined
-                          : `Push filament into ${head.label}'s side feeder first`
+                          : t('deviceHeads.pushFirst', { name: head.label })
                   }
                   onClick={() =>
                     confirm({
-                      action: 'Load filament',
-                      text: `Load the filament waiting at ${head.label}'s feeder? The printer heats the nozzle and moves the head.`,
+                      action: t('deviceHeads.loadFilament'),
+                      text: t('deviceHeads.loadText', { name: head.label }),
                       run: () => void run(feedGcode(head.feed!, 'load')),
                     })
                   }
                 >
                   <Icon name="load" />
-                  Load
+                  {t('deviceHeads.load')}
                 </button>
                 <button
                   className="secondary"
                   disabled={printing || feeding || !head.loaded}
                   onClick={() =>
                     confirm({
-                      action: 'Unload filament',
-                      text: `Unload ${head.label}'s filament? The printer heats the nozzle and moves the head.`,
+                      action: t('deviceHeads.unloadFilament'),
+                      text: t('deviceHeads.unloadText', { name: head.label }),
                       run: () => void run(feedGcode(head.feed!, 'unload')),
                     })
                   }
                 >
                   <Icon name="unload" />
-                  Unload
+                  {t('deviceHeads.unload')}
                 </button>
               </>
             )}
             <button className="secondary" disabled={printing} onClick={() => setEditing(head)}>
               <Icon name="filament" />
-              Filament
+              {t('deviceHeads.filament')}
             </button>
             {head.nozzle && (
               <button className="secondary" disabled={printing} onClick={() => setNozzleOf(head.index)}>
                 <Icon name="nozzle" />
-                Nozzle
+                {t('deviceHeads.nozzle')}
               </button>
             )}
           </div>
@@ -263,12 +266,13 @@ export function ToolheadsCard() {
 
 /** What is in a U1 head: its filament, filament waiting at the side feeder, or nothing. */
 const filamentWords = (h: U1Head) =>
-  h.loaded ? [h.material || 'Unknown', h.vendor].filter(Boolean).join(' ') : h.feed?.filamentDetected ? 'At the feeder' : 'No filament';
+  h.loaded ? [h.material || i18n.t('deviceHeads.unknown'), h.vendor].filter(Boolean).join(' ') : h.feed?.filamentDetected ? i18n.t('deviceHeads.atFeeder') : i18n.t('deviceHeads.noFilament');
 
+/** Word keys for what a head in bed says. */
 const SCENE_WORDS: Record<Exclude<BedScene, 'asleep'>, string> = {
-  coffee: 'Coffee break',
-  waking: 'Getting up',
-  bedtime: 'Back to bed',
+  coffee: 'deviceHeads.coffee',
+  waking: 'deviceHeads.waking',
+  bedtime: 'deviceHeads.bedtime',
 };
 
 /** A coffee break about once a minute, for one sleeping head at a time. */
@@ -330,16 +334,18 @@ function useBedScenes(heads: U1Head[], napping: number[]): Partial<Record<number
   return scenes;
 }
 
+/** Word keys for where a head is. */
 const DOCK_LABEL = {
-  parked: 'In its dock',
-  attached: 'On the carriage: this head prints next',
-  unknown: 'Check its dock: the dock sensors disagree. Make sure the head sits in its dock or on the carriage.',
+  parked: 'deviceHeads.docked',
+  attached: 'deviceHeads.attached',
+  unknown: 'deviceHeads.dockUnknown',
 } as const;
 
 const nozzleText = (n: NonNullable<U1Head['nozzle']>) =>
-  `${n.diameter} mm${n.volumeType === 'high_flow' ? ' high flow' : ''} nozzle`;
+  n.volumeType === 'high_flow' ? i18n.t('deviceHeads.nozzleHighFlow', { size: n.diameter }) : i18n.t('deviceHeads.nozzleSize', { size: n.diameter });
 
 function NozzleEditor({ head, onClose }: { head: U1Head; onClose(): void }) {
+  const { t } = useTranslation();
   const run = useDevice((s) => s.run);
   const [diameter, setDiameter] = useState(head.nozzle?.diameter ?? 0.4);
   const [volumeType, setVolumeType] = useState(head.nozzle?.volumeType ?? 'standard');
@@ -349,45 +355,45 @@ function NozzleEditor({ head, onClose }: { head: U1Head; onClose(): void }) {
   };
   return (
     <Dialog
-      title={`${head.label} nozzle`}
+      title={t('deviceHeads.nozzleTitle', { name: head.label })}
       onClose={onClose}
       footer={
         <>
           <button className="secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="primary" onClick={() => void save()}>
-            Save to printer
+            {t('deviceHeads.saveToPrinter')}
           </button>
         </>
       }
     >
-      <p className="muted">Tell the printer which nozzle is fitted after swapping one. The slicer's printer profile should match.</p>
+      <p className="muted">{t('deviceHeads.nozzleHelp')}</p>
       <div className="dv-form">
         <label>
-          Size
-          <Picker field label="Size" value={String(diameter)} options={U1_NOZZLE_DIAMETERS.map((d) => ({ value: String(d), label: `${d} mm` }))} onChange={(v) => setDiameter(Number(v))} />
+          {t('deviceHeads.size')}
+          <Picker field label={t('deviceHeads.size')} value={String(diameter)} options={U1_NOZZLE_DIAMETERS.map((d) => ({ value: String(d), label: `${d} mm` }))} onChange={(v) => setDiameter(Number(v))} />
         </label>
         <label>
-          Type
-          <Picker field label="Type" value={volumeType} options={U1_NOZZLE_TYPES.map((t) => ({ value: t.id, label: t.label }))} onChange={setVolumeType} />
+          {t('deviceHeads.type')}
+          <Picker field label={t('deviceHeads.type')} value={volumeType} options={U1_NOZZLE_TYPES.map((x) => ({ value: x.id, label: t(x.label) }))} onChange={setVolumeType} />
         </label>
       </div>
       {head.switches && (
         <p className="muted" data-testid="head-switches">
-          Tool changes: {head.switches.count.toLocaleString()} ({head.switches.sinceMaintenance.toLocaleString()} since the docks were last serviced)
-          {head.switches.errors > 0 && `, ${head.switches.errors} failed`}.{' '}
+          {t('deviceHeads.toolChanges', { count: head.switches.count.toLocaleString(), since: head.switches.sinceMaintenance.toLocaleString() })}
+          {head.switches.errors > 0 && t('deviceHeads.failed', { n: head.switches.errors })}.{' '}
           <button
             className="quiet"
             onClick={() =>
               confirm({
-                action: 'Reset',
-                text: 'Mark the docks of all heads as serviced? The printer starts counting tool changes toward its next maintenance reminder again.',
+                action: t('deviceHeads.reset'),
+                text: t('deviceHeads.resetText'),
                 run: () => void run(RESET_MAINTENANCE_GCODE),
               })
             }
           >
-            Mark docks serviced
+            {t('deviceHeads.markServiced')}
           </button>
         </p>
       )}
@@ -397,6 +403,7 @@ function NozzleEditor({ head, onClose }: { head: U1Head; onClose(): void }) {
 }
 
 function FilamentEditor({ head, onClose }: { head: U1Head; onClose(): void }) {
+  const { t } = useTranslation();
   const run = useDevice((s) => s.run);
   const [material, setMaterial] = useState(head.material || 'PLA');
   const [vendor, setVendor] = useState(head.vendor || 'Generic');
@@ -407,37 +414,37 @@ function FilamentEditor({ head, onClose }: { head: U1Head; onClose(): void }) {
   };
   return (
     <Dialog
-      title={`${head.label} filament`}
+      title={t('deviceHeads.filamentTitle', { name: head.label })}
       onClose={onClose}
       footer={
         <>
           <button className="secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="primary" disabled={head.official} onClick={() => void save()}>
-            Save to printer
+            {t('deviceHeads.saveToPrinter')}
           </button>
         </>
       }
     >
-      {head.official && <p className="dv-alert">This spool was read from a Snapmaker RFID tag, so the printer keeps its details.</p>}
+      {head.official && <p className="dv-alert">{t('deviceHeads.official')}</p>}
       <div className="dv-form">
         <label>
-          Material
-          <Picker field label="Material" value={material} disabled={head.official} options={[...new Set([material, ...MATERIALS])].map((m) => ({ value: m, label: m }))} onChange={setMaterial} />
+          {t('deviceHeads.material')}
+          <Picker field label={t('deviceHeads.material')} value={material} disabled={head.official} options={[...new Set([material, ...MATERIALS])].map((m) => ({ value: m, label: m }))} onChange={setMaterial} />
         </label>
         <label>
-          Brand
+          {t('deviceHeads.brand')}
           <input value={vendor} onChange={(e) => setVendor(e.target.value)} disabled={head.official} maxLength={32} />
         </label>
         <label>
-          Type
-          <input value={subType} onChange={(e) => setSubType(e.target.value)} disabled={head.official} maxLength={32} placeholder="Basic, Matte, Silk…" />
+          {t('deviceHeads.type')}
+          <input value={subType} onChange={(e) => setSubType(e.target.value)} disabled={head.official} maxLength={32} placeholder={t('deviceHeads.typePlaceholder')} />
         </label>
         <label>
-          Colour
+          {t('deviceHeads.colour')}
           <span className="dv-colour">
-            <ColourPicker label="Colour" size="md" value={colour} onChange={setColour} disabled={head.official} />
+            <ColourPicker label={t('deviceHeads.colour')} size="md" value={colour} onChange={setColour} disabled={head.official} />
             <code>{colour}</code>
           </span>
         </label>

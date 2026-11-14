@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "בעיה במערכת התנועה",
+    "mainboardProblem": "בעיה בלוח הראשי",
+    "amsProblem": "בעיה ב-AMS",
+    "toolheadProblem": "בעיה בראש ההדפסה",
+    "cameraProblem": "בעיה במצלמה",
+    "printerProblem": "בעיה במדפסת",
+    "bambuUnknown": "המדפסת דיווחה על הבעיה הזו. הפרטים מופיעים במסך שלה.",
+    "printerError": "שגיאת מדפסת",
+    "u1Unknown": "המדפסת דיווחה על שגיאה. הפרטים מופיעים במסך שלה."
+  }
+}

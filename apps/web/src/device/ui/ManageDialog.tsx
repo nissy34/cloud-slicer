@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAccount } from '../../state/account';
-import { bridgeLabel, useDevice, type SavedBridge, type SavedPrinter } from '../../state/device';
+import { bridgeLabel, isPlainBridgeName, useDevice, type SavedBridge, type SavedPrinter } from '../../state/device';
 import type { BridgeStatus } from '../link/types';
 import type { Pairing } from '../pairing';
 import { isTestRelay } from '../config';
@@ -11,6 +12,7 @@ import { Note } from '../../components/Note';
 
 /** One saved printer: its name and profile, with Edit and Remove (asked once, inline). */
 function PrinterRow({ p, pairing }: { p: SavedPrinter; pairing?: Pairing | null }) {
+  const { t } = useTranslation();
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const { openEditor, removePrinter, openManage } = useDevice.getState();
@@ -28,12 +30,12 @@ function PrinterRow({ p, pairing }: { p: SavedPrinter; pairing?: Pairing | null 
       </span>
       {asking ? (
         <span className="dv-row-actions">
-          <span className="muted">Remove it?</span>
+          <span className="muted">{t('deviceManage.removeIt')}</span>
           <button className="quiet" onClick={() => setAsking(false)}>
-            No
+            {t('deviceManage.no')}
           </button>
           <button className="quiet danger" disabled={busy} onClick={() => void remove()} data-testid="manage-printer-remove-yes">
-            {busy ? 'Removing…' : 'Yes, remove'}
+            {busy ? t('deviceManage.removing') : t('deviceManage.yesRemove')}
           </button>
         </span>
       ) : (
@@ -45,10 +47,10 @@ function PrinterRow({ p, pairing }: { p: SavedPrinter; pairing?: Pairing | null 
               void openEditor({ mode: 'edit', id: p.id });
             }}
           >
-            Edit
+            {t('deviceManage.edit')}
           </button>
           <button className="quiet danger" onClick={() => setAsking(true)} data-testid="manage-printer-remove">
-            Remove
+            {t('deviceManage.remove')}
           </button>
         </span>
       )}
@@ -66,6 +68,7 @@ interface Leftover {
 
 /** One bridge: whether it's running, its printers, and adding to or removing it. */
 function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftover) => void }) {
+  const { t } = useTranslation();
   const printers = useDevice((s) => s.printers).filter((p) => p.kind === 'bridge' && p.bridgeId === b.bridgeId);
   const { bridgePairing, saveBridge, removeBridge, openEditor, openManage } = useDevice.getState();
   const [pairing, setPairing] = useState<Pairing | null>(null);
@@ -96,7 +99,7 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
 
   // A bridge saved before it said which computer it's on gets that name once it does.
   useEffect(() => {
-    if (pairing && b.name === 'Bridge' && (status?.host || status?.system)) void saveBridge({ ...b, key: pairing.key, name: bridgeLabel(status) });
+    if (pairing && isPlainBridgeName(b.name) && (status?.host || status?.system)) void saveBridge({ ...b, key: pairing.key, name: bridgeLabel(status) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pairing, status?.host, status?.system]);
 
@@ -155,29 +158,30 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
         <span>
           <strong>{b.name}</strong>{' '}
           {isTestRelay(pairing?.relay) && (
-            <span className="tag warn" data-testid="manage-bridge-test" title="Connected to the test relay, where changes are tried before they reach everyone">
-              Test
+            <span className="tag warn" data-testid="manage-bridge-test" title={t('deviceManage.testRelayTip')}>
+              {t('deviceManage.test')}
             </span>
           )}{' '}
           <span className={`dv-pill ${online ? 'online' : status ? 'offline' : 'connecting'}`} data-testid="manage-bridge-state">
-            {online ? 'Running' : status ? 'Not running' : 'Checking…'}
+            {online ? t('deviceManage.running') : status ? t('deviceManage.notRunning') : t('deviceManage.checking')}
           </span>
         </span>
       </div>
       {online && built > 0 && (
         <span className="muted dv-manage-version" data-testid="manage-bridge-version">
-          {status?.version ? `Version ${status.version}${status.change ? `.${status.change}` : ''} · ` : ''}from {builtWhen(built)}
-          {latest > 0 && (outdated ? ` · newest from ${builtWhen(latest)}` : ' · up to date')}
+          {status?.version ? `${t('deviceManage.version', { version: `${status.version}${status.change ? `.${status.change}` : ''}` })} · ` : ''}
+          {t('deviceManage.from', { when: builtWhen(built) })}
+          {latest > 0 && ` · ${outdated ? t('deviceManage.newestFrom', { when: builtWhen(latest) }) : t('deviceManage.upToDate')}`}
         </span>
       )}
       {(outdated || updating === 'restarting') && (
         <div className="dv-manage-update" data-testid="manage-bridge-update-row">
           <span className="muted">
-            {updating === 'restarting' ? 'Updating: the bridge restarts on the new version in a moment.' : 'A new version of the bridge is ready. It also updates by itself within a few hours.'}
+            {updating === 'restarting' ? t('deviceManage.updating') : t('deviceManage.updateReady')}
           </span>
           {updating !== 'restarting' && (
             <button className="secondary" disabled={updating === 'asking'} onClick={() => void update()} data-testid="manage-bridge-update">
-              {updating === 'asking' ? 'Downloading…' : 'Update now'}
+              {updating === 'asking' ? t('deviceManage.downloading') : t('deviceManage.updateNow')}
             </button>
           )}
           {updateProblem && (
@@ -194,16 +198,19 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
           ))}
         </ul>
       ) : (
-        <p className="muted">No printers yet.</p>
+        <p className="muted">{t('deviceManage.noPrinters')}</p>
       )}
       {asking ? (
         <div className="dv-manage-confirm">
           <p>
-            Remove {b.name}
-            {printers.length ? ` and its printers (${printers.map((p) => p.name).join(', ')})` : ''} from Cloud Slicer?{' '}
+            {printers.length
+              ? t('deviceManage.removeBridgeAndPrinters', { name: b.name, printers: printers.map((p) => p.name).join(', ') })
+              : t('deviceManage.removeBridgeQ', { name: b.name })}{' '}
             {selfRemoving
-              ? `The bridge will also uninstall itself from ${status?.host || 'its computer'}.`
-              : "It isn't running, so afterwards you'll get one command to remove it from its computer."}
+              ? status?.host
+                ? t('deviceManage.selfUninstallFrom', { host: status.host })
+                : t('deviceManage.selfUninstall')
+              : t('deviceManage.notRunningRemove')}
           </p>
           {problem && (
             <Note tone="error">
@@ -212,17 +219,17 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
           )}
           <div className="dv-row-buttons">
             <button className="secondary" onClick={() => setAsking(false)}>
-              Cancel
+              {t('common.cancel')}
             </button>
             <button className="primary danger" disabled={busy} onClick={() => void remove()} data-testid="manage-bridge-remove-yes">
-              {busy ? 'Removing…' : 'Remove bridge'}
+              {busy ? t('deviceManage.removing') : t('deviceManage.removeBridge')}
             </button>
           </div>
         </div>
       ) : (
         <div className="dv-row-buttons dv-manage-actions">
           <button className="secondary danger" onClick={() => setAsking(true)} data-testid="manage-bridge-remove">
-            Remove bridge
+            {t('deviceManage.removeBridge')}
           </button>
           <button
             className="primary"
@@ -232,7 +239,7 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
             }}
             data-testid="manage-bridge-add"
           >
-            Add a printer to this bridge
+            {t('deviceManage.addToBridge')}
           </button>
         </div>
       )}
@@ -242,6 +249,7 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
 
 /** Printers & bridges: every bridge with its printers, and the printers reached directly, each removable on its own. */
 export function ManageDialog() {
+  const { t } = useTranslation();
   const bridges = useDevice((s) => s.bridges);
   const direct = useDevice((s) => s.printers).filter((p) => p.kind === 'direct');
   const { openManage, openEditor } = useDevice.getState();
@@ -251,13 +259,13 @@ export function ManageDialog() {
   const signedIn = accountStatus === 'signedIn';
   return (
     <Dialog
-      title="Printers & bridges"
+      title={t('deviceScreen.printersAndBridges')}
       onClose={close}
       wide
       footer={
         <>
           <button className="secondary" onClick={close}>
-            Close
+            {t('common.close')}
           </button>
           {accountStatus !== 'unavailable' && (
           <button
@@ -269,7 +277,7 @@ export function ManageDialog() {
             }}
             data-testid="add-bridge-button"
           >
-            {signedIn ? 'Add a bridge' : 'Sign in to add a bridge'}
+            {signedIn ? t('deviceScreen.addBridge') : t('deviceScreen.signInToAddBridge')}
           </button>
           )}
           <button
@@ -279,7 +287,7 @@ export function ManageDialog() {
               void openEditor({ mode: 'add' });
             }}
           >
-            Add a printer
+            {t('deviceScreen.addPrinter')}
           </button>
         </>
       }
@@ -288,20 +296,20 @@ export function ManageDialog() {
         {leftovers.map((l, i) => (
           <div key={i} className="card dv-manage-card" data-testid="manage-leftover">
             <p>
-              <strong>{l.name}</strong> was removed from Cloud Slicer. It wasn't running, so remove it from its computer too:
+              <strong>{l.name}</strong> {t('deviceManage.leftover')}
             </p>
             <UninstallBridge system={l.system} place={l.place} relay={l.relay} />
           </div>
         ))}
-        <h3 className="dv-manage-title">Bridges</h3>
+        <h3 className="dv-manage-title">{t('deviceManage.bridges')}</h3>
         {bridges.length ? (
           bridges.map((b) => <BridgeCard key={b.id} b={b} onLeftover={(l) => setLeftovers((list) => [...list, l])} />)
         ) : (
-          <p className="muted">No bridges. A bridge connects printers on your home network: set one up with {accountStatus === 'unavailable' ? 'Add a printer' : 'Add a bridge'}.</p>
+          <p className="muted">{t('deviceManage.noBridges', { button: accountStatus === 'unavailable' ? t('deviceScreen.addPrinter') : t('deviceScreen.addBridge') })}</p>
         )}
         {direct.length > 0 && (
           <>
-            <h3 className="dv-manage-title">Over the internet</h3>
+            <h3 className="dv-manage-title">{t('deviceManage.overInternet')}</h3>
             <section className="card dv-manage-card">
               <ul className="dv-manage-list">
                 {direct.map((p) => (

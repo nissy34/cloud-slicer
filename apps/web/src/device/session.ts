@@ -1,6 +1,7 @@
 // One live connection to one printer: Moonraker JSON-RPC over a link, the
 // Klipper objects it subscribes to, and the commands the screen sends.
 // Reconnects by itself; the UI only reads what the callbacks report.
+import { i18n } from '../i18n';
 import { detectAddons, type PrinterAddon, type PrinterError, type PrinterFacts } from './addons';
 import type { BridgeStatus, PrinterLink, RpcMessage, UploadStage } from './link/types';
 import { parseWebcams, type Webcam } from './camera';
@@ -105,7 +106,7 @@ export class PrinterSession {
   private async connect() {
     if (this.stopped) return;
     this.bridgeOnline = null;
-    this.ev.onState('connecting', this.retries ? 'Reconnecting…' : `Connecting ${this.link.label}…`);
+    this.ev.onState('connecting', this.retries ? i18n.t('deviceLink.reconnecting') : i18n.t('deviceLink.connectingTo', { target: this.link.label }));
     try {
       await this.link.open({
         onMessage: (m) => this.onMessage(m),
@@ -212,7 +213,7 @@ export class PrinterSession {
     const server = await this.rpc<{ klippy_state: string }>('server.info');
     if (server.klippy_state !== 'ready') {
       // Klipper is starting or in error: show what we can and wait for notify_klippy_ready.
-      this.objects = { webhooks: { state: server.klippy_state, state_message: 'Klipper is not ready.' } };
+      this.objects = { webhooks: { state: server.klippy_state, state_message: i18n.t('deviceLink.klipperNotReady') } };
       this.ev.onObjects(this.objects);
       this.ev.onState('online', '');
       if (this.facts) this.ev.onFacts(this.facts, this.addons);
@@ -269,7 +270,7 @@ export class PrinterSession {
       const p = this.pending.get(msg.id)!;
       this.pending.delete(msg.id);
       clearTimeout(p.timer);
-      if (msg.error) p.reject(new RpcError(msg.error.message ?? 'The printer refused the command.', msg.error.code));
+      if (msg.error) p.reject(new RpcError(msg.error.message ?? i18n.t('deviceLink.refusedCommand'), msg.error.code));
       else p.resolve(msg.result);
       return;
     }
@@ -290,7 +291,7 @@ export class PrinterSession {
         break;
       case 'notify_klippy_shutdown':
       case 'notify_klippy_disconnected':
-        this.objects = mergeStatus(this.objects, { webhooks: { state: msg.method === 'notify_klippy_shutdown' ? 'shutdown' : 'startup', state_message: 'Klipper is not ready.' } });
+        this.objects = mergeStatus(this.objects, { webhooks: { state: msg.method === 'notify_klippy_shutdown' ? 'shutdown' : 'startup', state_message: i18n.t('deviceLink.klipperNotReady') } });
         this.scheduleFlush();
         break;
       case 'notify_filelist_changed':
@@ -330,7 +331,7 @@ export class PrinterSession {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new RpcError('The printer did not answer in time.'));
+        reject(new RpcError(i18n.t('deviceLink.printerTimeout')));
       }, timeoutMs);
       this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject, timer });
       try {

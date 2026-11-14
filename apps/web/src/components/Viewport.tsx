@@ -1,4 +1,6 @@
 import { Html, OrbitControls, TransformControls } from '@react-three/drei';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../i18n';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -435,7 +437,7 @@ function GroupGizmo({
     const turned = pivot.quaternion.angleTo(new THREE.Quaternion()) >= 1e-4;
     const scaled = Math.abs(pivot.scale.x - 1) >= 1e-4;
     if (!moved && !turned && !scaled) return;
-    void useSlicer.getState().transformGroup(m.elements.slice(), tool === 'move' ? 'Move' : tool === 'rotate' ? 'Rotate' : 'Scale');
+    void useSlicer.getState().transformGroup(m.elements.slice(), i18n.t(tool === 'move' ? 'viewport.move' : tool === 'rotate' ? 'viewport.rotate' : 'viewport.scale'));
   };
 
   return (
@@ -573,7 +575,7 @@ function CutPlane({ part, active, views, onRelease }: { part: Part; active: Reac
     // Right of the Cut panel when it sits over the view at its left (not on a
     // phone, where it is above): the face goes in the middle of the room left.
     const r = gl.domElement.getBoundingClientRect();
-    const panel = document.querySelector('section[aria-label="Cut"]')?.getBoundingClientRect();
+    const panel = document.querySelector('section[data-tool="cut"]')?.getBoundingClientRect();
     const aside = panel && panel.right > r.left && panel.right < r.left + r.width * 0.7 && panel.top < r.top + r.height / 2 ? -(panel.right - r.left) / 2 / r.width : 0;
     views.current?.({ from: normal, box: new THREE.Box3().setFromCenterAndSize(centre, new THREE.Vector3(span, span, span).multiplyScalar(0.6)), aside });
     return () => {
@@ -1138,7 +1140,7 @@ function ShapeHandles({
     if (Math.abs(turned) < 1e-4) return;
     let angle = shape.angle - turned / DEG;
     angle = ((((angle + 180) % 360) + 360) % 360) - 180;
-    void shapePlace(shape.object, { op: 'rotate', volume: shape.volume, instance: shape.instance, angle: Math.round(angle * 100) / 100 }, 'Rotate text');
+    void shapePlace(shape.object, { op: 'rotate', volume: shape.volume, instance: shape.instance, angle: Math.round(angle * 100) / 100 }, i18n.t('viewport.rotateText'));
   };
 
   return (
@@ -1524,7 +1526,7 @@ function Objects({ w, d, views }: { w: number; d: number; views: ViewHandle }) {
     if (e.type !== 'pointerup' || !d.moved || !d.ray) return setSlide(null);
     void useSlicer
       .getState()
-      .shapePlace(d.object, { op: 'drag', volume: d.volume, instance: d.instance, ray: d.ray, commit: true }, shapeInfo?.svg ? 'Move SVG over surface' : 'Move text over surface')
+      .shapePlace(d.object, { op: 'drag', volume: d.volume, instance: d.instance, ray: d.ray, commit: true }, shapeInfo?.svg ? i18n.t('viewport.moveSvgSurface') : i18n.t('viewport.moveTextSurface'))
       .finally(() => setSlide(null));
   };
   const onShapeMove = useMemo(() => (e: PointerEvent) => shapeMove.current(e), []);
@@ -1944,7 +1946,7 @@ function Objects({ w, d, views }: { w: number; d: number; views: ViewHandle }) {
     drag.current = null;
     holdCamera(controls, false);
     const moved = !!dr && !!delta && Math.hypot(delta[0], delta[1]) > 0.5;
-    if (dr?.group && moved) void transformGroup([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, delta![0], delta![1], 0, 1], 'Move');
+    if (dr?.group && moved) void transformGroup([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, delta![0], delta![1], 0, 1], i18n.t('viewport.move'));
     else if (dr && moved) void moveInstance(dr.object, dr.instance, dr.offset[0] + delta![0], dr.offset[1] + delta![1]);
     else if (dr?.toggle !== undefined) toggleChosen(dr.toggle);
     setDelta(null);
@@ -2070,7 +2072,7 @@ function Objects({ w, d, views }: { w: number; d: number; views: ViewHandle }) {
                 onMatrix={(m) =>
                   void useSlicer
                     .getState()
-                    .volumeAction(place.object, { op: 'transform', volume: picked.volume, instance: place.instance, matrix: m.elements.slice() }, gizmoTool === 'move' ? 'Move part' : gizmoTool === 'rotate' ? 'Rotate part' : 'Scale part')
+                    .volumeAction(place.object, { op: 'transform', volume: picked.volume, instance: place.instance, matrix: m.elements.slice() }, i18n.t(gizmoTool === 'move' ? 'viewport.movePart' : gizmoTool === 'rotate' ? 'viewport.rotatePart' : 'viewport.scalePart'))
                 }
               />
             </group>
@@ -2163,6 +2165,7 @@ const PLATE_SETTINGS_ICON = (
 );
 
 export function PlateTabs() {
+  const { t } = useTranslation();
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const setPlate = useSlicer((s) => s.setPlate);
@@ -2171,7 +2174,7 @@ export function PlateTabs() {
   if (!project || project.plates.length < 2) return null;
   // Desktop's plate icons: a gear on the shown plate opens its Plate settings; a dot marks plates with their own.
   return (
-    <div className="plate-tabs" role="tablist" aria-label="Plates">
+    <div className="plate-tabs" role="tablist" aria-label={t('viewport.plates')}>
       {project.plates.map((p) => (
         <span key={p.index} className={p.index === plate ? 'plate-tab active' : 'plate-tab'}>
           <button role="tab" aria-selected={p.index === plate} className={p.index === plate ? 'plate active' : 'plate'} onClick={() => void setPlate(p.index)}>
@@ -2179,10 +2182,10 @@ export function PlateTabs() {
             {p.index + 1}
             {p.name ? ` ${p.name}` : ''}
             <span className="muted"> · {p.objects.length}</span>
-            {hasPlateSettings(p.settings) && <span className="plate-own" title="This plate has settings of its own" aria-label="has its own settings" />}
+            {hasPlateSettings(p.settings) && <span className="plate-own" title={t('viewport.ownSettingsTip')} aria-label={t('viewport.ownSettings')} />}
           </button>
           {p.index === plate && (
-            <button className="plate-gear" title="Plate settings" aria-label={`Plate ${p.index + 1} settings`} onClick={() => openSettings(true)}>
+            <button className="plate-gear" title={t('viewport.plateSettings')} aria-label={t('viewport.plateNSettings', { n: p.index + 1 })} onClick={() => openSettings(true)}>
               {PLATE_SETTINGS_ICON}
             </button>
           )}

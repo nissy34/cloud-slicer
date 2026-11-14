@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDevice } from '../../state/device';
 import { dialect } from '../addons';
 import { extrudeGcode, flowFactorGcode, homeGcode, jogGcode, motorsOffGcode, speedFactorGcode } from '../commands';
@@ -9,6 +10,7 @@ import { House } from 'lucide-react';
 const STEPS = [0.1, 1, 10, 50];
 
 export function MotionCard() {
+  const { t } = useTranslation();
   const objects = useDevice((s) => s.objects);
   const run = useDevice((s) => s.run);
   const bedZ = useDevice((s) => s.addons.some((a) => a.bedMovesInZ));
@@ -23,14 +25,14 @@ export function MotionCard() {
   const nozzle = heaters(objects).find((h) => h.name === m.activeExtruder);
   const hot = (nozzle?.temp ?? 0) >= 170;
   // Greyed-out controls say why on hover; the containers carry it too, for browsers that show no tooltip on a disabled button.
-  const why = busy ? `Disabled while ${printing ? 'printing' : 'paused'}` : undefined;
+  const why = busy ? (printing ? t('deviceMove.disabledPrinting') : t('deviceMove.disabledPaused')) : undefined;
 
   return (
     <Card
-      title="Move"
+      title={t('deviceCards.move')}
       testId="motion-card"
       actions={
-        <span className="dv-pos" aria-label="Position">
+        <span className="dv-pos" aria-label={t('deviceMove.position')}>
           X {m.position[0].toFixed(1)} · Y {m.position[1].toFixed(1)} · Z {m.position[2].toFixed(2)}
         </span>
       }
@@ -39,11 +41,11 @@ export function MotionCard() {
       {busy && (
         <div className="dv-form-inline">
           <label>
-            Speed
+            {t('deviceMove.speed')}
             <FactorInput value={m.speedFactor} onSet={(v) => void run(speedFactorGcode(v))} />
           </label>
           <label>
-            Flow
+            {t('deviceMove.flow')}
             <FactorInput value={m.extrudeFactor} onSet={(v) => void run(flowFactorGcode(v))} />
           </label>
         </div>
@@ -51,40 +53,40 @@ export function MotionCard() {
       <div className="dv-jog" title={why}>
         {/* Arrows say which way something physically moves, never X/Y/Z: the head pad is seen from above, standing in front of the printer. */}
         <div className="dv-jog-group">
-          <span className="dv-jog-label">Head</span>
-          <div className="dv-jog-xy" role="group" aria-label="Move the head">
+          <span className="dv-jog-label">{t('deviceMove.head')}</span>
+          <div className="dv-jog-xy" role="group" aria-label={t('deviceMove.moveHead')}>
             <span />
-            <JogButton why={why} label="Head to the back" arrow="↑" disabled={busy || !homed('y')} onClick={() => jog('y', 1)} />
+            <JogButton why={why} label={t('deviceMove.headBack')} arrow="↑" disabled={busy || !homed('y')} onClick={() => jog('y', 1)} />
             <span />
-            <JogButton why={why} label="Head left" arrow="←" disabled={busy || !homed('x')} onClick={() => jog('x', -1)} />
-            <button className="dv-home" onClick={() => void run(homeGcode(['x', 'y']))} disabled={busy} aria-label="Home the head" title={why ?? 'Home the head'}>
+            <JogButton why={why} label={t('deviceMove.headLeft')} arrow="←" disabled={busy || !homed('x')} onClick={() => jog('x', -1)} />
+            <button className="dv-home" onClick={() => void run(homeGcode(['x', 'y']))} disabled={busy} aria-label={t('deviceMove.homeHead')} title={why ?? t('deviceMove.homeHead')}>
               <House size={18} aria-hidden />
             </button>
-            <JogButton why={why} label="Head right" arrow="→" disabled={busy || !homed('x')} onClick={() => jog('x', 1)} />
+            <JogButton why={why} label={t('deviceMove.headRight')} arrow="→" disabled={busy || !homed('x')} onClick={() => jog('x', 1)} />
             <span />
-            <JogButton why={why} label="Head toward you" arrow="↓" disabled={busy || !homed('y')} onClick={() => jog('y', -1)} />
+            <JogButton why={why} label={t('deviceMove.headToward')} arrow="↓" disabled={busy || !homed('y')} onClick={() => jog('y', -1)} />
             <span />
           </div>
         </div>
         <div className="dv-jog-group">
-          <span className="dv-jog-label">{bedZ ? 'Bed' : 'Head height'}</span>
-          <div className="dv-jog-z" role="group" aria-label={bedZ ? 'Move the bed' : 'Move the head up and down'}>
+          <span className="dv-jog-label">{bedZ ? t('deviceMove.bed') : t('deviceMove.headHeight')}</span>
+          <div className="dv-jog-z" role="group" aria-label={bedZ ? t('deviceMove.moveBed') : t('deviceMove.moveHeadZ')}>
             {/* Z+ always means more room between nozzle and bed: the head goes up, or the bed goes down. */}
-            <JogButton why={why} label={bedZ ? 'Bed up' : 'Head up'} arrow="↑" disabled={busy || !homed('z')} onClick={() => jog('z', bedZ ? -1 : 1)} />
+            <JogButton why={why} label={bedZ ? t('deviceMove.bedUp') : t('deviceMove.headUp')} arrow="↑" disabled={busy || !homed('z')} onClick={() => jog('z', bedZ ? -1 : 1)} />
             <button
               className="dv-home"
               onClick={() => void run(homeGcode(['z']))}
               disabled={busy}
-              aria-label={bedZ ? 'Home the bed' : 'Home the height'}
-              title={why ?? (bedZ ? 'Home the bed' : 'Home the height')}
+              aria-label={bedZ ? t('deviceMove.homeBed') : t('deviceMove.homeHeight')}
+              title={why ?? (bedZ ? t('deviceMove.homeBed') : t('deviceMove.homeHeight'))}
             >
               <House size={18} aria-hidden />
             </button>
-            <JogButton why={why} label={bedZ ? 'Bed down' : 'Head down'} arrow="↓" disabled={busy || !homed('z')} onClick={() => jog('z', bedZ ? 1 : -1)} />
+            <JogButton why={why} label={bedZ ? t('deviceMove.bedDown') : t('deviceMove.headDown')} arrow="↓" disabled={busy || !homed('z')} onClick={() => jog('z', bedZ ? 1 : -1)} />
           </div>
         </div>
       </div>
-      <div className="dv-steps" role="radiogroup" aria-label="Step" title={why}>
+      <div className="dv-steps" role="radiogroup" aria-label={t('deviceMove.step')} title={why}>
         {STEPS.map((s) => (
           <button key={s} role="radio" aria-checked={step === s} className={step === s ? 'on' : ''} disabled={busy} title={why} onClick={() => setStep(s)}>
             {s} mm
@@ -93,19 +95,19 @@ export function MotionCard() {
       </div>
       <div className="dv-row" title={why}>
         <button className="secondary" disabled={busy} title={why} onClick={() => void run(homeGcode())}>
-          Home all
+          {t('deviceMove.homeAll')}
         </button>
         <button className="secondary" disabled={busy} title={why} onClick={() => void run(motorsOffGcode())}>
-          Motors off
+          {t('deviceMove.motorsOff')}
         </button>
-        <button className="secondary" disabled={busy || !hot} title={why ?? (hot ? undefined : 'Heat the nozzle first')} onClick={() => void run(extrudeGcode(10, undefined, words))}>
-          Extrude 10 mm
+        <button className="secondary" disabled={busy || !hot} title={why ?? (hot ? undefined : t('deviceMove.heatFirst'))} onClick={() => void run(extrudeGcode(10, undefined, words))}>
+          {t('deviceMove.extrude10')}
         </button>
-        <button className="secondary" disabled={busy || !hot} title={why ?? (hot ? undefined : 'Heat the nozzle first')} onClick={() => void run(extrudeGcode(-10, undefined, words))}>
-          Retract
+        <button className="secondary" disabled={busy || !hot} title={why ?? (hot ? undefined : t('deviceMove.heatFirst'))} onClick={() => void run(extrudeGcode(-10, undefined, words))}>
+          {t('deviceMove.retract')}
         </button>
       </div>
-      {!busy && !m.homed && <p className="muted">Home the printer before moving it.</p>}
+      {!busy && !m.homed && <p className="muted">{t('deviceMove.homeFirst')}</p>}
     </Card>
   );
 }

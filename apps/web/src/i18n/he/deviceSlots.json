@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "פילמנט מתאים",
+    "noSlot": "אין {{noun}} עם {{material}}. טענו אותו, או החליפו את הפילמנט בפריסה ופרסו שוב.",
+    "noSlotNozzle": "אין {{noun}} עם {{material}} ונחיר {{nozzle}} mm. טענו אותו, או החליפו את הפילמנט בפריסה ופרסו שוב.",
+    "noType": "ל-{{slot}} לא הוגדר סוג פילמנט. {{unset}}",
+    "otherMaterial": "ב-{{slot}} יש {{has}}, אבל הפילמנט הזה נפרס כ-{{material}}.",
+    "otherNozzle": "ב-{{slot}} יש נחיר {{has}} mm, אבל הקובץ נפרס לנחיר {{nozzle}} mm.",
+    "highFlow": "הקובץ נפרס לנחיר זרימה גבוהה, אבל ב-{{slot}} יש נחיר רגיל."
+  }
+}

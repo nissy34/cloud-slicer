@@ -1,6 +1,7 @@
 // This browser's side of print alerts: notification permission, the service
 // worker (public/sw.js, which shows alerts with the page closed) and its push
 // subscription, made with the relay's public push key.
+import { i18n } from '../i18n';
 
 export type PushProblem =
   /** iPhone or iPad in Safari: alerts need the site added to the Home Screen first. */
@@ -26,9 +27,9 @@ export function pushProblem(push: boolean): PushProblem | null {
 
 /** "this phone", "this computer": what the Alerts card calls this device. */
 export function thisDevice(): string {
-  if (typeof navigator === 'undefined') return 'this device';
-  if (/iPad|Tablet/i.test(navigator.userAgent) || (isIos() && !/iPhone|iPod/.test(navigator.userAgent))) return 'this tablet';
-  return /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent) ? 'this phone' : 'this computer';
+  if (typeof navigator === 'undefined') return i18n.t('deviceAlerts.thisDevice');
+  if (/iPad|Tablet/i.test(navigator.userAgent) || (isIos() && !/iPhone|iPod/.test(navigator.userAgent))) return i18n.t('deviceAlerts.thisTablet');
+  return /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent) ? i18n.t('deviceAlerts.thisPhone') : i18n.t('deviceAlerts.thisComputer');
 }
 
 /** The service worker, registered now if the page hasn't yet (it is registered on load in production). */

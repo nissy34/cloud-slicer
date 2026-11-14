@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Could not save the card layout. It is kept until you reload the page.",
+    "pageCard": "Page card {{n}}",
+    "cameraCard": "Camera card {{n}}",
+    "arrangingFor": "Arranging cards for {{name}}.",
+    "helpPhone": "Hold a card by its grip and drag it up or down.",
+    "helpDesktop": "Drag a card by its grip into a column, or across the top or bottom.",
+    "helpRest": "Hidden cards stay here, faded. Other printers keep their own layout.",
+    "columns": "Columns",
+    "addCameraCard": "Add a camera card",
+    "addPageCard": "Add a page card",
+    "backToDefault": "Back to default",
+    "acrossTop": "Across the top",
+    "column": "Column {{n}}",
+    "acrossBottom": "Across the bottom",
+    "small": "Small",
+    "medium": "Medium",
+    "large": "Large",
+    "moveCard": "Move {{name}}",
+    "halfWidthTip": "Half width: two half cards sit side by side",
+    "halfWidth": "Half width",
+    "cameraSize": "Camera size",
+    "remove": "Remove"
+  }
+}

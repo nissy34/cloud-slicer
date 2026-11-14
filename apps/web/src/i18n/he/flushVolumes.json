@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "כמויות שטיפה",
+    "ownAmounts": "כמויות משלכם",
+    "fromColours": "לפי הצבעים",
+    "leftNozzle": "נחיר שמאלי",
+    "rightNozzle": "נחיר ימני",
+    "nozzleN": "נחיר {{n}}",
+    "filamentN": "פילמנט {{n}}",
+    "recalculate": "חישוב מחדש",
+    "done": "סיום",
+    "explain": "כמה המדפסת דוחפת החוצה, ב־mm³, כשהיא עוברת מהפילמנט שבצד לזה שלמעלה. מחושב לפי הצבעים: מכהה לבהיר צריך יותר.",
+    "nozzle": "נחיר",
+    "tableLabel": "כמויות שטיפה ב־mm³",
+    "from": "מ־",
+    "to": "אל",
+    "toFilament": "אל {{name}}",
+    "fromFilament": "מ{{name}}",
+    "purgeLabel": "שטיפה מ{{from}} אל {{to}}, ב־mm³",
+    "suggested": "מומלץ: {{min}} עד {{max}} mm³ (מחוץ לטווח מוצג באדום).",
+    "multiplier": "מכפיל",
+    "scales": "מכפיל את כל הכמויות ({{min}} עד {{max}}).",
+    "towerOff": "״Purge in prime tower״ כבוי בהגדרות המדפסת הזו (דף Multimaterial), ולכן כל החלפת פילמנט שוטפת את נפח ה־prime ‏({{volume}} mm³) במקום הכמויות האלה. הן עדיין קובעות את אורך השטיפה שמקבל קוד ה־G-code של ההחלפה במדפסת."
+  }
+}

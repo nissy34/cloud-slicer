@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "ערכת נושא",
+    "current": "ערכת נושא: {{choice}}",
+    "system": "מערכת",
+    "systemHint": "לפי המכשיר",
+    "light": "בהיר",
+    "dark": "כהה"
+  }
+}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { objectSettingGroups, objectSettingLabel } from '../lib/object-settings';
 import { useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
@@ -11,6 +12,7 @@ import { SettingPicker } from './SettingPicker';
  * one part's or modifier's (a modifier's apply where it overlaps the object).
  */
 export function ObjectSettings({ object, volume = -1 }: { object: number; volume?: number }) {
+  const { t } = useTranslation();
   const settings = useSlicer((s) => (volume < 0 ? s.project?.objects[object]?.settings : s.project?.objects[object]?.volumes[volume]?.settings));
   const kind = useSlicer((s) => (volume < 0 ? 'object' : s.project?.objects[object]?.volumes[volume]?.kind === 'modifier' ? 'modifier' : 'part'));
   const options = useSlicer((s) => s.options);
@@ -43,30 +45,28 @@ export function ObjectSettings({ object, volume = -1 }: { object: number; volume
   return (
     <div className="object-settings">
       <div className="group-head">
-        <span className="subhead">{kind === 'object' ? 'Object settings' : kind === 'modifier' ? 'Modifier settings' : 'Part settings'}</span>
-        <button type="button" aria-label={`Add a setting to this ${kind}`} aria-expanded={picking} className="add-setting" onClick={() => setPicking(!picking)}>
-          + Add setting
+        <span className="subhead">{kind === 'object' ? t('objectSettings.objectSettings') : kind === 'modifier' ? t('objectSettings.modifierSettings') : t('objectSettings.partSettings')}</span>
+        <button type="button" aria-label={t(kind === 'object' ? 'objectSettings.addToObject' : kind === 'modifier' ? 'objectSettings.addToModifier' : 'objectSettings.addToPart')} aria-expanded={picking} className="add-setting" onClick={() => setPicking(!picking)}>
+          {t('objectSettings.addSetting')}
         </button>
       </div>
       {picking && <SettingPicker groups={groups} have={settings} kind={kind} onAdd={add} onClose={() => setPicking(false)} />}
       {keys.some((k) => options[k].flow === 'process') && <FlowVariantSwitch />}
       {keys.length === 0 && (
         <p className="hint">
-          {kind === 'modifier'
-            ? 'Add a setting to change it where the modifier overlaps the object, like more infill in one spot.'
-            : `Uses the ${kind === 'part' ? "object's" : 'process'} settings. Add one to change it for this ${kind} only.`}
+          {kind === 'modifier' ? t('objectSettings.modifierEmpty') : kind === 'part' ? t('objectSettings.partEmpty') : t('objectSettings.objectEmpty')}
         </p>
       )}
       {[...shown].map(([group, groupKeys]) => (
         <div key={group} className="object-settings-group">
-          <span className="object-settings-cat">{group}</span>
+          <span className="object-settings-cat">{group === 'Others' ? t('objectSettings.others') : group}</span>
           {groupKeys.map((k) => (
             <OptionField
               key={k}
               optKey={k}
               label={objectSettingLabel(k)}
               value={settings[k]}
-              resetLabel={`Remove from this ${kind}`}
+              resetLabel={t(kind === 'object' ? 'objectSettings.removeFromObject' : kind === 'modifier' ? 'objectSettings.removeFromModifier' : 'objectSettings.removeFromPart')}
               disabled={states.disabled.has(k) || states.hidden.has(k)}
               choices={states.enumValues[k]}
               onChange={(v) => void (v === null ? setObjectSettings(object, volume, { [k]: v }) : setObjectSettingChecked(object, volume, k, v))}

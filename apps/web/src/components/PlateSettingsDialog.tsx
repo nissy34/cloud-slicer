@@ -2,6 +2,7 @@ import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, horizontalListSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   defaultOrder,
   FIRST_OTHER_LAYER,
@@ -35,6 +36,7 @@ export function PlateSettingsDialog() {
 }
 
 function PlateSettingsWindow() {
+  const { t } = useTranslation();
   const plate = useSlicer((s) => s.plate);
   const info = useSlicer((s) => s.project!.plates[s.plate]);
   const options = useSlicer((s) => s.options);
@@ -63,7 +65,7 @@ function PlateSettingsWindow() {
     // Turning spiral vase on here sets what it needs on the plate's objects, as desktop does.
     const vase = spiralOn && !wasSpiral ? vaseDiffer(project) : undefined;
     close();
-    void plateAction({ op: 'settings', name: name.trim(), settings: plateSettingsRequest(draft, count), ...(vase && { vase }) }, 'Plate settings');
+    void plateAction({ op: 'settings', name: name.trim(), settings: plateSettingsRequest(draft, count), ...(vase && { vase }) }, t('plateSettings.undo'));
   };
 
   const segmented = <T,>(label: string, value: T, items: { value: T; label: string }[], onPick: (v: T) => void) => (
@@ -78,68 +80,68 @@ function PlateSettingsWindow() {
 
   return (
     <Dialog
-      title={`Plate ${plate + 1} settings`}
+      title={t('plateSettings.title', { n: plate + 1 })}
       onClose={close}
       className="plate-settings"
       footer={
         <>
           <button className="secondary" onClick={close}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="primary" onClick={save}>
-            Save
+            {t('plateSettings.save')}
           </button>
         </>
       }
     >
-      <p className="muted small">Settings this plate uses instead of the project's. "Project" keeps the project's setting.</p>
+      <p className="muted small">{t('plateSettings.intro')}</p>
       <label className="field">
-        <span>Plate name</span>
-        <input aria-label="Plate name" value={name} placeholder="No name" onChange={(e) => setName(e.target.value)} />
+        <span>{t('plateSettings.plateName')}</span>
+        <input aria-label={t('plateSettings.plateName')} value={name} placeholder={t('plateSettings.noName')} onChange={(e) => setName(e.target.value)} />
       </label>
       <label className="field">
-        <span>Plate type</span>
+        <span>{t('plateSettings.plateType')}</span>
         <Picker
           field
-          label="Plate type"
+          label={t('plateSettings.plateType')}
           value={draft.bedType ?? ''}
-          options={[{ value: '', label: `Project (${labelOf('curr_bed_type', project.curr_bed_type)})` }, ...choices('curr_bed_type').map((c) => ({ value: String(c.value), label: c.label }))]}
+          options={[{ value: '', label: t('plateSettings.projectValue', { value: labelOf('curr_bed_type', project.curr_bed_type) }) }, ...choices('curr_bed_type').map((c) => ({ value: String(c.value), label: c.label }))]}
           onChange={(v) => change({ bedType: v || null })}
         />
       </label>
       <div className="field">
-        <span>Print sequence</span>
-        {segmented('Print sequence', draft.sequence, [{ value: null, label: 'Project' }, ...choices('print_sequence')], (sequence) => change({ sequence }))}
+        <span>{t('plateSettings.printSequence')}</span>
+        {segmented(t('plateSettings.printSequence'), draft.sequence, [{ value: null, label: t('plateSettings.project') }, ...choices('print_sequence')], (sequence) => change({ sequence }))}
         <span className="muted small">
-          {draft.sequence === null ? `The project prints ${labelOf('print_sequence', project.print_sequence).toLowerCase()}.` : options.print_sequence?.tooltip}
+          {draft.sequence === null ? t('plateSettings.projectPrints', { sequence: labelOf('print_sequence', project.print_sequence).toLowerCase() }) : options.print_sequence?.tooltip}
         </span>
       </div>
       <div className="field">
-        <span>Spiral vase</span>
+        <span>{t('plateSettings.spiral')}</span>
         {segmented(
-          'Spiral vase',
+          t('plateSettings.spiral'),
           draft.spiral,
           [
-            { value: null, label: `Project (${projectSpiral ? 'on' : 'off'})` },
-            { value: true, label: 'On' },
-            { value: false, label: 'Off' },
+            { value: null, label: projectSpiral ? t('plateSettings.projectOn') : t('plateSettings.projectOff') },
+            { value: true, label: t('plateSettings.on') },
+            { value: false, label: t('plateSettings.off') },
           ],
           (spiral) => change({ spiral }),
         )}
         {spiralOn && !wasSpiral && (
-          <span className="muted small">Saving sets what spiral vase needs on this plate's objects: 1 wall, no top layers, no infill and no supports.</span>
+          <span className="muted small">{t('plateSettings.spiralNote')}</span>
         )}
       </div>
       <div className="field">
-        <span>First layer filament order</span>
-        {segmented('First layer filament order', draft.firstLayer === null, [{ value: true, label: 'Auto' }, { value: false, label: 'Custom' }], (auto) =>
+        <span>{t('plateSettings.firstLayer')}</span>
+        {segmented(t('plateSettings.firstLayer'), draft.firstLayer === null, [{ value: true, label: t('plateSettings.auto') }, { value: false, label: t('plateSettings.custom') }], (auto) =>
           change({ firstLayer: auto ? null : defaultOrder(count) }),
         )}
-        {draft.firstLayer && <FilamentOrder label="First layer filament order" order={draft.firstLayer} colours={colours} onChange={(firstLayer) => change({ firstLayer })} />}
+        {draft.firstLayer && <FilamentOrder label={t('plateSettings.firstLayer')} order={draft.firstLayer} colours={colours} onChange={(firstLayer) => change({ firstLayer })} />}
       </div>
       <div className="field">
-        <span>Other layers filament order</span>
-        {segmented('Other layers filament order', draft.otherLayers === null, [{ value: true, label: 'Auto' }, { value: false, label: 'Custom' }], (auto) =>
+        <span>{t('plateSettings.otherLayers')}</span>
+        {segmented(t('plateSettings.otherLayers'), draft.otherLayers === null, [{ value: true, label: t('plateSettings.auto') }, { value: false, label: t('plateSettings.custom') }], (auto) =>
           change({ otherLayers: auto ? null : [{ from: FIRST_OTHER_LAYER, to: LAYER_END, order: defaultOrder(count) }] }),
         )}
         {draft.otherLayers && <LayerRanges ranges={draft.otherLayers} colours={colours} count={count} onChange={(otherLayers) => change({ otherLayers: otherLayers.length ? otherLayers : null })} />}
@@ -168,18 +170,19 @@ function FilamentOrder({ label, order, colours, onChange }: { label: string; ord
 }
 
 function OrderChip({ filament, colour }: { filament: number; colour?: string }) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: filament });
   return (
     <span
       ref={setNodeRef}
       className={`order-chip${isDragging ? ' dragging' : ''}`}
-      title="Drag to change the order"
+      title={t('plateSettings.dragTip')}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       {...attributes}
       {...listeners}
       role="listitem"
-      aria-roledescription="draggable filament"
-      aria-label={`Filament ${filament}`}
+      aria-roledescription={t('plateSettings.draggable')}
+      aria-label={t('plateSettings.filamentN', { n: filament })}
     >
       <Swatch colour={colour} number={filament} />
     </span>
@@ -188,42 +191,43 @@ function OrderChip({ filament, colour }: { filament: number; colour?: string }) 
 
 /** Desktop's OtherLayersSeqPanel: layer ranges (from layer 2), each with its filament order; "End" = the last layer. */
 function LayerRanges({ ranges, colours, count, onChange }: { ranges: LayerRange[]; colours: string[]; count: number; onChange(r: LayerRange[]): void }) {
+  const { t } = useTranslation();
   const set = (i: number, patch: Partial<LayerRange>) => onChange(ranges.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   return (
     <div className="layer-ranges">
       {ranges.map((r, i) => (
         <div key={i} className="layer-range">
           <div className="layer-range-head">
-            <span>Layer</span>
+            <span>{t('plateSettings.layer')}</span>
             <input
-              aria-label={`Range ${i + 1} from layer`}
+              aria-label={t('plateSettings.rangeFrom', { n: i + 1 })}
               inputMode="numeric"
               value={r.from}
               onChange={(e) => set(i, { from: Number(e.target.value.replace(/\D/g, '')) || 0 })}
               onBlur={() => set(i, { from: Math.max(FIRST_OTHER_LAYER, r.from), to: Math.max(r.to, FIRST_OTHER_LAYER, r.from) })}
             />
-            <span>to</span>
+            <span>{t('plateSettings.to')}</span>
             {r.to === LAYER_END ? (
-              <button type="button" className="secondary small" title="Pick a last layer instead of the end" onClick={() => set(i, { to: Math.max(r.from, FIRST_OTHER_LAYER) })}>
-                End
+              <button type="button" className="secondary small" title={t('plateSettings.pickLastTip')} onClick={() => set(i, { to: Math.max(r.from, FIRST_OTHER_LAYER) })}>
+                {t('plateSettings.end')}
               </button>
             ) : (
               <>
                 <input
-                  aria-label={`Range ${i + 1} to layer`}
+                  aria-label={t('plateSettings.rangeTo', { n: i + 1 })}
                   inputMode="numeric"
                   value={r.to}
                   onChange={(e) => set(i, { to: Number(e.target.value.replace(/\D/g, '')) || 0 })}
                   onBlur={() => set(i, { to: Math.max(r.to, r.from) })}
                 />
-                <button type="button" className="ghost small" title="Up to the last layer" onClick={() => set(i, { to: LAYER_END })}>
-                  End
+                <button type="button" className="ghost small" title={t('plateSettings.toEndTip')} onClick={() => set(i, { to: LAYER_END })}>
+                  {t('plateSettings.end')}
                 </button>
               </>
             )}
-            <IconButton icon={X} label="Remove this range" aria-label={`Remove range ${i + 1}`} onClick={() => onChange(ranges.filter((_, j) => j !== i))} />
+            <IconButton icon={X} label={t('plateSettings.removeRange')} aria-label={t('plateSettings.removeRangeN', { n: i + 1 })} onClick={() => onChange(ranges.filter((_, j) => j !== i))} />
           </div>
-          <FilamentOrder label={`Range ${i + 1} filament order`} order={fitOrder(r.order, count)} colours={colours} onChange={(order) => set(i, { order })} />
+          <FilamentOrder label={t('plateSettings.rangeOrder', { n: i + 1 })} order={fitOrder(r.order, count)} colours={colours} onChange={(order) => set(i, { order })} />
         </div>
       ))}
       <button
@@ -235,7 +239,7 @@ function LayerRanges({ ranges, colours, count, onChange }: { ranges: LayerRange[
           onChange([...ranges, { from, to: LAYER_END, order: defaultOrder(count) }]);
         }}
       >
-        Add a layer range
+        {t('plateSettings.addRange')}
       </button>
     </div>
   );

@@ -1,5 +1,6 @@
 import { Html, Line } from '@react-three/drei';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { frontMiddle, moved, overlapping } from '../lib/clearance';
 import type { PlatePoint } from '../engine/protocol';
@@ -31,6 +32,7 @@ const ring = (points: PlatePoint[], z: number): [number, number, number][] => [.
  * checks again when they are let go.
  */
 export function ClearanceView({ moving, delta }: { moving: (object: number) => boolean; delta: [number, number] | null }) {
+  const { t } = useTranslation();
   const clearance = useSlicer((s) => s.clearance);
   const paint = useSlicer((s) => s.paint);
   const outlines = useMemo(
@@ -47,7 +49,7 @@ export function ClearanceView({ moving, delta }: { moving: (object: number) => b
           {red.has(i) && <Fill points={o.points} z={0.04} opacity={0.18} />}
           {outlines.length > 1 && (
             <Html position={[...frontMiddle(o.points), 0]} center zIndexRange={[2, 0]} style={{ pointerEvents: 'none' }}>
-              <div className={`clearance-order${red.has(i) ? ' bad' : ''}`} title={`Prints ${o.order === 1 ? 'first' : `as number ${o.order}`}`}>
+              <div className={`clearance-order${red.has(i) ? ' bad' : ''}`} title={o.order === 1 ? t('clearance.printsFirst') : t('clearance.printsAs', { n: o.order })}>
                 #{o.order}
               </div>
             </Html>
@@ -56,10 +58,10 @@ export function ClearanceView({ moving, delta }: { moving: (object: number) => b
       ))}
       {/* The engine's too-tall bands, until a drag moves things (it checks again on letting go). */}
       {!delta &&
-        clearance.tall.map((t, i) => (
+        clearance.tall.map((band, i) => (
           <group key={`tall-${i}`}>
-            <Fill points={t.points} z={t.height} opacity={0.3} />
-            <Line points={ring(t.points, t.height)} color={RED} lineWidth={2} renderOrder={4} raycast={() => null} {...ON_TOP} />
+            <Fill points={band.points} z={band.height} opacity={0.3} />
+            <Line points={ring(band.points, band.height)} color={RED} lineWidth={2} renderOrder={4} raycast={() => null} {...ON_TOP} />
           </group>
         ))}
     </group>

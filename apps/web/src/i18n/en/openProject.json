@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "This file",
+    "title": "Open as a project?",
+    "geometryOnly": "Import geometry only",
+    "open": "Open project",
+    "body": "<b>{{name}}</b> is a project with its own plates and settings. Opening it replaces what is on your plates now. Importing its geometry adds its objects to your plate and keeps your settings."
+  }
+}

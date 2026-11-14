@@ -20,6 +20,7 @@ import type { LayerCode } from '../../web/src/engine/protocol';
 import { FEATURES } from '../../web/src/lib/gcode';
 import { canChangeFilament, codeLabel, layerOf, newCode } from '../../web/src/lib/layerCodes';
 import { VIEW_TYPES, type ColourBy } from '../../web/src/lib/preview-colours';
+import { i18n } from '../../web/src/i18n';
 import { newPrintId, withPrintTag } from '../../web/src/lib/prints';
 import type { StoredPreset } from '../../web/src/lib/preset-engines';
 import { Account } from './account';
@@ -357,7 +358,7 @@ server.registerTool(
       colourBy: z
         .enum(VIEW_TYPES.map((t) => t.id) as [ColourBy, ...ColourBy[]])
         .optional()
-        .describe(`What the colours show (default feature = line type): ${VIEW_TYPES.map((t) => `${t.id} (${t.label})`).join(', ')}`),
+        .describe(`What the colours show (default feature = line type): ${VIEW_TYPES.map((t) => `${t.id} (${i18n.t(t.label)})`).join(', ')}`),
       fromLayer: z.number().int().min(1).optional().describe('First layer shown, from 1'),
       toLayer: z.number().int().min(1).optional().describe('Last layer shown (default the top)'),
       hide: z.array(z.string()).optional().describe(`Line types to leave out: ${FEATURES.join(', ')}. Custom (the start G-code's purge line) is always left out, unless hide is [] (everything)`),
