@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Перетягніть сюди файли STL, 3MF, OBJ, STEP або SVG",
+    "openModel": "Відкрити модель",
+    "fromDrive": "Відкрити з Google Drive",
+    "deletePlateTip": "Видалити цю пластину та все, що на ній",
+    "deletePlate": "Видалити пластину",
+    "clearAsk": "Очистити пластину?",
+    "unsavedChanges": "«{{name}}» має зміни, які ще не збережено.",
+    "clearAll": "Очистити все",
+    "dropToAdd": "Відпустіть, щоб додати"
+  }
+}

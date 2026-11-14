@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Kamery",
+    "climate": "Stół i komora",
+    "move": "Przesuwanie",
+    "console": "Konsola",
+    "print": "Druk",
+    "toolHeads": "Głowice",
+    "alerts": "Alerty",
+    "files": "Pliki",
+    "unfold": "Rozwiń tę kartę",
+    "fold": "Zwiń tę kartę",
+    "targetOf": "Cel: {{label}}",
+    "turnOff": "Wyłącz: {{label}}",
+    "off": "Wył.",
+    "keepGoing": "Kontynuuj",
+    "chamberLight": "Oświetlenie komory",
+    "purifierExhaust": "Wylot oczyszczacza",
+    "purifierFilter": "Filtr oczyszczacza",
+    "fanAuto": "Drukarka steruje tym wentylatorem sama"
+  }
+}

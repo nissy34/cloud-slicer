@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Arbeitsbereich",
+    "prepare": "Vorbereiten",
+    "preview": "Vorschau",
+    "device": "Gerät",
+    "calibration": "Kalibrierung",
+    "slicingWith": "Slicen mit {{name}} {{version}}"
+  }
+}

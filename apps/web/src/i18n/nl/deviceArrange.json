@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "De kaartindeling kon niet worden bewaard. Ze blijft bewaard tot u de pagina herlaadt.",
+    "pageCard": "Paginakaart {{n}}",
+    "cameraCard": "Camerakaart {{n}}",
+    "arrangingFor": "Kaarten rangschikken voor {{name}}.",
+    "helpPhone": "Houd een kaart vast aan het handvat en sleep omhoog of omlaag.",
+    "helpDesktop": "Sleep een kaart aan het handvat naar een kolom, of over de boven- of onderkant.",
+    "helpRest": "Verborgen kaarten blijven hier, vervaagd. Andere printers behouden hun eigen indeling.",
+    "columns": "Kolommen",
+    "addCameraCard": "Een camerakaart toevoegen",
+    "addPageCard": "Een paginakaart toevoegen",
+    "backToDefault": "Terug naar standaard",
+    "acrossTop": "Over de bovenkant",
+    "column": "Kolom {{n}}",
+    "acrossBottom": "Over de onderkant",
+    "small": "Klein",
+    "medium": "Middel",
+    "large": "Groot",
+    "moveCard": "{{name}} verplaatsen",
+    "halfWidthTip": "Halve breedte: twee halve kaarten staan naast elkaar",
+    "halfWidth": "Halve breedte",
+    "cameraSize": "Camerabeeldgrootte",
+    "remove": "Verwijderen"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "presetSettings": {
+    "editPrinter": "Editatu inprimagailuaren ezarpenak",
+    "editFilament": "Editatu {{n}}. filamentuaren ezarpenak",
+    "savedInProject": "{{name}} proiektuan gordeta.",
+    "savedIn3mf": "Deskargatutako proiektuaren 3MF-an gordeta.",
+    "nameTaken": "Izen hori duen aurrezarpena badago jada.",
+    "savedAs": "{{name}} gisa gordeta.",
+    "whereAccount": "Zure kontuan gordeta.",
+    "whereBrowser": "Nabigatzaile honetan gordeta saioa hasi arte.",
+    "printerTitle": "Inprimagailuaren ezarpenak",
+    "filamentNTitle": "{{n}}. filamentuaren ezarpenak",
+    "filamentTitle": "Filamentuaren ezarpenak",
+    "newPrinterName": "Inprimagailu-aurrezarpen berriaren izena",
+    "newFilamentName": "Filament-aurrezarpen berriaren izena",
+    "back": "Atzera",
+    "saving": "Gordetzen…",
+    "save": "Gorde",
+    "unsaved_one": "Gorde gabeko aldaketa {{count}}",
+    "unsaved_other": "Gorde gabeko {{count}} aldaketa",
+    "noChanges": "Aldaketarik ez",
+    "discard": "Baztertu aldaketak",
+    "saveAsNew": "Gorde aurrezarpen berri gisa…",
+    "savedName": "{{name}} gordeta.",
+    "saveToPreset": "Gorde aurrezarpenean",
+    "saveToProjectTip": "Aldaketa hauek proiektu honetan soilik mantentzen ditu eta proiektua gordetzen du",
+    "saveToProject": "Gorde proiektuan",
+    "modified": "(aldatua)",
+    "yours": "Zure aurrezarpena, {{parent}}(e)n oinarritua.",
+    "system": "Sistemaren aurrezarpena: erabili Gorde honela zure aldaketak mantentzeko.",
+    "footHint": "Gorde proiektuan aukerak aldaketa hauek proiektu honetan soilik mantentzen ditu, eta irekitzean itzultzen dira. Aurrezarpen batek proiektu guztietarako mantentzen ditu. {{where}} Esportatu, inportatu, berrizendatu eta ezabatu ⋯ menuan daude."
+  }
+}

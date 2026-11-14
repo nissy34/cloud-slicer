@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "Izometryczny",
+    "top": "Góra",
+    "bottom": "Dół",
+    "front": "Przód",
+    "back": "Tył",
+    "left": "Lewo",
+    "right": "Prawo",
+    "views": "Widoki",
+    "viewsTip": "Widoki: góra, przód, bok…",
+    "viewTip": "Widok: {{view}} ({{key}})",
+    "fitAll": "Dopasuj wszystko",
+    "fitAllTip": "Dopasuj wszystko: pokaż całość (Z)"
+  }
+}

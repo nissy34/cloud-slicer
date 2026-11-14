@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "tinkama gija",
+    "noSlot": "Nė viename {{noun}} nėra {{material}}. Įdėkite ją arba pakeiskite giją sluoksniuoklyje ir sluoksniuokite iš naujo.",
+    "noSlotNozzle": "Nė viename {{noun}} nėra {{material}} su {{nozzle}} mm purkštuku. Įdėkite ją arba pakeiskite giją sluoksniuoklyje ir sluoksniuokite iš naujo.",
+    "noType": "{{slot}} gijos tipas nenustatytas. {{unset}}",
+    "otherMaterial": "{{slot}} yra {{has}}, bet ši gija buvo išsluoksniuota kaip {{material}}.",
+    "otherNozzle": "{{slot}} yra {{has}} mm purkštukas, bet failas išsluoksniuotas {{nozzle}} mm.",
+    "highFlow": "Failas išsluoksniuotas didelio srauto purkštukui, bet {{slot}} yra standartinis."
+  }
+}

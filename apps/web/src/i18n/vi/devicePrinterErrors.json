@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "Sự cố hệ thống chuyển động",
+    "mainboardProblem": "Sự cố bo mạch chính",
+    "amsProblem": "Sự cố AMS",
+    "toolheadProblem": "Sự cố đầu in",
+    "cameraProblem": "Sự cố camera",
+    "printerProblem": "Sự cố máy in",
+    "bambuUnknown": "Máy in báo sự cố này. Hãy xem màn hình của nó để biết chi tiết.",
+    "printerError": "Lỗi máy in",
+    "u1Unknown": "Máy in báo một lỗi. Hãy xem màn hình của nó để biết chi tiết."
+  }
+}

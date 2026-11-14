@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "Tanca la finestra",
+    "moreAboutThis": "Més sobre això",
+    "plannedForPhase": "Previst per a la fase {{phase}}.",
+    "saving": "Desant",
+    "loadedOf": "{{loaded}} de {{total}}"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint ez dago inprimagailuarekin konektatuta.",
+    "octoprintRestart": "Konektatu berriro",
+    "octoprintRestarting": "OctoPrint inprimagailuarekin konektatzen",
+    "bambuStopped": "Inprimagailuak erantzuteari utzi dio: egiaztatu piztuta dagoela eta sarean dagoela.",
+    "bambuCameraMissing": "P1 eta A1 inprimagailuek soilik erakusten dute beren kamera hemen: X1, H2 eta P2S-k Bambu-ren aplikazioek soilik erreproduzitzen duten bideoa bidaltzen dute.",
+    "bambuSlotNoun": "AMS zirrikitua",
+    "bambuSlotUnset": "Kargatu filamentua hor, edo ezarri inprimagailuaren pantailan.",
+    "bambuSlotNote": "Bambu Studio-n bezala, filamentu bat filament mota bereko zirrikitu batera soilik joan daiteke. Marka eta kolorea desberdinak izan daitezke.",
+    "outsideSpool": "Kanpoko bobina",
+    "u1Heads": "Erreminta-buruak",
+    "u1HeadNoun": "erreminta-burua",
+    "u1HeadUnset": "Kargatu filamentua, edo ezarri bere mota Erreminta-buruak txartelean.",
+    "u1HeadNote": "Snapmaker-en aplikazio propioan bezala, filamentu bat filament mota eta pita-tamaina bereko buru batera soilik joan daiteke. Marka eta kolorea desberdinak izan daitezke.",
+    "nozzleStandard": "Estandarra",
+    "nozzleHighFlow": "Fluxu handia",
+    "calibratingOffsets": "Erreminta-desplazamenduak kalibratzen",
+    "levellingBed": "Ohea mailatzen",
+    "calibratingFlow": "Fluxua kalibratzen",
+    "calibratingShaper": "Sarrera-moldaketa kalibratzen",
+    "updatingFirmware": "Firmwarea eguneratzen",
+    "needsAttention": "Arreta behar du inprimagailuaren pantailan",
+    "adjustingScrews": "Oheko torlojuak doitzen",
+    "loadingFilament": "Filamentua kargatzen",
+    "unloadingFilament": "Filamentua deskargatzen",
+    "calibratingPark": "Parkatze-posizioa kalibratzen",
+    "calibratingHome": "Jatorri-posizioa kalibratzen",
+    "hotendFan": "Hotend haizagailua T{{n}}"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Verschieben",
+    "rotate": "Drehen",
+    "scale": "Skalieren",
+    "rotateText": "Text drehen",
+    "moveSvgSurface": "SVG über die Oberfläche verschieben",
+    "moveTextSurface": "Text über die Oberfläche verschieben",
+    "movePart": "Teil verschieben",
+    "rotatePart": "Teil drehen",
+    "scalePart": "Teil skalieren",
+    "plates": "Platten",
+    "ownSettingsTip": "Diese Platte hat eigene Einstellungen",
+    "ownSettings": "hat eigene Einstellungen",
+    "plateSettings": "Platteneinstellungen",
+    "plateNSettings": "Einstellungen von Platte {{n}}"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "presetSettings": {
+    "editPrinter": "Sửa cài đặt máy in",
+    "editFilament": "Sửa cài đặt filament {{n}}",
+    "savedInProject": "Đã lưu trong dự án {{name}}.",
+    "savedIn3mf": "Đã lưu trong 3MF dự án đã tải xuống.",
+    "nameTaken": "Đã có một cài đặt sẵn với tên này.",
+    "savedAs": "Đã lưu với tên {{name}}.",
+    "whereAccount": "Đã lưu vào tài khoản của bạn.",
+    "whereBrowser": "Đã lưu trong trình duyệt này cho đến khi bạn đăng nhập.",
+    "printerTitle": "Cài đặt máy in",
+    "filamentNTitle": "Cài đặt filament {{n}}",
+    "filamentTitle": "Cài đặt filament",
+    "newPrinterName": "Tên cài đặt sẵn máy in mới",
+    "newFilamentName": "Tên cài đặt sẵn filament mới",
+    "back": "Quay lại",
+    "saving": "Đang lưu…",
+    "save": "Lưu",
+    "unsaved_other": "{{count}} thay đổi chưa lưu",
+    "noChanges": "Không có thay đổi",
+    "discard": "Bỏ thay đổi",
+    "saveAsNew": "Lưu thành cài đặt sẵn mới…",
+    "savedName": "Đã lưu {{name}}.",
+    "saveToPreset": "Lưu vào cài đặt sẵn",
+    "saveToProjectTip": "Chỉ giữ các thay đổi này trong dự án này và lưu dự án",
+    "saveToProject": "Lưu vào dự án",
+    "modified": "(đã sửa)",
+    "yours": "Cài đặt sẵn của bạn, dựa trên {{parent}}.",
+    "system": "Cài đặt sẵn hệ thống: dùng Lưu thành để giữ các thay đổi của bạn.",
+    "footHint": "Lưu vào dự án chỉ giữ các thay đổi này trong dự án này, và chúng quay lại khi bạn mở nó. Cài đặt sẵn giữ chúng cho mọi dự án. {{where}} Xuất, nhập, đổi tên và xóa nằm trong menu ⋯."
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "„{{variable}}” nie jest ustawieniem znanym temu slicerowi (może pochodzić z innego slicera lub nowszej wersji).",
+    "unknownName": "używa nazwy, której ten slicer nie zna.",
+    "negativeIndex": "„{{variable}}” jest odczytywane przed załadowaniem pierwszego filamentu (jego indeks wynosi tam -1); najpierw sprawdź ten indeks za pomocą {if ...}.",
+    "negativeIndexList": "lista jest odczytywana przed załadowaniem pierwszego filamentu (jej indeks wynosi tam -1); najpierw sprawdź ten indeks za pomocą {if ...}.",
+    "reasonAt": "{{reason}} przy „{{variable}}”.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, wiersz {{line}}: {{why}}",
+    "filamentSettings": "ustawieniach filamentu",
+    "printerSettings": "ustawieniach drukarki",
+    "or": " lub ",
+    "stoppedOne": "Cięcie zatrzymane: nie można uzupełnić własnego G-code.",
+    "stoppedSome": "Cięcie zatrzymane: nie można uzupełnić części własnego G-code.",
+    "fix": "Popraw to w {{where}} albo przywróć G-code z profilu."
+  }
+}

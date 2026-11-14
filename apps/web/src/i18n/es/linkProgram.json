@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Este código ha caducado. Pida a su aplicación de IA que inicie sesión de nuevo para obtener uno nuevo.",
+    "invalid": "Este código no es válido. Compárelo con el que muestra su aplicación de IA, o pídale que inicie sesión de nuevo.",
+    "siteAnswered": "El sitio respondió {{status}}",
+    "checkingAccount": "Comprobando su cuenta…",
+    "signInFirst": "Primero inicie sesión en Cloud Slicer. Después esta ventana le pedirá conectar su aplicación de IA.",
+    "noSignIn": "El inicio de sesión no está configurado en este sitio.",
+    "codeLabel": "El código que muestra su aplicación de IA",
+    "checkingCode": "Comprobando el código…",
+    "connected": "Conectado. Vuelva a su aplicación de IA: ha iniciado sesión como {{name}}.",
+    "turnedDown": "Rechazado. Su aplicación de IA no ha iniciado sesión.",
+    "asks": "Una aplicación de IA de su equipo (el complemento de Cloud Slicer) pide usar su cuenta, <b>{{email}}</b>. Compruebe que muestra este código:",
+    "willSee": "Verá sus perfiles e impresoras guardados, y podrá comprobar sus impresoras y subirles archivos. Le pregunta siempre antes de iniciar una impresión. Puede cerrar su sesión desde la aplicación de IA.",
+    "continueGoogle": "Continuar con Google",
+    "dontConnect": "No conectar",
+    "connect": "Conectar",
+    "title": "Conectar una aplicación de IA"
+  }
+}

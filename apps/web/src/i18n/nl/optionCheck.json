@@ -1,0 +1,12 @@
+{
+  "optionCheck": {
+    "allowed": "Toegestaan: {{min}} tot {{max}}",
+    "lowest": "Laagst toegestaan is {{min}}",
+    "highest": "Hoogst toegestaan is {{max}}",
+    "setTo": "{{allowed}}, ingesteld op {{value}}.",
+    "needed": "Een waarde is vereist.",
+    "noPercent": "Deze instelling kan geen percentage zijn.",
+    "notWhole": "“{{text}}” is geen geheel getal.",
+    "notNumber": "“{{text}}” is geen getal."
+  }
+}

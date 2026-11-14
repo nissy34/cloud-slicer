@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "Impostazioni da aggiungere a questo oggetto",
+    "forPart": "Impostazioni da aggiungere a questa parte",
+    "forModifier": "Impostazioni da aggiungere a questo modificatore",
+    "search": "Cerca impostazioni",
+    "done": "Fatto",
+    "noMatch": "Nessuna impostazione corrisponde a “{{query}}”.",
+    "more": "Altre impostazioni"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "time": {
+    "justNow": "právě teď",
+    "minAgo": "před {{n}} min",
+    "hoursAgo": "před {{n}} h"
+  }
+}

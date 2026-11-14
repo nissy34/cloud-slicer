@@ -1,0 +1,28 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Teploty",
+    "filterTimelapse": "Časosběr",
+    "filterTimelapseExample": "zprávy o snímcích časosběru",
+    "filterProgress": "Průběh tisku",
+    "filterOk": "Prosté „ok“",
+    "done": "Hotovo",
+    "filtersN": "Filtry ({{n}})",
+    "filters": "Filtry",
+    "hideThese": "Skrýt tyto řádky",
+    "hideLike": "Skrýt řádky jako: {{example}}",
+    "hideContaining": "Skrýt řádky obsahující „{{text}}“",
+    "removeFilter": "Odstranit filtr „{{text}}“",
+    "remove": "Odstranit",
+    "hideContainingPlaceholder": "Skrýt řádky obsahující…",
+    "hideContainingLabel": "Skrýt řádky obsahující",
+    "add": "Přidat",
+    "filtersHelp": "Klepnutím na štítek ho přepnete. To, co odešlete, a chyby se zobrazují vždy.",
+    "linesHidden_one": "1 řádek skrytý filtry",
+    "linesHidden_few": "{{count}} řádky skryté filtry",
+    "linesHidden_many": "{{count}} řádku skrytého filtry",
+    "linesHidden_other": "{{count}} řádků skrytých filtry",
+    "sendPlaceholder": "Odeslat G-code, např. M115",
+    "commandLabel": "Příkaz G-code",
+    "send": "Odeslat"
+  }
+}

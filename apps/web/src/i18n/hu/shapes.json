@@ -1,0 +1,10 @@
+{
+  "shapes": {
+    "cube": "Kocka",
+    "cylinder": "Henger",
+    "sphere": "Gömb",
+    "cone": "Kúp",
+    "disc": "Korong",
+    "torus": "Tórusz"
+  }
+}

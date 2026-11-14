@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "Tema",
+    "current": "Tema: {{choice}}",
+    "system": "Sistem",
+    "systemHint": "Bu cihazla aynı olsun",
+    "light": "Açık",
+    "dark": "Koyu"
+  }
+}

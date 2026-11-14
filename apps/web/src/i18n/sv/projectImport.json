@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "en annan skrivare",
+    "slicedFile": "{{name}} är en beredd fil: den innehåller G-code för en annan skrivare men inga modeller. Öppna det ursprungliga projektet (.3mf) i stället.",
+    "noObjects": "{{name}} har inga objekt att skriva ut."
+  }
+}

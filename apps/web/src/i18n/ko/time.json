@@ -1,0 +1,7 @@
+{
+  "time": {
+    "justNow": "방금",
+    "minAgo": "{{n}}분 전",
+    "hoursAgo": "{{n}}시간 전"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · Elaborazione · {{title}}",
+    "doneTitle": "Elaborazione completata",
+    "plateSliced": "Il piatto {{plate}} è elaborato. Tocca per vederlo.",
+    "tapToSee": "Tocca per vederlo.",
+    "questionTitle": "L'elaborazione ha bisogno di te",
+    "questionBody": "Ha una domanda prima di poter finire. Tocca per rispondere.",
+    "failedTitle": "Elaborazione non riuscita",
+    "tapToSeeWhy": "Tocca per vedere il motivo."
+  }
+}

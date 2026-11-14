@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "Dieses Modell zuerst vereinfachen?",
+    "openAsIs": "Unverändert öffnen",
+    "simplify": "Vereinfachen",
+    "paintKept": "Die Bemalung bleibt auf dem vereinfachten Netz erhalten.",
+    "dontAsk": "Auf diesem Gerät nicht mehr fragen"
+  }
+}

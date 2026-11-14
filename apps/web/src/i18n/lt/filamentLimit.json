@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} gijų {{heads}} galvutėms: siųsdami spausdinimą pasirenkate, kuri galvutė spausdina kurią.",
+    "warn": "{{n}} gijų spausdintuvui su {{heads}} galvutėmis."
+  }
+}

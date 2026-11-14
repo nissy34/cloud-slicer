@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · Sluoksniuojama · {{title}}",
+    "doneTitle": "Sluoksniavimas baigtas",
+    "plateSliced": "Plokštė {{plate}} išsluoksniuota. Bakstelėkite, kad pamatytumėte.",
+    "tapToSee": "Bakstelėkite, kad pamatytumėte.",
+    "questionTitle": "Sluoksniavimui reikia jūsų",
+    "questionBody": "Prieš baigiant reikia atsakyti į klausimą. Bakstelėkite, kad atsakytumėte.",
+    "failedTitle": "Sluoksniavimas nepavyko",
+    "tapToSeeWhy": "Bakstelėkite, kad pamatytumėte kodėl."
+  }
+}

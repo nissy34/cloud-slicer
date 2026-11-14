@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Reprendre où vous en étiez ?",
+    "local": "{{name}}, modifié {{when}}. Conservé dans ce navigateur, non enregistré.",
+    "discard": "Ignorer",
+    "continue": "Reprendre",
+    "projectAsk": "Reprendre {{name}} ?",
+    "project": "Reprendre {{name}}",
+    "openHere": "Vous l’aviez ouvert ici, modifié {{when}}",
+    "editedOn": "Modifié {{when}} sur {{device}}",
+    "notNow": "Pas maintenant",
+    "editedElsewhere": "{{name}} est en cours de modification sur {{device}}",
+    "viewOnly": "Cet onglet est en lecture seule.",
+    "viewOnlyUnsaved": "Cet onglet est en lecture seule. Les modifications faites ici n’y figurent pas.",
+    "saveMineAsCopy": "Enregistrer le mien comme copie",
+    "editHere": "Modifier ici à la place",
+    "gone": "« {{name}} » a été supprimé sur {{device}}. Il reste ouvert ici, non enregistré."
+  }
+}

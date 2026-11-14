@@ -1,0 +1,33 @@
+{
+  "presetSettings": {
+    "editPrinter": "Nyomtatóbeállítások szerkesztése",
+    "editFilament": "A(z) {{n}}. filament beállításainak szerkesztése",
+    "savedInProject": "Mentve a(z) {{name}} projektben.",
+    "savedIn3mf": "Mentve a letöltött projekt 3MF-ben.",
+    "nameTaken": "Már létezik ilyen nevű előbeállítás.",
+    "savedAs": "Mentve ezen a néven: {{name}}.",
+    "whereAccount": "A fiókjába mentve.",
+    "whereBrowser": "Ebben a böngészőben mentve, amíg be nem jelentkezik.",
+    "printerTitle": "Nyomtatóbeállítások",
+    "filamentNTitle": "{{n}}. filament beállításai",
+    "filamentTitle": "Filamentbeállítások",
+    "newPrinterName": "Új nyomtató-előbeállítás neve",
+    "newFilamentName": "Új filament-előbeállítás neve",
+    "back": "Vissza",
+    "saving": "Mentés…",
+    "save": "Mentés",
+    "unsaved_one": "{{count}} nem mentett módosítás",
+    "unsaved_other": "{{count}} nem mentett módosítás",
+    "noChanges": "Nincs módosítás",
+    "discard": "Módosítások elvetése",
+    "saveAsNew": "Mentés új előbeállításként…",
+    "savedName": "Mentve: {{name}}.",
+    "saveToPreset": "Mentés előbeállításba",
+    "saveToProjectTip": "Ezeket a módosításokat csak ebben a projektben tartja meg, és menti a projektet",
+    "saveToProject": "Mentés a projektbe",
+    "modified": "(módosítva)",
+    "yours": "Az Ön előbeállítása, alapja: {{parent}}.",
+    "system": "Rendszer-előbeállítás: a módosításai megtartásához használja a Mentés másként funkciót.",
+    "footHint": "A Mentés a projektbe csak ebben a projektben tartja meg ezeket a módosításokat, és a megnyitáskor visszatérnek. Egy előbeállítás minden projektnél megtartja őket. {{where}} Az exportálás, importálás, átnevezés és törlés a ⋯ menüben található."
+  }
+}

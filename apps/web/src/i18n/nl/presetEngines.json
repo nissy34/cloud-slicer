@@ -1,0 +1,8 @@
+{
+  "presetEngines": {
+    "split_one": "{{count}} instelling is niet meer hetzelfde in beide engines; \"{{name}}\" behoudt zijn waarden in elke engine.",
+    "split_other": "{{count}} instellingen zijn niet meer hetzelfde in beide engines; \"{{name}}\" behoudt zijn waarden in elke engine.",
+    "separate_one": "{{count}} instelling van \"{{name}}\" kan nu in beide engines hetzelfde zijn maar toch verschillen; \"Dezelfde waarden in beide engines gebruiken\" in het menu maakt ze gelijk.",
+    "separate_other": "{{count}} instellingen van \"{{name}}\" kunnen nu in beide engines hetzelfde zijn maar toch verschillen; \"Dezelfde waarden in beide engines gebruiken\" in het menu maakt ze gelijk."
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "카드 배치를 저장하지 못했습니다. 페이지를 새로 고치기 전까지만 유지됩니다.",
+    "pageCard": "페이지 카드 {{n}}",
+    "cameraCard": "카메라 카드 {{n}}",
+    "arrangingFor": "{{name}}의 카드를 정렬하는 중입니다.",
+    "helpPhone": "카드의 손잡이를 잡고 위나 아래로 끄세요.",
+    "helpDesktop": "카드의 손잡이를 끌어서 열에 놓거나, 맨 위 또는 맨 아래에 놓으세요.",
+    "helpRest": "숨긴 카드는 흐리게 여기에 남습니다. 다른 프린터는 각자의 배치를 유지합니다.",
+    "columns": "열",
+    "addCameraCard": "카메라 카드 추가",
+    "addPageCard": "페이지 카드 추가",
+    "backToDefault": "기본값으로 되돌리기",
+    "acrossTop": "맨 위 가로",
+    "column": "열 {{n}}",
+    "acrossBottom": "맨 아래 가로",
+    "small": "작게",
+    "medium": "보통",
+    "large": "크게",
+    "moveCard": "{{name}} 이동",
+    "halfWidthTip": "절반 너비: 절반 크기 카드 두 개가 나란히 놓입니다",
+    "halfWidth": "절반 너비",
+    "cameraSize": "카메라 크기",
+    "remove": "제거"
+  }
+}

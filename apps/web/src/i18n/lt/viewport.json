@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Perkelti",
+    "rotate": "Pasukti",
+    "scale": "Mastelis",
+    "rotateText": "Sukti tekstą",
+    "moveSvgSurface": "Perkelti SVG paviršiumi",
+    "moveTextSurface": "Perkelti tekstą paviršiumi",
+    "movePart": "Perkelti dalį",
+    "rotatePart": "Pasukti dalį",
+    "scalePart": "Keisti dalies mastelį",
+    "plates": "Plokštės",
+    "ownSettingsTip": "Ši plokštė turi savo parametrus",
+    "ownSettings": "turi savo parametrus",
+    "plateSettings": "Plokštės parametrai",
+    "plateNSettings": "Plokštės {{n}} parametrai"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Espai de treball",
+    "prepare": "Prepara",
+    "preview": "Previsualització",
+    "device": "Dispositiu",
+    "calibration": "Calibratge",
+    "slicingWith": "Laminant amb {{name}} {{version}}"
+  }
+}

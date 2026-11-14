@@ -1,0 +1,12 @@
+{
+  "optionCheck": {
+    "allowed": "Onartua: {{min}} - {{max}}",
+    "lowest": "Onartutako baliorik txikiena {{min}} da",
+    "highest": "Onartutako baliorik handiena {{max}} da",
+    "setTo": "{{allowed}}, {{value}}(e)ra ezarrita.",
+    "needed": "Balio bat behar da.",
+    "noPercent": "Ezarpen hau ezin da ehunekoa izan.",
+    "notWhole": "“{{text}}” ez da zenbaki osoa.",
+    "notNumber": "“{{text}}” ez da zenbakia."
+  }
+}

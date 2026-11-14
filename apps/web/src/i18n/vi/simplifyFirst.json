@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "Đơn giản hóa mô hình này trước?",
+    "openAsIs": "Mở nguyên trạng",
+    "simplify": "Đơn giản hóa",
+    "paintKept": "Phần tô màu của nó sẽ được giữ trên lưới đã đơn giản hóa.",
+    "dontAsk": "Không hỏi lại trên thiết bị này"
+  }
+}

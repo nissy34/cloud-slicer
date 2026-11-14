@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} är {{size}}; en förinställningsfil kan vara upp till {{max}}.",
+    "notJson": "{{label}} är inte en förinställningsfil (inte JSON).",
+    "tooMany": "Bara {{max}} förinställningar kan importeras åt gången; {{label}} utelämnades.",
+    "bundleTooBig": "{{name}} är {{size}}; ett paket kan vara upp till {{max}}.",
+    "badZip": "{{name}} kunde inte öppnas som en zip.",
+    "unpacksTooBig": "{{name}} packas upp till mer än {{max}}, eller innehåller en fil över {{fileMax}}; inget importerades från den.",
+    "empty": "{{name}} innehåller inga förinställningsfiler.",
+    "tooManyKeys": "Den ändrar fler än {{max}} inställningar.",
+    "tooLarge": "Dess inställningar är över {{max}}.",
+    "fileN": "fil {{n}}",
+    "unreadable": "Inte en förinställning som Orca kan läsa: {{error}}.",
+    "noName": "Den har inget användbart namn.",
+    "anotherPrinter": "en annan skrivare",
+    "otherPrinter": "Den är för {{made}}, som den här appen inte har. Skrivarinställningar är specifika för maskinen, så den kan inte flyttas till en annan skrivare.",
+    "noPrinterBase": "Den bygger inte på en skrivare som den här appen har.",
+    "noFilamentBase": "Det finns ingen filamentförinställning att lägga den på.",
+    "noProcessBase": "Det finns ingen processförinställning att lägga den på."
+  }
+}

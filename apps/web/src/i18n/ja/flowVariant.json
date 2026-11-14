@@ -1,0 +1,7 @@
+{
+  "flowVariant": {
+    "label": "フローの種類",
+    "standard": "標準フロー",
+    "high": "ハイフロー"
+  }
+}

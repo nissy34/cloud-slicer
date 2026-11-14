@@ -1,0 +1,22 @@
+{
+  "deviceFiles": {
+    "print": "Inprimatu…",
+    "deleteName": "Ezabatu {{name}}",
+    "delete": "Ezabatu",
+    "title": "Inprimagailuko fitxategiak",
+    "upload": "Kargatu G-code…",
+    "timelapses": "Denbora-igarotzeak",
+    "none": "Oraindik ez dago G-code fitxategirik.",
+    "searchN_one": "Bilatu fitxategi {{count}}en artean",
+    "searchN_other": "Bilatu {{count}} fitxategien artean",
+    "search": "Bilatu fitxategiak",
+    "noMatch": "Ez dago “{{query}}” bilaketarekin bat datorren fitxategirik.",
+    "deleteFile": "Ezabatu fitxategia",
+    "deleteText": "{{name}} inprimagailutik ezabatu?",
+    "deleted": "Ezabatuta",
+    "pages": "Fitxategien orriak",
+    "newer": "Berriagoak",
+    "older": "Zaharragoak",
+    "range": "{{from}}–{{to}} / {{total}}"
+  }
+}

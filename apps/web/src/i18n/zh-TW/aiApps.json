@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "其他聊天應用程式",
+    "title": "搭配 AI 應用程式使用",
+    "more": "瞭解更多",
+    "intro": "讓您的 AI 應用程式幫您切片：「用 PETG、4 層牆為我的 U1 切這個 Benchy，並告訴我所需時間。」可在 Claude Desktop 中安裝為擴充功能，也可用於電腦上的其他聊天應用程式，例如 LM Studio 和 Msty。它在您的電腦上切片，使用與本網站相同的引擎和預設，您的模型也只會留在電腦上。",
+    "whichApp": "使用哪個應用程式",
+    "step1": "下載 Cloud Slicer 擴充功能。",
+    "download": "下載 Claude Desktop 版",
+    "size": "約 11 MB。已安裝過？再下載一次即可更新。",
+    "step2": "開啟檔案。Claude Desktop 會詢問是否安裝：按一下<b>安裝</b>。",
+    "step3": "請 Claude 為您電腦上的檔案切片。",
+    "otherStep1": "在聊天應用程式的設定中，新增一個 MCP 伺服器，內容如下（多數應用程式可直接使用）：",
+    "otherStep2": "您的電腦需要 Node 20 或更新版本（<a>nodejs.org</a>）。",
+    "canDo": "它可以開啟模型和專案、選擇列印裝置、列印參數和線材、設定顏色以及每個物件使用哪種線材、變更設定、自動擺放列印板並切片。只要您的電腦開著，手機上的 Claude 也能使用它。登入後，它也會使用您的預設和列印裝置，並在開始列印前先詢問您。",
+    "version": "版本 {{version}}"
+  }
+}

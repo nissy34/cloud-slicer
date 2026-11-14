@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "Ehhez az objektumhoz hozzáadandó beállítások",
+    "forPart": "Ehhez a tárgyhoz hozzáadandó beállítások",
+    "forModifier": "Ehhez a módosítóhoz hozzáadandó beállítások",
+    "search": "Beállítások keresése",
+    "done": "Kész",
+    "noMatch": "Egy beállítás sem egyezik: „{{query}}”.",
+    "more": "További beállítások"
+  }
+}

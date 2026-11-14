@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "Weiß",
+    "yellow": "Gelb",
+    "lime": "Limette",
+    "green": "Grün",
+    "darkGreen": "Dunkelgrün",
+    "teal": "Petrol",
+    "mint": "Mint",
+    "skyBlue": "Himmelblau",
+    "lightBlue": "Hellblau",
+    "blue": "Blau",
+    "indigo": "Indigo",
+    "purple": "Violett",
+    "magenta": "Magenta",
+    "lavender": "Lavendel",
+    "pink": "Rosa",
+    "red": "Rot",
+    "brown": "Braun",
+    "orange": "Orange",
+    "cream": "Creme",
+    "beige": "Beige",
+    "tan": "Hellbraun",
+    "grey": "Grau",
+    "lightGrey": "Hellgrau",
+    "black": "Schwarz",
+    "colours": "Farben",
+    "recent": "Zuletzt",
+    "recentColours": "Zuletzt verwendete Farben",
+    "hex": "Hex-Code",
+    "custom": "Eigene"
+  }
+}

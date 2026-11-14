@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "要加入此物件的設定",
+    "forPart": "要加入此零件的設定",
+    "forModifier": "要加入此修改器的設定",
+    "search": "搜尋設定",
+    "done": "完成",
+    "noMatch": "沒有符合「{{query}}」的設定。",
+    "more": "更多設定"
+  }
+}

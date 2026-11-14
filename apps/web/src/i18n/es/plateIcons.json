@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Sin título",
+    "nothingYet": "Aún no hay nada en esta placa",
+    "locked": "Esta placa está bloqueada",
+    "deleteTip": "Quitar esta placa y lo que hay en ella (no la última)",
+    "orientTip": "Orientar automáticamente los objetos de esta placa",
+    "arrangeTip": "Organizar los objetos de esta placa (Shift+A)",
+    "unlockTip": "Desbloquear esta placa",
+    "lockTip": "Bloquear esta placa: Organizar y Orientar automáticamente la dejan como está",
+    "settingsOwnTip": "Ajustes de la placa: esta placa tiene ajustes propios",
+    "settingsTip": "Ajustes de la placa: tipo de placa, secuencia de impresión, vaso en espiral, orden de filamentos",
+    "renameTip": "Cambiar el nombre de esta placa"
+  }
+}

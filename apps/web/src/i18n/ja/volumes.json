@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "パーツを追加",
+    "addNegative": "ネガティブパーツを追加",
+    "addModifier": "モディファイアを追加",
+    "addBlocker": "サポートブロッカーを追加",
+    "addEnforcer": "サポートエンフォーサーを追加",
+    "part": "パーツ",
+    "negative": "ネガティブパーツ",
+    "modifier": "モディファイア",
+    "enforcer": "サポートエンフォーサー",
+    "blocker": "サポートブロッカー",
+    "other": "その他"
+  }
+}

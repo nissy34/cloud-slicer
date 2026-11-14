@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "お使いの{{device}}",
+    "another": "別のデバイス",
+    "iPad": "iPad",
+    "phone": "スマートフォン",
+    "tablet": "タブレット",
+    "windows": "Windows パソコン",
+    "mac": "Mac",
+    "chromebook": "Chromebook",
+    "linux": "Linux コンピューター",
+    "other": "その他のデバイス"
+  }
+}

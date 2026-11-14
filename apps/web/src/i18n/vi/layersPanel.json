@@ -1,0 +1,31 @@
+{
+  "layersPanel": {
+    "addDetail": "Thêm chi tiết",
+    "addDetailTip": "Lớp mỏng hơn (máy tính: nút chuột trái)",
+    "removeDetail": "Bớt chi tiết",
+    "removeDetailTip": "Lớp dày hơn (máy tính: nút chuột phải)",
+    "backToBase": "Về mặc định",
+    "backToBaseTip": "Về chiều cao lớp đồng đều (máy tính: Shift + nút trái)",
+    "smooth": "Làm mịn",
+    "smoothTip": "Làm mịn các bậc (máy tính: Shift + nút phải)",
+    "profile": "Hồ sơ chiều cao lớp",
+    "title": "Chiều cao lớp thay đổi",
+    "done": "Xong",
+    "intro": "Lớp mỏng ở chỗ hình dạng cần chi tiết, lớp dày ở chỗ không cần. Adaptive làm điều đó dựa trên độ dốc; hoặc nhấn giữ trên biểu đồ để thêm hoặc bớt chi tiết quanh độ cao đó.",
+    "heights": "Chiều cao lớp",
+    "variable": "Thay đổi",
+    "plain": "Đồng đều",
+    "layers_other": "{{count}} lớp",
+    "chartEdits": "Chỉnh trên biểu đồ",
+    "band": "Sửa dải",
+    "adaptive": "Adaptive",
+    "quality": "Chất lượng",
+    "qualityOrSpeed": "Chất lượng hoặc tốc độ",
+    "speed": "Tốc độ",
+    "radius": "Bán kính",
+    "smoothRadius": "Bán kính làm mịn",
+    "keepMin": "Giữ các lớp mỏng nhất",
+    "reset": "Đặt lại",
+    "reading": "Đang đọc các lớp…"
+  }
+}

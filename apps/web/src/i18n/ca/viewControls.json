@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "Iso",
+    "top": "Dalt",
+    "bottom": "Baix",
+    "front": "Davant",
+    "back": "Darrere",
+    "left": "Esquerra",
+    "right": "Dreta",
+    "views": "Vistes",
+    "viewsTip": "Vistes: dalt, davant, costat...",
+    "viewTip": "Vista {{view}} ({{key}})",
+    "fitAll": "Ajusta-ho tot",
+    "fitAllTip": "Ajusta-ho tot: mostra-ho tot (Z)"
+  }
+}

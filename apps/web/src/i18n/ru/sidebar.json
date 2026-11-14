@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Мои принтеры",
+    "otherPrinters": "Другие",
+    "printer": "Принтер",
+    "manage": "Управление",
+    "printerPreset": "Профиль принтера",
+    "addRemovePrinters": "Добавить или убрать принтеры…",
+    "sendsFromDevice": "Отправляйте на него печать с вкладки «Принтер».",
+    "noDirectPrint": "Для этого принтера нет прямой печати (это не Klipper, не Prusa и не Centauri Carbon): скачайте G-code, чтобы напечатать, или отправьте его с вкладки «Принтер», если принтером управляет OctoPrint.",
+    "plateType": "Тип стола",
+    "filament": "Материал",
+    "addFilament": "Добавить материал",
+    "add": "+ Добавить",
+    "filamentColour": "Цвет материала",
+    "filamentNColour": "Цвет материала {{n}}",
+    "filamentNPreset": "Профиль материала {{n}}",
+    "addRemoveFilaments": "Добавить или убрать материалы…",
+    "removeFilament": "Убрать этот материал",
+    "removeFilamentN": "Убрать материал {{n}}",
+    "process": "Процесс",
+    "processPreset": "Профиль процесса",
+    "readingFilaments": "Чтение материалов принтера…",
+    "myPresets": "Мои профили",
+    "systemPresets": "Системные профили",
+    "show": "Показать боковую панель (Shift+Tab)",
+    "hide": "Скрыть боковую панель (Shift+Tab)",
+    "width": "Ширина боковой панели"
+  }
+}

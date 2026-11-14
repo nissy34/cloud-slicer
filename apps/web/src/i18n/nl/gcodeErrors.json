@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "“{{variable}}” is geen instelling die deze slicer kent (mogelijk komt hij van een andere slicer of een nieuwere versie).",
+    "unknownName": "er wordt een naam gebruikt die deze slicer niet kent.",
+    "negativeIndex": "“{{variable}}” wordt gelezen voordat het eerste filament is geladen (de index is daar -1); controleer die index eerst met {if ...}.",
+    "negativeIndexList": "een lijst wordt gelezen voordat het eerste filament is geladen (de index is daar -1); controleer die index eerst met {if ...}.",
+    "reasonAt": "{{reason}} bij “{{variable}}”.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, regel {{line}}: {{why}}",
+    "filamentSettings": "filamentinstellingen",
+    "printerSettings": "printerinstellingen",
+    "or": " of ",
+    "stoppedOne": "Slicen is gestopt: een aangepaste G-code kan niet worden ingevuld.",
+    "stoppedSome": "Slicen is gestopt: sommige aangepaste G-code kan niet worden ingevuld.",
+    "fix": "Herstel het in de {{where}}, of zet het terug naar de G-code van de voorinstelling."
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} filament trên {{heads}} đầu: bạn chọn đầu nào in từng filament khi gửi bản in.",
+    "warn": "{{n}} filament trên máy in có {{heads}} đầu."
+  }
+}

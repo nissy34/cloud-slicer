@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Les meves impressores",
+    "otherPrinters": "Altres",
+    "printer": "Impressora",
+    "manage": "Gestiona",
+    "printerPreset": "Perfil d'impressora",
+    "addRemovePrinters": "Afegeix o treu impressores…",
+    "sendsFromDevice": "Hi envieu impressions des de la pestanya Dispositiu.",
+    "noDirectPrint": "Sense impressió directa per a aquesta impressora (no és Klipper, una Prusa ni una Centauri Carbon): descarregueu el G-code per imprimir-lo, o envieu-lo des de la pestanya Dispositiu si OctoPrint controla la impressora.",
+    "plateType": "Tipus de safata",
+    "filament": "Filament",
+    "addFilament": "Afegeix filament",
+    "add": "+ Afegeix",
+    "filamentColour": "Color del filament",
+    "filamentNColour": "Color del filament {{n}}",
+    "filamentNPreset": "Perfil del filament {{n}}",
+    "addRemoveFilaments": "Afegeix o treu filaments…",
+    "removeFilament": "Treu aquest filament",
+    "removeFilamentN": "Treu el filament {{n}}",
+    "process": "Procés",
+    "processPreset": "Perfil de procés",
+    "readingFilaments": "Llegint els filaments de la impressora…",
+    "myPresets": "Els meus perfils",
+    "systemPresets": "Perfils del sistema",
+    "show": "Mostra la barra lateral (Maj+Tab)",
+    "hide": "Amaga la barra lateral (Maj+Tab)",
+    "width": "Amplada de la barra lateral"
+  }
+}

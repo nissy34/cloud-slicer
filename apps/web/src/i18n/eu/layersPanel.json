@@ -1,0 +1,32 @@
+{
+  "layersPanel": {
+    "addDetail": "Gehitu xehetasuna",
+    "addDetailTip": "Geruza meheagoak (mahaigainean: saguaren ezkerreko botoia)",
+    "removeDetail": "Kendu xehetasuna",
+    "removeDetailTip": "Geruza lodiagoak (mahaigainean: saguaren eskuineko botoia)",
+    "backToBase": "Itzuli oinarrira",
+    "backToBaseTip": "Itzuli geruza-altuera arruntera (mahaigainean: Shift + ezkerreko botoia)",
+    "smooth": "Leundu",
+    "smoothTip": "Leundu mailak (mahaigainean: Shift + eskuineko botoia)",
+    "profile": "Geruza-altueraren profila",
+    "title": "Geruza-altuera aldakorra",
+    "done": "Eginda",
+    "intro": "Geruza meheak formak xehetasuna behar duen lekuan, lodiak behar ez duen lekuan. Egokitzaileak malden arabera egiten du; edo eduki sakatuta grafikoan altuera horren inguruan xehetasuna gehitzeko edo kentzeko.",
+    "heights": "Geruza-altuerak",
+    "variable": "Aldakorra",
+    "plain": "Arrunta",
+    "layers_one": "Geruza {{count}}",
+    "layers_other": "{{count}} geruza",
+    "chartEdits": "Grafikoaren edizioak",
+    "band": "Editatu banda",
+    "adaptive": "Egokitzailea",
+    "quality": "Kalitatea",
+    "qualityOrSpeed": "Kalitatea edo abiadura",
+    "speed": "Abiadura",
+    "radius": "Erradioa",
+    "smoothRadius": "Leuntze-erradioa",
+    "keepMin": "Mantendu geruzarik meheenak",
+    "reset": "Berrezarri",
+    "reading": "Geruzak irakurtzen…"
+  }
+}

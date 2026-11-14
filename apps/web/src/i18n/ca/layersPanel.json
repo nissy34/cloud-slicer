@@ -1,0 +1,33 @@
+{
+  "layersPanel": {
+    "addDetail": "Afegeix detall",
+    "addDetailTip": "Capes més primes (escriptori: botó esquerre del ratolí)",
+    "removeDetail": "Treu detall",
+    "removeDetailTip": "Capes més gruixudes (escriptori: botó dret del ratolí)",
+    "backToBase": "Torna a la base",
+    "backToBaseTip": "Torna a l'alçada de capa simple (escriptori: Maj + botó esquerre)",
+    "smooth": "Suavitza",
+    "smoothTip": "Suavitza els esglaons (escriptori: Maj + botó dret)",
+    "profile": "Perfil d'alçada de capa",
+    "title": "Alçada de capa variable",
+    "done": "Fet",
+    "intro": "Capes primes on la forma necessita detall, gruixudes on no. Adaptatiu ho fa a partir dels pendents; o manteniu premut al gràfic per afegir o treure detall al voltant d'aquesta alçada.",
+    "heights": "Alçades de capa",
+    "variable": "Variable",
+    "plain": "Simple",
+    "layers_one": "{{count}} capa",
+    "layers_many": "{{count}} capes",
+    "layers_other": "{{count}} capes",
+    "chartEdits": "Edicions del gràfic",
+    "band": "Edita la banda",
+    "adaptive": "Adaptatiu",
+    "quality": "Qualitat",
+    "qualityOrSpeed": "Qualitat o velocitat",
+    "speed": "Velocitat",
+    "radius": "Radi",
+    "smoothRadius": "Radi de suavitzat",
+    "keepMin": "Conserva les capes més primes",
+    "reset": "Restableix",
+    "reading": "Llegint les capes…"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Volumes de purga",
+    "ownAmounts": "suas próprias quantidades",
+    "fromColours": "a partir das cores",
+    "leftNozzle": "Bico esquerdo",
+    "rightNozzle": "Bico direito",
+    "nozzleN": "Bico {{n}}",
+    "filamentN": "Filamento {{n}}",
+    "recalculate": "Recalcular",
+    "done": "Concluído",
+    "explain": "Quanto a impressora expele, em mm³, ao trocar do filamento da esquerda para o do topo. Calculado a partir das cores: de escuro para claro exige mais.",
+    "nozzle": "Bico",
+    "tableLabel": "Volumes de purga em mm³",
+    "from": "de",
+    "to": "para",
+    "toFilament": "Para {{name}}",
+    "fromFilament": "De {{name}}",
+    "purgeLabel": "Purga de {{from}} para {{to}}, mm³",
+    "suggested": "Sugerido: {{min}} a {{max}} mm³ (fora disso aparece em vermelho).",
+    "multiplier": "Multiplicador",
+    "scales": "Escala todas as quantidades ({{min}} a {{max}}).",
+    "towerOff": "\"Purgar na torre de purga\" está desativado nas configurações desta impressora (página Multimaterial), então cada troca de filamento purga o volume de purga ({{volume}} mm³) em vez destas quantidades. Elas ainda definem o comprimento de purga que o G-code de troca da impressora recebe."
+  }
+}

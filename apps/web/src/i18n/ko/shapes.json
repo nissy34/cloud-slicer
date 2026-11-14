@@ -1,0 +1,10 @@
+{
+  "shapes": {
+    "cube": "정육면체",
+    "cylinder": "원기둥",
+    "sphere": "구",
+    "cone": "원뿔",
+    "disc": "원판",
+    "torus": "토러스"
+  }
+}

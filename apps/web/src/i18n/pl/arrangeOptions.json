@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Rozstaw",
+    "spacingMm": "Rozstaw w mm",
+    "autoNote": "0 oznacza rozstaw automatyczny.",
+    "rotate": "Automatyczny obrót przy układaniu",
+    "multiMaterial": "Zezwól na wiele materiałów na jednej płycie",
+    "alignYOff": "Wyłącz automatyczny obrót, aby tego użyć",
+    "alignYTip": "Obraca każdy obiekt tak, by jego dłuższy bok biegł od przodu do tyłu",
+    "alignY": "Wyrównaj do osi Y",
+    "arrange": "Ustaw",
+    "reset": "Resetuj"
+  }
+}

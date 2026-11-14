@@ -1,0 +1,21 @@
+{
+  "deviceFiles": {
+    "print": "출력…",
+    "deleteName": "{{name}} 삭제",
+    "delete": "삭제",
+    "title": "프린터의 파일",
+    "upload": "G-code 업로드…",
+    "timelapses": "타임랩스",
+    "none": "아직 G-code 파일이 없습니다.",
+    "searchN_other": "파일 {{count}}개에서 검색",
+    "search": "파일 검색",
+    "noMatch": "“{{query}}”와(과) 일치하는 파일이 없습니다.",
+    "deleteFile": "파일 삭제",
+    "deleteText": "프린터에서 {{name}}을(를) 삭제할까요?",
+    "deleted": "삭제됨",
+    "pages": "파일 페이지",
+    "newer": "최신",
+    "older": "이전",
+    "range": "{{total}}개 중 {{from}}–{{to}}"
+  }
+}

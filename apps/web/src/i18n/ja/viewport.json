@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "移動",
+    "rotate": "回転",
+    "scale": "拡大縮小",
+    "rotateText": "テキストを回転",
+    "moveSvgSurface": "SVG を表面上で移動",
+    "moveTextSurface": "テキストを表面上で移動",
+    "movePart": "パーツを移動",
+    "rotatePart": "パーツを回転",
+    "scalePart": "パーツを拡大縮小",
+    "plates": "プレート",
+    "ownSettingsTip": "このプレートには独自の設定があります",
+    "ownSettings": "独自の設定あり",
+    "plateSettings": "プレート設定",
+    "plateNSettings": "プレート {{n}} の設定"
+  }
+}

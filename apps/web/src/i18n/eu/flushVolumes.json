@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Purga-bolumenak",
+    "ownAmounts": "zure kopuruak",
+    "fromColours": "koloreetatik",
+    "leftNozzle": "Ezkerreko pita",
+    "rightNozzle": "Eskuineko pita",
+    "nozzleN": "{{n}}. pita",
+    "filamentN": "{{n}}. filamentua",
+    "recalculate": "Birkalkulatu",
+    "done": "Eginda",
+    "explain": "Inprimagailuak zenbat bultzatzen duen kanpora, mm³-tan, ezkerreko filamentutik goikora aldatzean. Koloreetatik kalkulatua: ilunetik argira gehiago behar da.",
+    "nozzle": "Pita",
+    "tableLabel": "Purga-bolumenak mm³-tan",
+    "from": "hemendik",
+    "to": "honaino",
+    "toFilament": "{{name}}(e)ra",
+    "fromFilament": "{{name}}(e)tik",
+    "purgeLabel": "Purgatu {{from}}(e)tik {{to}}(e)ra, mm³",
+    "suggested": "Gomendatua: {{min}} - {{max}} mm³ (kanpoan gorriz agertzen da).",
+    "multiplier": "Biderkatzailea",
+    "scales": "Kopuru guztiak eskalatzen ditu ({{min}} - {{max}}).",
+    "towerOff": "“Purgatu purgatze-dorrean” desaktibatuta dago inprimagailu honen ezarpenetan (Material anitzeko orria), beraz filament-aldaketa bakoitzak kopuru hauen ordez purga-bolumen lehenetsia ({{volume}} mm³) purgatzen du. Hala ere, inprimagailuaren aldaketa-G-code-k jasotzen duen purga-luzera finkatzen dute."
+  }
+}

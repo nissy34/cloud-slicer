@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "このオブジェクトに追加する設定",
+    "forPart": "このパーツに追加する設定",
+    "forModifier": "このモディファイアに追加する設定",
+    "search": "設定を検索",
+    "done": "完了",
+    "noMatch": "「{{query}}」に一致する設定はありません。",
+    "more": "その他の設定"
+  }
+}

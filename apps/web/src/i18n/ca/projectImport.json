@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "una altra impressora",
+    "slicedFile": "{{name}} és un fitxer laminat: conté G-code per a una altra impressora però cap model. Obriu el projecte original (.3mf).",
+    "noObjects": "{{name}} no té cap objecte per imprimir."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "presetChanges": {
+    "filamentN": "耗材 {{n}}",
+    "process": "工艺",
+    "printer": "打印机",
+    "changes_other": "{{count}} 处更改",
+    "saveTitle": "保存已更改的设置",
+    "back": "返回",
+    "saving": "正在保存…",
+    "save": "保存",
+    "namesText": "你自己的预设会保留名称并采用这些更改。输入新名称则改为另存一份副本。",
+    "row": "{{label}}：{{name}}（{{changes}}）",
+    "title": "保留你更改过的设置？",
+    "discard": "放弃",
+    "saveMenu": "保存…",
+    "keep": "保留",
+    "text": "有些预设更改了设置。你可以在新项目中保留它们、放弃它们，或将它们保存为预设。",
+    "labelColon": "{{label}}：",
+    "nameChanges": "{{name}}（{{changes}}）",
+    "remember": "记住我的选择（保留或放弃）"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Kamery",
+    "climate": "Podložka a komora",
+    "move": "Pohyb",
+    "console": "Konzole",
+    "print": "Tisk",
+    "toolHeads": "Nástrojové hlavy",
+    "alerts": "Upozornění",
+    "files": "Soubory",
+    "unfold": "Rozbalit tuto kartu",
+    "fold": "Sbalit tuto kartu",
+    "targetOf": "Cíl: {{label}}",
+    "turnOff": "Vypnout {{label}}",
+    "off": "Vypnuto",
+    "keepGoing": "Pokračovat",
+    "chamberLight": "Světlo v komoře",
+    "purifierExhaust": "Odtah čističky",
+    "purifierFilter": "Filtr čističky",
+    "fanAuto": "Tiskárna tento ventilátor řídí sama"
+  }
+}

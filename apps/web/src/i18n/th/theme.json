@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "ธีม",
+    "current": "ธีม: {{choice}}",
+    "system": "ตามระบบ",
+    "systemHint": "ตรงกับอุปกรณ์นี้",
+    "light": "สว่าง",
+    "dark": "มืด"
+  }
+}

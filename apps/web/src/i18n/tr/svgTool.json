@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "SVG şekli",
+    "done": "Bitti",
+    "pickHint": "Değiştirmek için nesne listesinden veya 3B görünümden bir SVG şekli seçin ya da bir .svg dosyasından ekleyin: seçili nesneye veya hiçbir şey seçili değilse kendi başına bir nesne olarak. Bir .svg dosyasını açmak veya bırakmak da bir tane ekler.",
+    "addSvg": "SVG ekle…",
+    "depth": "Derinlik",
+    "depthCutTip": "Şeklin ne kadar derine kestiği",
+    "depthTip": "Şeklin ne kadar öne çıktığı",
+    "width": "Genişlik",
+    "widthTip": "Şeklin enine boyutu",
+    "height": "Yükseklik",
+    "heightTip": "Şeklin boyuna boyutu",
+    "keepProportions": "Oranları koru",
+    "useSurfaceTip": "Şekil, nesnenin yüzeyine düz oturmak yerine yüzeyle birlikte eğilir",
+    "useSurface": "Yüzeyi kullan",
+    "svgType": "SVG türü",
+    "changeType": "Türü değiştir",
+    "engraved": "Oyma",
+    "making": "Şekil oluşturuluyor…",
+    "undoHint": "Geri al, son şekli geri getirir."
+  }
+}

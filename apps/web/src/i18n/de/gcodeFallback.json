@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "Start- und Filamentwechsel-G-code von {{engine}} verwenden?",
+    "yes": "Ja, slicen",
+    "body": "Der Start- und Filamentwechsel-G-code dieser Datei wurde für {{app}} geschrieben, und {{engine}} kann ihn nicht verwenden. {{engine}} hat eigenen G-code für <b>{{printer}}</b>, der funktioniert. Diese Wahl wird mit diesem Projekt gespeichert."
+  }
+}

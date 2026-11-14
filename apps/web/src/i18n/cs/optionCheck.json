@@ -1,0 +1,12 @@
+{
+  "optionCheck": {
+    "allowed": "Povoleno {{min}} až {{max}}",
+    "lowest": "Nejnižší povolená hodnota je {{min}}",
+    "highest": "Nejvyšší povolená hodnota je {{max}}",
+    "setTo": "{{allowed}}, nastaveno na {{value}}.",
+    "needed": "Je potřeba hodnota.",
+    "noPercent": "Toto nastavení nemůže být procento.",
+    "notWhole": "„{{text}}“ není celé číslo.",
+    "notNumber": "„{{text}}“ není číslo."
+  }
+}

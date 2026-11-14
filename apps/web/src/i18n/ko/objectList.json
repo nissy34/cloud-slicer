@@ -1,0 +1,31 @@
+{
+  "objectList": {
+    "notPrinted": "출력되지 않음",
+    "someNotPrinted": "일부 복사본은 출력되지 않음",
+    "object": "객체",
+    "sameAsObject": "객체와 동일",
+    "objects": "객체",
+    "skippedTip": "{{name}}: {{why}}. 슬라이싱에서 제외됩니다. 출력하려면 ⋯ 메뉴에서 출력 가능을 선택하세요.",
+    "objectN": "객체 {{n}}",
+    "filamentFor": "{{name}}의 필라멘트",
+    "more": "더 보기",
+    "moreFor": "{{name}} 더 보기",
+    "moreTip": "더 보기: 복제, 이름 바꾸기, 반전, 내보내기… (또는 객체를 우클릭)",
+    "painted": "(칠함)",
+    "moreForPart": "부품 {{name}} 더 보기",
+    "partMoreTip": "이름 바꾸기, 종류 변경, 설정, 삭제",
+    "chosen_other": "객체 {{count}}개 선택됨",
+    "groupHint": "이동, 회전, 배율은 모두에 적용됩니다. 나머지는 선택한 모델을 우클릭하거나 휴대폰에서 길게 누르세요.",
+    "deleteAllTip": "모두 삭제 (Del)",
+    "delete": "삭제",
+    "blockerHint": "{{kind}}: 서포트가 켜져 있을 때 객체와 겹치는 곳에는 서포트가 생기지 않습니다. 이동 도구로 옮기세요.",
+    "enforcerHint": "{{kind}}: 서포트가 켜져 있을 때 객체와 겹치는 곳에 서포트가 생깁니다. 이동 도구로 옮기세요.",
+    "addInstance": "인스턴스 추가",
+    "addInstanceTip": "옆에 복사본을 하나 더 만듭니다 (+). Ctrl+C와 Ctrl+V는 새 객체로 붙여넣습니다.",
+    "removeInstance": "인스턴스 제거",
+    "removeInstanceTip": "다른 복사본은 두고 이 복사본을 제거합니다 (-)",
+    "simplify": "단순화",
+    "simplifyTip": "삼각형 줄이기, 데스크톱의 모델 단순화와 같습니다",
+    "deleteTip": "모든 복사본을 포함한 객체 (Del은 선택한 복사본만 제거)"
+  }
+}

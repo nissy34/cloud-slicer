@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "점",
+    "edge": "모서리",
+    "circle": "원",
+    "plane": "평면",
+    "position": "위치",
+    "length": "길이",
+    "from": "시작",
+    "to": "끝",
+    "diameter": "지름",
+    "radius": "반지름",
+    "centre": "중심",
+    "normal": "법선",
+    "angle": "각도",
+    "distance": "거리",
+    "perpendicular": "수직 거리",
+    "along": "{{axis}} 방향"
+  }
+}

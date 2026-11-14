@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "間隔",
+    "spacingMm": "間隔（mm）",
+    "autoNote": "0 は自動の間隔です。",
+    "rotate": "レイアウト時に自動回転",
+    "multiMaterial": "同じプレートに複数の材料を許可",
+    "alignYOff": "使うには自動回転をオフにしてください",
+    "alignYTip": "各オブジェクトを、長い辺が手前から奥に向くよう回転します",
+    "alignY": "Y 軸に揃える",
+    "arrange": "レイアウト",
+    "reset": "リセット"
+  }
+}

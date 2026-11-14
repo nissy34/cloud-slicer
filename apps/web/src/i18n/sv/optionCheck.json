@@ -1,0 +1,12 @@
+{
+  "optionCheck": {
+    "allowed": "Tillåtet {{min}} till {{max}}",
+    "lowest": "Lägsta tillåtna är {{min}}",
+    "highest": "Högsta tillåtna är {{max}}",
+    "setTo": "{{allowed}}, inställt på {{value}}.",
+    "needed": "Ett värde behövs.",
+    "noPercent": "Den här inställningen kan inte vara en procentsats.",
+    "notWhole": "”{{text}}” är inte ett heltal.",
+    "notNumber": "”{{text}}” är inte ett tal."
+  }
+}

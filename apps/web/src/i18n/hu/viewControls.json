@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "Izo",
+    "top": "Felül",
+    "bottom": "Alul",
+    "front": "Elöl",
+    "back": "Hátul",
+    "left": "Balra",
+    "right": "Jobbra",
+    "views": "Nézetek",
+    "viewsTip": "Nézetek: felülről, elölről, oldalról…",
+    "viewTip": "{{view}} nézet ({{key}})",
+    "fitAll": "Mindent látni",
+    "fitAllTip": "Mindent látni: mindent megjelenít (Z)"
+  }
+}

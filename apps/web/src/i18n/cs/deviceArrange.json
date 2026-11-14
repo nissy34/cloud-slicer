@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Rozložení karet se nepodařilo uložit. Uchová se, dokud stránku neobnovíte.",
+    "pageCard": "Karta stránky {{n}}",
+    "cameraCard": "Karta kamery {{n}}",
+    "arrangingFor": "Uspořádání karet pro {{name}}.",
+    "helpPhone": "Podržte kartu za úchyt a přetáhněte ji nahoru nebo dolů.",
+    "helpDesktop": "Přetáhněte kartu za úchyt do sloupce nebo přes horní či dolní část.",
+    "helpRest": "Skryté karty zůstávají tady, zesvětlené. Ostatní tiskárny si drží vlastní rozložení.",
+    "columns": "Sloupce",
+    "addCameraCard": "Přidat kartu kamery",
+    "addPageCard": "Přidat kartu stránky",
+    "backToDefault": "Zpět na výchozí",
+    "acrossTop": "Přes horní část",
+    "column": "Sloupec {{n}}",
+    "acrossBottom": "Přes dolní část",
+    "small": "Malá",
+    "medium": "Střední",
+    "large": "Velká",
+    "moveCard": "Přesunout {{name}}",
+    "halfWidthTip": "Poloviční šířka: dvě poloviční karty stojí vedle sebe",
+    "halfWidth": "Poloviční šířka",
+    "cameraSize": "Velikost kamery",
+    "remove": "Odebrat"
+  }
+}

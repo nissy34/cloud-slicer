@@ -1,0 +1,26 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Temperaturen",
+    "filterTimelapse": "Zeitraffer",
+    "filterTimelapseExample": "Zeitraffer-Bildmeldungen",
+    "filterProgress": "Druckfortschritt",
+    "filterOk": "Einfaches „ok“",
+    "done": "Fertig",
+    "filtersN": "Filter ({{n}})",
+    "filters": "Filter",
+    "hideThese": "Diese Zeilen ausblenden",
+    "hideLike": "Zeilen wie diese ausblenden: {{example}}",
+    "hideContaining": "Zeilen mit „{{text}}“ ausblenden",
+    "removeFilter": "Den Filter „{{text}}“ entfernen",
+    "remove": "Entfernen",
+    "hideContainingPlaceholder": "Zeilen ausblenden, die … enthalten",
+    "hideContainingLabel": "Zeilen ausblenden, die enthalten",
+    "add": "Hinzufügen",
+    "filtersHelp": "Tippen Sie auf einen Chip, um ihn umzuschalten. Was Sie senden, und Fehler werden immer angezeigt.",
+    "linesHidden_one": "1 Zeile durch Filter ausgeblendet",
+    "linesHidden_other": "{{count}} Zeilen durch Filter ausgeblendet",
+    "sendPlaceholder": "G-code senden, z. B. M115",
+    "commandLabel": "G-code-Befehl",
+    "send": "Senden"
+  }
+}

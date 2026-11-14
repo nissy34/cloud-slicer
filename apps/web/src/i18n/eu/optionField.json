@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Berrezarri aurrezarpenaren balioa",
+    "keptOld": "Balio zaharra mantendu da.",
+    "kept": "{{value}} mantendu da.",
+    "plateUses": "{{n}}. plakak erabiltzen du:",
+    "on": "aktibatuta",
+    "off": "desaktibatuta",
+    "itsOwn": "(bere ezarpen propioa).",
+    "plateSettings": "Plakaren ezarpenak",
+    "default": "Lehenetsia",
+    "percentOrMm": "Ehunekoa edo mm?",
+    "isItPercent": "{{label}}: %{{number}} da ala {{number}} {{unit}}?",
+    "filamentN": "{{n}}. filamentua",
+    "mix": "Nahastea",
+    "mixes": "Nahasteak"
+  }
+}

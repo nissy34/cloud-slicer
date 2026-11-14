@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Bez nazwy",
+    "nothingYet": "Na tej płycie nic jeszcze nie ma",
+    "locked": "Ta płyta jest zablokowana",
+    "deleteTip": "Usuń tę płytę wraz z jej zawartością (nie ostatnią)",
+    "orientTip": "Automatycznie zorientuj obiekty na tej płycie",
+    "arrangeTip": "Ustaw obiekty na tej płycie (Shift+A)",
+    "unlockTip": "Odblokuj tę płytę",
+    "lockTip": "Zablokuj tę płytę: Ustaw i Automatyczna orientacja jej nie ruszają",
+    "settingsOwnTip": "Ustawienia płyty: ta płyta ma własne ustawienia",
+    "settingsTip": "Ustawienia płyty: typ płyty, sekwencja druku, tryb wazy, kolejność filamentów",
+    "renameTip": "Zmień nazwę tej płyty"
+  }
+}

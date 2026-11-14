@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Este archivo",
+    "title": "¿Abrir como proyecto?",
+    "geometryOnly": "Importar solo la geometría",
+    "open": "Abrir proyecto",
+    "body": "<b>{{name}}</b> es un proyecto con sus propias placas y ajustes. Al abrirlo se reemplaza lo que hay ahora en sus placas. Al importar su geometría se añaden sus objetos a su placa y se conservan sus ajustes."
+  }
+}

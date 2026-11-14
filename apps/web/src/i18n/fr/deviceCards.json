@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Caméras",
+    "climate": "Plateau et enceinte",
+    "move": "Déplacer",
+    "console": "Console",
+    "print": "Impression",
+    "toolHeads": "Têtes d’outil",
+    "alerts": "Alertes",
+    "files": "Fichiers",
+    "unfold": "Déplier cette carte",
+    "fold": "Replier cette carte",
+    "targetOf": "Cible de {{label}}",
+    "turnOff": "Éteindre {{label}}",
+    "off": "Éteint",
+    "keepGoing": "Continuer",
+    "chamberLight": "Éclairage de l’enceinte",
+    "purifierExhaust": "Évacuation du purificateur",
+    "purifierFilter": "Filtre du purificateur",
+    "fanAuto": "L’imprimante gère ce ventilateur toute seule"
+  }
+}

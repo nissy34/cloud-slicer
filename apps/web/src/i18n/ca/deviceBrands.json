@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "Clau d'API",
+    "klipperHint": "Mainsail i Fluidd la mostren a la seva configuració.",
+    "klipperLocked": "Aquesta impressora està bloquejada: escriviu-ne la clau d'API",
+    "prusaKey": "Contrasenya de PrusaLink",
+    "prusaHint": "La impressora la mostra a Configuració, Xarxa, PrusaLink (el nom d'usuari és maker).",
+    "prusaLocked": "Escriviu la contrasenya de PrusaLink de la pantalla de la impressora",
+    "octoprintKey": "Clau d'API d'OctoPrint",
+    "octoprintHint": "A OctoPrint: Configuració, Application Keys, i creeu una clau per a Cloud Slicer (o copieu la clau d'API del vostre usuari a Configuració, API).",
+    "octoprintLocked": "Aquest OctoPrint està bloquejat: escriviu una clau d'API de la seva configuració",
+    "bambuKey": "Codi d'accés LAN",
+    "bambuHint": "La impressora el mostra a la pantalla, a la configuració de xarxa al costat del mode Només LAN. Per enviar impressions i controlar-la des d'aquí, activeu també el mode Només LAN i el mode Desenvolupador (el núvol de Bambu i l'aplicació Bambu Handy deixen de funcionar mentre estan activats).",
+    "bambuLocked": "Escriviu el codi d'accés de la pantalla de la impressora",
+    "featStatus": "Estat",
+    "featSend": "Envia i imprimeix",
+    "featCamera": "Càmera",
+    "featMove": "Moviment i temperatures",
+    "featMoveShort": "Moviment i temp.",
+    "featConsole": "Consola",
+    "klipperName": "Impressores Klipper",
+    "klipperExamples": "Snapmaker U1, Voron, Qidi, Sovol",
+    "prusaName": "Prusa amb PrusaLink",
+    "prusaExamples": "MK4, Core One, XL, Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "qualsevol impressora que executi OctoPrint",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "encara no la Carbon 2",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1, P1, P2S, A1, H2; càmera a P1 i A1; necessita el mode Desenvolupador"
+  }
+}

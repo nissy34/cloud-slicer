@@ -1,0 +1,8 @@
+{
+  "fontList": {
+    "hebrew": "Hebreeuws",
+    "pickScriptFont": "Kies een {{script}}-lettertype, zoals {{fonts}}.",
+    "pickAnyFont": "Kies een lettertype dat ze heeft: een lettertypebestand of een van de lettertypen van deze computer.",
+    "noLetters": "Dit lettertype heeft geen letters voor {{letters}}, daarom worden ze weggelaten."
+  }
+}

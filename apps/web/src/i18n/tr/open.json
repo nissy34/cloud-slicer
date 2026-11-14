@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "STL, 3MF, OBJ, STEP veya SVG dosyalarını buraya bırakın",
+    "openModel": "Model aç",
+    "fromDrive": "Google Drive'dan aç",
+    "deletePlateTip": "Bu plakayı ve üzerindekileri sil",
+    "deletePlate": "Plakayı sil",
+    "clearAsk": "Plaka temizlensin mi?",
+    "unsavedChanges": "“{{name}}” dosyasında henüz kaydedilmemiş değişiklikler var.",
+    "clearAll": "Tümünü temizle",
+    "dropToAdd": "Eklemek için bırakın"
+  }
+}

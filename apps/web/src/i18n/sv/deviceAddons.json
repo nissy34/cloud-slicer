@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint är inte anslutet till skrivaren.",
+    "octoprintRestart": "Anslut igen",
+    "octoprintRestarting": "Ansluter OctoPrint till skrivaren",
+    "bambuStopped": "Skrivaren slutade svara: kontrollera att den är på och finns på nätverket.",
+    "bambuCameraMissing": "Bara P1- och A1-skrivare visar sin kamera här: X1, H2 och P2S skickar video som bara Bambus egna appar spelar upp.",
+    "bambuSlotNoun": "AMS-plats",
+    "bambuSlotUnset": "Ladda filament där, eller ställ in det på skrivarens skärm.",
+    "bambuSlotNote": "Precis som i Bambu Studio kan ett filament bara gå till en plats med samma filamenttyp. Märke och färg kan skilja sig.",
+    "outsideSpool": "Extern spole",
+    "u1Heads": "Verktygshuvuden",
+    "u1HeadNoun": "verktygshuvud",
+    "u1HeadUnset": "Ladda filament, eller ställ in dess typ på kortet Verktygshuvuden.",
+    "u1HeadNote": "Precis som i Snapmakers egen app kan ett filament bara gå till ett huvud med samma filamenttyp och nozzelstorlek. Märke och färg kan skilja sig.",
+    "nozzleStandard": "Standard",
+    "nozzleHighFlow": "Högt flöde",
+    "calibratingOffsets": "Kalibrerar verktygsoffset",
+    "levellingBed": "Nivellerar byggplattan",
+    "calibratingFlow": "Kalibrerar flöde",
+    "calibratingShaper": "Kalibrerar input shaping",
+    "updatingFirmware": "Uppdaterar firmware",
+    "needsAttention": "Behöver uppmärksamhet på skrivarens skärm",
+    "adjustingScrews": "Justerar byggplattans skruvar",
+    "loadingFilament": "Laddar filament",
+    "unloadingFilament": "Lossar filament",
+    "calibratingPark": "Kalibrerar parkeringsposition",
+    "calibratingHome": "Kalibrerar hemposition",
+    "hotendFan": "Hotend-fläkt T{{n}}"
+  }
+}

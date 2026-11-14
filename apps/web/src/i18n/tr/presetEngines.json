@@ -1,0 +1,8 @@
+{
+  "presetEngines": {
+    "split_one": "{{count}} ayar artık iki motorda aynı değil; \"{{name}}\" her motorda kendi değerlerini korur.",
+    "split_other": "{{count}} ayar artık iki motorda aynı değil; \"{{name}}\" her motorda kendi değerlerini korur.",
+    "separate_one": "\"{{name}}\" ön ayarının {{count}} ayarı artık iki motorda aynı olabilir ama farklı; menüsündeki \"İki motorda aynı değerleri kullan\" bunları eşleştirir.",
+    "separate_other": "\"{{name}}\" ön ayarının {{count}} ayarı artık iki motorda aynı olabilir ama farklı; menüsündeki \"İki motorda aynı değerleri kullan\" bunları eşleştirir."
+  }
+}

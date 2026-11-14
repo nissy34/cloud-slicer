@@ -1,0 +1,14 @@
+{
+  "common": {
+    "cancel": "İptal",
+    "copied": "Kopyalandı",
+    "copyError": "Hatayı kopyala",
+    "hide": "Gizle",
+    "show": "Göster",
+    "close": "Kapat",
+    "closeMessage": "Mesajı kapat",
+    "done": "Bitti",
+    "notNow": "Şimdi değil",
+    "next": "İleri"
+  }
+}

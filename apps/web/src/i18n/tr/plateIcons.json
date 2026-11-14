@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Adsız",
+    "nothingYet": "Bu plakada henüz bir şey yok",
+    "locked": "Bu plaka kilitli",
+    "deleteTip": "Bu plakayı ve üzerindekileri kaldır (sonuncusu değil)",
+    "orientTip": "Bu plakadaki nesneleri otomatik yönlendir",
+    "arrangeTip": "Bu plakadaki nesneleri hizala (Shift+A)",
+    "unlockTip": "Bu plakanın kilidini aç",
+    "lockTip": "Bu plakayı kilitle: Hizala ve Otomatik yönlendir ona dokunmaz",
+    "settingsOwnTip": "Plaka ayarları: bu plakanın kendi ayarları var",
+    "settingsTip": "Plaka ayarları: plaka türü, baskı sırası, spiral vazo, filament sırası",
+    "renameTip": "Bu plakayı yeniden adlandır"
+  }
+}

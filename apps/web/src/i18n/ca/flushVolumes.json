@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Volums de purga",
+    "ownAmounts": "les vostres quantitats",
+    "fromColours": "a partir dels colors",
+    "leftNozzle": "Broquet esquerre",
+    "rightNozzle": "Broquet dret",
+    "nozzleN": "Broquet {{n}}",
+    "filamentN": "Filament {{n}}",
+    "recalculate": "Recalcula",
+    "done": "Fet",
+    "explain": "Quant empeny la impressora, en mm³, quan canvia del filament de l'esquerra al de dalt. Es calcula a partir dels colors: de fosc a clar en necessita més.",
+    "nozzle": "Broquet",
+    "tableLabel": "Volums de purga en mm³",
+    "from": "de",
+    "to": "a",
+    "toFilament": "A {{name}}",
+    "fromFilament": "De {{name}}",
+    "purgeLabel": "Purga de {{from}} a {{to}}, mm³",
+    "suggested": "Suggerit: de {{min}} a {{max}} mm³ (fora d'aquest rang es mostra en vermell).",
+    "multiplier": "Multiplicador",
+    "scales": "Escala totes les quantitats ({{min}} a {{max}}).",
+    "towerOff": "«Purga a la torre de purga» és desactivat a la configuració d'aquesta impressora (pàgina Multimaterial), així que cada canvi de filament purga el volum de purga ({{volume}} mm³) en lloc d'aquestes quantitats. Encara determinen la longitud de purga que rep el G-code de canvi de la impressora."
+  }
+}

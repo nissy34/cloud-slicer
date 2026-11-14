@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "Mugimendu-sistemaren arazoa",
+    "mainboardProblem": "Plaka nagusiaren arazoa",
+    "amsProblem": "AMS arazoa",
+    "toolheadProblem": "Erreminta-buruaren arazoa",
+    "cameraProblem": "Kameraren arazoa",
+    "printerProblem": "Inprimagailuaren arazoa",
+    "bambuUnknown": "Inprimagailuak arazo hau jakinarazi du. Begiratu bere pantaila xehetasunetarako.",
+    "printerError": "Inprimagailuaren errorea",
+    "u1Unknown": "Inprimagailuak errore bat jakinarazi du. Begiratu bere pantaila xehetasunetarako."
+  }
+}

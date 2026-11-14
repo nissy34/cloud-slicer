@@ -1,0 +1,33 @@
+{
+  "objectList": {
+    "notPrinted": "No imprès",
+    "someNotPrinted": "Algunes còpies no s'imprimeixen",
+    "object": "Objecte",
+    "sameAsObject": "Igual que l'objecte",
+    "objects": "Objectes",
+    "skippedTip": "{{name}}: {{why}}. El laminat l'omet; marqueu Imprimible al seu menú ⋯ per imprimir-lo.",
+    "objectN": "Objecte {{n}}",
+    "filamentFor": "Filament per a {{name}}",
+    "more": "Més",
+    "moreFor": "Més per a {{name}}",
+    "moreTip": "Més: clona, canvia el nom, mirall, exporta… (o clic dret a l'objecte)",
+    "painted": "(pintat)",
+    "moreForPart": "Més per a la peça {{name}}",
+    "partMoreTip": "Canvia el nom, canvia el tipus, paràmetres, suprimeix",
+    "chosen_one": "{{count}} objecte triat",
+    "chosen_many": "{{count}} objectes triats",
+    "chosen_other": "{{count}} objectes triats",
+    "groupHint": "Moure, girar i escalar funcionen en tots. Feu clic dret a un model triat, o premeu-lo llargament en un mòbil, per a la resta.",
+    "deleteAllTip": "Suprimeix-los tots (Supr)",
+    "delete": "Suprimeix",
+    "blockerHint": "{{kind}}: els suports no creixen on se sobreposa a l'objecte, quan els suports són activats. Moveu-lo amb l'eina Mou.",
+    "enforcerHint": "{{kind}}: els suports creixen on se sobreposa a l'objecte, quan els suports són activats. Moveu-lo amb l'eina Mou.",
+    "addInstance": "Afegeix una instància",
+    "addInstanceTip": "Una còpia més al seu costat (+). Ctrl+C i Ctrl+V l'enganxen com a objecte nou.",
+    "removeInstance": "Treu una instància",
+    "removeInstanceTip": "Treu aquesta còpia, conservant les altres (-)",
+    "simplify": "Simplifica",
+    "simplifyTip": "Menys triangles, com Simplifica el model de l'escriptori",
+    "deleteTip": "L'objecte amb totes les còpies (Supr només treu la còpia triada)"
+  }
+}

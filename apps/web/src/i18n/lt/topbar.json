@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Darbo sritis",
+    "prepare": "Paruošimas",
+    "preview": "Peržiūra",
+    "device": "Įrenginys",
+    "calibration": "Kalibravimas",
+    "slicingWith": "Sluoksniuojama su {{name}} {{version}}"
+  }
+}

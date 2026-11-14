@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Di chuyển",
+    "rotate": "Xoay",
+    "scale": "Tỷ lệ",
+    "rotateText": "Xoay văn bản",
+    "moveSvgSurface": "Di chuyển SVG trên bề mặt",
+    "moveTextSurface": "Di chuyển văn bản trên bề mặt",
+    "movePart": "Di chuyển phần",
+    "rotatePart": "Xoay phần",
+    "scalePart": "Tỷ lệ phần",
+    "plates": "Plate",
+    "ownSettingsTip": "Plate này có cài đặt riêng",
+    "ownSettings": "có cài đặt riêng",
+    "plateSettings": "Cài đặt plate",
+    "plateNSettings": "Cài đặt plate {{n}}"
+  }
+}

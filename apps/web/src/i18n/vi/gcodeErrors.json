@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "“{{variable}}” không phải cài đặt mà slicer này biết (có thể đến từ slicer khác hoặc phiên bản mới hơn).",
+    "unknownName": "nó dùng một tên mà slicer này không biết.",
+    "negativeIndex": "“{{variable}}” được đọc trước khi nạp filament đầu tiên (chỉ số của nó ở đó là -1); hãy kiểm tra chỉ số đó bằng {if ...} trước.",
+    "negativeIndexList": "một danh sách được đọc trước khi nạp filament đầu tiên (chỉ số của nó ở đó là -1); hãy kiểm tra chỉ số đó bằng {if ...} trước.",
+    "reasonAt": "{{reason}} tại “{{variable}}”.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, dòng {{line}}: {{why}}",
+    "filamentSettings": "cài đặt filament",
+    "printerSettings": "cài đặt máy in",
+    "or": " hoặc ",
+    "stoppedOne": "Slice đã dừng: không thể điền G-code tùy chỉnh.",
+    "stoppedSome": "Slice đã dừng: không thể điền một số G-code tùy chỉnh.",
+    "fix": "Hãy sửa trong {{where}}, hoặc đặt lại về G-code của cài đặt sẵn."
+  }
+}

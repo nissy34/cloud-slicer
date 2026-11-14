@@ -1,0 +1,33 @@
+{
+  "objectList": {
+    "notPrinted": "Non stampato",
+    "someNotPrinted": "Alcune copie non stampate",
+    "object": "Oggetto",
+    "sameAsObject": "Uguale all'oggetto",
+    "objects": "Oggetti",
+    "skippedTip": "{{name}}: {{why}}. L'elaborazione lo omette; spunta Stampabile nel suo menu ⋯ per stamparlo.",
+    "objectN": "Oggetto {{n}}",
+    "filamentFor": "Filamento per {{name}}",
+    "more": "Altro",
+    "moreFor": "Altro per {{name}}",
+    "moreTip": "Altro: clona, rinomina, specchia, esporta… (o clic destro sull'oggetto)",
+    "painted": "(dipinto)",
+    "moreForPart": "Altro per la parte {{name}}",
+    "partMoreTip": "Rinomina, cambia tipo, impostazioni, elimina",
+    "chosen_one": "{{count}} oggetto scelto",
+    "chosen_other": "{{count}} oggetti scelti",
+    "groupHint": "Sposta, ruota e scala agiscono su tutti. Clic destro su un modello scelto, o pressione prolungata su un telefono, per il resto.",
+    "deleteAllTip": "Eliminali tutti (Canc)",
+    "delete": "Elimina",
+    "blockerHint": "{{kind}}: i supporti non crescono dove si sovrappone all'oggetto, quando i supporti sono attivi. Spostalo con lo strumento Sposta.",
+    "enforcerHint": "{{kind}}: i supporti crescono dove si sovrappone all'oggetto, quando i supporti sono attivi. Spostalo con lo strumento Sposta.",
+    "addInstance": "Aggiungi istanza",
+    "addInstanceTip": "Una copia in più, accanto ad esso (+). Ctrl+C e Ctrl+V lo incollano come nuovo oggetto.",
+    "removeInstance": "Rimuovi istanza",
+    "removeInstanceTip": "Rimuovi questa copia, mantenendo le altre (-)",
+    "simplify": "Semplifica",
+    "simplifyTip": "Meno triangoli, come Semplifica modello del desktop",
+    "deleteTip": "L'oggetto con tutte le sue copie (Canc rimuove solo la copia scelta)",
+    "chosen_many": "{{count}} oggetti scelti"
+  }
+}

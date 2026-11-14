@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "Iso",
+    "top": "Dessus",
+    "bottom": "Dessous",
+    "front": "Face",
+    "back": "Arrière",
+    "left": "Gauche",
+    "right": "Droite",
+    "views": "Vues",
+    "viewsTip": "Vues : dessus, face, côté...",
+    "viewTip": "Vue {{view}} ({{key}})",
+    "fitAll": "Tout afficher",
+    "fitAllTip": "Tout afficher : montrer l’ensemble (Z)"
+  }
+}

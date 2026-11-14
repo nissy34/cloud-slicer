@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} de {{size}} MB",
+    "arrivingRelay": "{{got}} de {{size}} MB pelo relay",
+    "cannotFetch": "Esta conexão com a impressora não consegue buscar vídeos.",
+    "fetchFailed": "Não foi possível buscar o vídeo.",
+    "delete": "Excluir",
+    "download": "Baixar",
+    "cantPlay": "Este tipo de vídeo não é reproduzido no navegador. Baixe-o para assistir.",
+    "none": "Nenhum timelapse ainda. Ative o Timelapse ao iniciar uma impressão.",
+    "watch": "Assistir",
+    "pages": "Páginas de timelapses",
+    "refresh": "Atualizar",
+    "deleteTitle": "Excluir timelapse"
+  }
+}

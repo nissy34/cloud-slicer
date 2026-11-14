@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "添加零件",
+    "addNegative": "添加负零件",
+    "addModifier": "添加修改器",
+    "addBlocker": "添加支撑阻挡",
+    "addEnforcer": "添加支撑强制",
+    "part": "零件",
+    "negative": "负零件",
+    "modifier": "修改器",
+    "enforcer": "支撑强制",
+    "blocker": "支撑阻挡",
+    "other": "其他"
+  }
+}

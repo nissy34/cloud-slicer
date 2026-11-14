@@ -1,0 +1,30 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} จาก {{total}}",
+    "engineNoStart": "{{engine}} เริ่มทำงานไม่ได้",
+    "openedWith": "เปิดด้วย {{engine}} ซึ่งเป็นเอนจินที่ใช้สร้างโปรเจกต์นี้",
+    "somethingWrong": "มีบางอย่างผิดพลาด",
+    "files_other": "{{count}} ไฟล์",
+    "saving": "กำลังบันทึก…",
+    "savingAfterSlice": "กำลังบันทึก… หลังจากสไลซ์",
+    "savingMaking": "กำลังบันทึก… กำลังสร้าง 3MF",
+    "savingSent": "กำลังบันทึก… {{progress}}",
+    "savingFinishing": "กำลังบันทึก… กำลังจบ",
+    "saved": "บันทึก “{{name}}” ลงโปรเจกต์ของคุณแล้ว",
+    "notSaved": "ยังไม่ได้บันทึก: {{error}}",
+    "preparing": "กำลังเตรียม 3MF…",
+    "makeFailed": "สร้าง 3MF ไม่ได้: {{error}}",
+    "opening": "กำลังเปิด “{{name}}”…",
+    "openFailed": "เปิด “{{name}}” ไม่ได้: {{error}}",
+    "saveCancelled": "ยกเลิกการบันทึกแล้ว",
+    "viewOnly": "โปรเจกต์นี้ดูได้อย่างเดียวที่นี่ ใช้ “แก้ไขที่นี่แทน” เพื่อเปลี่ยน",
+    "openDriveFailed": "เปิด “{{name}}” จาก Google Drive ไม่ได้: {{error}}",
+    "quoted": "“{{name}}”",
+    "cantOpen": "Cloud Slicer เปิด {{names}} ไม่ได้",
+    "cantOpenShared": "Cloud Slicer เปิด {{names}} ไม่ได้",
+    "openedDriveFile": "เปิด “{{name}}” จาก Google Drive ของคุณแล้ว บันทึก จะเก็บสำเนาไว้ในโฟลเดอร์ Cloud Slicer ของคุณ ไฟล์ใน Drive คงเดิม",
+    "openedDriveFiles": "เปิด {{name}} จาก Google Drive ของคุณแล้ว บันทึก จะเก็บสำเนาไว้ในโฟลเดอร์ Cloud Slicer ของคุณ ไฟล์ใน Drive คงเดิม",
+    "myProject": "โปรเจกต์ของฉัน",
+    "removed": "ลบ “{{name}}” ออกจากโปรเจกต์ของคุณแล้ว"
+  }
+}

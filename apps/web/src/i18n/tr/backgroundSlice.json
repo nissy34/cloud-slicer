@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "%{{pct}} · Dilimleme · {{title}}",
+    "doneTitle": "Dilimleme bitti",
+    "plateSliced": "{{plate}}. plaka dilimlendi. Görmek için dokunun.",
+    "tapToSee": "Görmek için dokunun.",
+    "questionTitle": "Dilimleme sizi bekliyor",
+    "questionBody": "Bitmeden önce bir sorusu var. Yanıtlamak için dokunun.",
+    "failedTitle": "Dilimleme başarısız oldu",
+    "tapToSeeWhy": "Nedenini görmek için dokunun."
+  }
+}

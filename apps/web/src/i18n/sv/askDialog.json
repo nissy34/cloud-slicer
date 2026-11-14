@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "Spara ”{{name}}”?",
+    "saveText": "Det finns inte bland dina onlineprojekt än. Om du inte sparar kastas det.",
+    "save": "Spara",
+    "dontSave": "Spara inte",
+    "discardTitle": "Förkasta osparade ändringar?",
+    "discard": "Förkasta ändringar",
+    "openTitle": "Öppna {{what}}",
+    "addToText": "Du arbetade med ”{{project}}”. Lägg till det där, eller starta ett nytt projekt med det?",
+    "newProject": "Nytt projekt",
+    "addTo": "Lägg till i {{project}}"
+  }
+}

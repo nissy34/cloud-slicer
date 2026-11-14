@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "Blanc",
+    "yellow": "Groc",
+    "lime": "Llima",
+    "green": "Verd",
+    "darkGreen": "Verd fosc",
+    "teal": "Verd blavós",
+    "mint": "Menta",
+    "skyBlue": "Blau cel",
+    "lightBlue": "Blau clar",
+    "blue": "Blau",
+    "indigo": "Índigo",
+    "purple": "Porpra",
+    "magenta": "Magenta",
+    "lavender": "Lavanda",
+    "pink": "Rosa",
+    "red": "Vermell",
+    "brown": "Marró",
+    "orange": "Taronja",
+    "cream": "Crema",
+    "beige": "Beix",
+    "tan": "Bronzejat",
+    "grey": "Gris",
+    "lightGrey": "Gris clar",
+    "black": "Negre",
+    "colours": "Colors",
+    "recent": "Recents",
+    "recentColours": "Colors recents",
+    "hex": "Codi hex",
+    "custom": "Personalitzat"
+  }
+}

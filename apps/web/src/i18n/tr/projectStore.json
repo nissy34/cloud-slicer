@@ -1,0 +1,31 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} / {{total}}",
+    "engineNoStart": "{{engine}} başlatılamadı",
+    "openedWith": "Bu projenin yapıldığı motor olan {{engine}} ile açıldı.",
+    "somethingWrong": "Bir şeyler ters gitti",
+    "files_one": "{{count}} dosya",
+    "files_other": "{{count}} dosya",
+    "saving": "Kaydediliyor…",
+    "savingAfterSlice": "Kaydediliyor… dilimlemeden sonra",
+    "savingMaking": "Kaydediliyor… 3MF hazırlanıyor",
+    "savingSent": "Kaydediliyor… {{progress}}",
+    "savingFinishing": "Kaydediliyor… bitiriliyor",
+    "saved": "“{{name}}” projelerinize kaydedildi",
+    "notSaved": "Kaydedilmedi: {{error}}",
+    "preparing": "3MF hazırlanıyor…",
+    "makeFailed": "3MF oluşturulamadı: {{error}}",
+    "opening": "“{{name}}” açılıyor…",
+    "openFailed": "“{{name}}” açılamadı: {{error}}",
+    "saveCancelled": "Kaydetme iptal edildi",
+    "viewOnly": "Bu proje burada salt görüntüleme içindir. Değiştirmek için “Bunun yerine burada düzenle”yi kullanın.",
+    "openDriveFailed": "“{{name}}” Google Drive'dan açılamadı: {{error}}",
+    "quoted": "“{{name}}”",
+    "cantOpen": "Cloud Slicer {{names}} dosyalarını açamıyor.",
+    "cantOpenShared": "Cloud Slicer {{names}} dosyalarını açamıyor",
+    "openedDriveFile": "“{{name}}” Google Drive'ınızdan açıldı. Kaydet, Cloud Slicer klasörünüzde bir kopya tutar. Drive'daki dosya olduğu gibi kalır.",
+    "openedDriveFiles": "{{name}} Google Drive'ınızdan açıldı. Kaydet, Cloud Slicer klasörünüzde bir kopya tutar. Drive'daki dosyalar olduğu gibi kalır.",
+    "myProject": "Projem",
+    "removed": "“{{name}}” projelerinizden kaldırıldı"
+  }
+}

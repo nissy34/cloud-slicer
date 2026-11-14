@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "Iso",
+    "top": "Boven",
+    "bottom": "Onder",
+    "front": "Voor",
+    "back": "Achter",
+    "left": "Links",
+    "right": "Rechts",
+    "views": "Aanzichten",
+    "viewsTip": "Aanzichten: boven, voor, zijkant...",
+    "viewTip": "Aanzicht {{view}} ({{key}})",
+    "fitAll": "Alles passend",
+    "fitAllTip": "Alles passend: toon alles (Z)"
+  }
+}

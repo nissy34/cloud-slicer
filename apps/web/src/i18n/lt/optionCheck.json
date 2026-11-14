@@ -1,0 +1,12 @@
+{
+  "optionCheck": {
+    "allowed": "Leidžiama nuo {{min}} iki {{max}}",
+    "lowest": "Mažiausia leidžiama: {{min}}",
+    "highest": "Didžiausia leidžiama: {{max}}",
+    "setTo": "{{allowed}}, nustatyta {{value}}.",
+    "needed": "Reikia reikšmės.",
+    "noPercent": "Šis parametras negali būti procentais.",
+    "notWhole": "„{{text}}“ nėra sveikasis skaičius.",
+    "notNumber": "„{{text}}“ nėra skaičius."
+  }
+}

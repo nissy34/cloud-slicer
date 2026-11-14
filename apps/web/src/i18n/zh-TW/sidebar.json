@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "我的列印裝置",
+    "otherPrinters": "其他",
+    "printer": "列印裝置",
+    "manage": "管理",
+    "printerPreset": "列印裝置預設",
+    "addRemovePrinters": "新增或移除列印裝置…",
+    "sendsFromDevice": "可從「裝置」分頁將列印傳送給它。",
+    "noDirectPrint": "此列印裝置無法直接列印（不是 Klipper、Prusa 或 Centauri Carbon）：請下載 G-code 來列印，如果列印裝置由 OctoPrint 控制，也可從「裝置」分頁傳送。",
+    "plateType": "列印板類型",
+    "filament": "線材",
+    "addFilament": "新增線材",
+    "add": "+ 新增",
+    "filamentColour": "線材顏色",
+    "filamentNColour": "線材 {{n}} 顏色",
+    "filamentNPreset": "線材 {{n}} 預設",
+    "addRemoveFilaments": "新增或移除線材…",
+    "removeFilament": "移除此線材",
+    "removeFilamentN": "移除線材 {{n}}",
+    "process": "列印參數",
+    "processPreset": "列印參數預設",
+    "readingFilaments": "正在讀取列印裝置的線材…",
+    "myPresets": "我的預設",
+    "systemPresets": "系統預設",
+    "show": "顯示側邊欄 (Shift+Tab)",
+    "hide": "隱藏側邊欄 (Shift+Tab)",
+    "width": "側邊欄寬度"
+  }
+}

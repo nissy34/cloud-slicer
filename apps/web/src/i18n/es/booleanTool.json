@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Unión",
+    "difference": "Diferencia",
+    "intersection": "Intersección",
+    "subtractFrom": "Restar de",
+    "subtractWith": "Restar con",
+    "part": "Pieza {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Booleana de malla",
+    "done": "Hecho",
+    "operation": "Operación",
+    "needTwo": "Esto funciona con dos piezas de un mismo objeto. Añada una pieza, parte negativa o modificador desde el menú del objeto (clic derecho, o el botón ⋯ de la lista de objetos), colóquela y vuelva aquí.",
+    "unionHint": "Une las dos en una sola pieza.",
+    "differenceHint": "Recorta la segunda de la primera.",
+    "intersectionHint": "Conserva solo donde las dos se solapan.",
+    "resultHint": "El resultado ocupa el lugar, el tipo y los ajustes de la primera. Deshacer recupera las dos.",
+    "pickDifferent": "Elija dos piezas distintas.",
+    "deleteInput": "Eliminar entrada (quita también la segunda)",
+    "working": "Trabajando…"
+  }
+}

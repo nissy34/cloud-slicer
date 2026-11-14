@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "Judėjimo sistemos problema",
+    "mainboardProblem": "Pagrindinės plokštės problema",
+    "amsProblem": "AMS problema",
+    "toolheadProblem": "Įrankio galvutės problema",
+    "cameraProblem": "Kameros problema",
+    "printerProblem": "Spausdintuvo problema",
+    "bambuUnknown": "Spausdintuvas pranešė apie šią problemą. Išsamią informaciją rasite jo ekrane.",
+    "printerError": "Spausdintuvo klaida",
+    "u1Unknown": "Spausdintuvas pranešė apie klaidą. Išsamią informaciją rasite jo ekrane."
+  }
+}

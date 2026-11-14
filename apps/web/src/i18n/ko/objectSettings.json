@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "객체 설정",
+    "modifierSettings": "수정자 설정",
+    "partSettings": "부품 설정",
+    "addToObject": "이 객체에 설정 추가",
+    "addToModifier": "이 수정자에 설정 추가",
+    "addToPart": "이 부품에 설정 추가",
+    "addSetting": "+ 설정 추가",
+    "modifierEmpty": "수정자가 객체와 겹치는 곳의 설정을 바꾸려면 설정을 추가하세요. 예를 들어 한 부분의 채우기를 늘릴 수 있습니다.",
+    "partEmpty": "객체의 설정을 사용합니다. 이 부품에만 바꾸려면 설정을 추가하세요.",
+    "objectEmpty": "프로세스 설정을 사용합니다. 이 객체에만 바꾸려면 설정을 추가하세요.",
+    "others": "기타",
+    "removeFromObject": "이 객체에서 제거",
+    "removeFromModifier": "이 수정자에서 제거",
+    "removeFromPart": "이 부품에서 제거"
+  }
+}

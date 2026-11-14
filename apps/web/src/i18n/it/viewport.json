@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Sposta",
+    "rotate": "Ruota",
+    "scale": "Scala",
+    "rotateText": "Ruota testo",
+    "moveSvgSurface": "Sposta SVG sulla superficie",
+    "moveTextSurface": "Sposta testo sulla superficie",
+    "movePart": "Sposta parte",
+    "rotatePart": "Ruota parte",
+    "scalePart": "Scala parte",
+    "plates": "Piatti",
+    "ownSettingsTip": "Questo piatto ha impostazioni proprie",
+    "ownSettings": "ha impostazioni proprie",
+    "plateSettings": "Impostazioni del piatto",
+    "plateNSettings": "Impostazioni del piatto {{n}}"
+  }
+}

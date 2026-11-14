@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "Bu nesneye eklenecek ayarlar",
+    "forPart": "Bu parçaya eklenecek ayarlar",
+    "forModifier": "Bu değiştiriciye eklenecek ayarlar",
+    "search": "Ayarlarda ara",
+    "done": "Bitti",
+    "noMatch": "“{{query}}” ile eşleşen ayar yok.",
+    "more": "Daha fazla ayar"
+  }
+}

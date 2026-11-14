@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "Neodpověděl včas",
+    "noAccounts": "Účty na tomto serveru nejsou k dispozici",
+    "siteNoAnswer": "Cloud Slicer neodpověděl. Zkontrolujte připojení a zkuste to znovu.",
+    "driveReconnect": "Google Drive je třeba znovu připojit. Otevřete nabídku účtu (vpravo nahoře) a stiskněte Připojit Google Drive.",
+    "driveNoAnswer": "Google Drive neodpověděl. Zkontrolujte připojení a uložte znovu.",
+    "driveFull": "Váš Google Drive je plný. Uvolněte na Disku místo a uložte znovu.",
+    "driveGone": "Tento projekt už na vašem Google Drive není",
+    "driveNoUpload": "Google Drive nezahájil nahrávání",
+    "pickerBlocked": "Váš prohlížeč zablokoval okno Google Drive. Povolte pro tento web vyskakovací okna a zkuste to znovu.",
+    "driveSignIn": "Přihlaste se přes Google, abyste mohli otevírat soubory ze svého Google Drive.",
+    "driveConnectFirst": "Nejprve připojte Google Drive v nabídce účtu.",
+    "pickerNotSetUp": "Otevření z Google Drive na tomto webu zatím není nastavené."
+  }
+}

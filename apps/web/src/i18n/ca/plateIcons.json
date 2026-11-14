@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Sense títol",
+    "nothingYet": "Encara no hi ha res en aquesta safata",
+    "locked": "Aquesta safata és bloquejada",
+    "deleteTip": "Treu aquesta safata i el que hi ha (no l'última)",
+    "orientTip": "Orientació automàtica dels objectes d'aquesta safata",
+    "arrangeTip": "Ordena els objectes d'aquesta safata (Maj+A)",
+    "unlockTip": "Desbloqueja aquesta safata",
+    "lockTip": "Bloqueja aquesta safata: Ordena i Orientació automàtica la deixen com és",
+    "settingsOwnTip": "Paràmetres de la safata: aquesta safata té paràmetres propis",
+    "settingsTip": "Paràmetres de la safata: tipus de safata, seqüència d'impressió, gerro en espiral, ordre de filaments",
+    "renameTip": "Canvia el nom d'aquesta safata"
+  }
+}

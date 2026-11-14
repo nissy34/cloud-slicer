@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "マイプリンター",
+    "otherPrinters": "その他",
+    "printer": "プリンター",
+    "manage": "管理",
+    "printerPreset": "プリンタープリセット",
+    "addRemovePrinters": "プリンターを追加または削除…",
+    "sendsFromDevice": "デバイスタブから印刷を送信できます。",
+    "noDirectPrint": "このプリンターは直接印刷できません（Klipper、Prusa、Centauri Carbon 以外）。G-code をダウンロードして印刷するか、OctoPrint がプリンターを動かしている場合はデバイスタブから送信してください。",
+    "plateType": "プレートタイプ",
+    "filament": "フィラメント",
+    "addFilament": "フィラメントを追加",
+    "add": "+ 追加",
+    "filamentColour": "フィラメントの色",
+    "filamentNColour": "フィラメント {{n}} の色",
+    "filamentNPreset": "フィラメント {{n}} のプリセット",
+    "addRemoveFilaments": "フィラメントを追加または削除…",
+    "removeFilament": "このフィラメントを削除",
+    "removeFilamentN": "フィラメント {{n}} を削除",
+    "process": "プロセス",
+    "processPreset": "プロセスプリセット",
+    "readingFilaments": "プリンターのフィラメントを読み取り中…",
+    "myPresets": "マイプリセット",
+    "systemPresets": "システムプリセット",
+    "show": "サイドバーを表示（Shift+Tab）",
+    "hide": "サイドバーを隠す（Shift+Tab）",
+    "width": "サイドバーの幅"
+  }
+}

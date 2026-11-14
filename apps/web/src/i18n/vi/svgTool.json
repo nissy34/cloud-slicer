@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "Hình SVG",
+    "done": "Xong",
+    "pickHint": "Chọn một hình SVG trong danh sách vật thể hoặc khung nhìn 3D để thay đổi, hoặc thêm một hình từ tệp .svg: lên vật thể đã chọn, hoặc thành một vật thể riêng khi chưa chọn gì. Mở hoặc thả một tệp .svg cũng thêm một hình.",
+    "addSvg": "Thêm SVG…",
+    "depth": "Độ sâu",
+    "depthCutTip": "Hình khoét vào sâu bao nhiêu",
+    "depthTip": "Hình nhô ra bao nhiêu",
+    "width": "Chiều rộng",
+    "widthTip": "Kích thước ngang của hình",
+    "height": "Chiều cao",
+    "heightTip": "Kích thước dọc của hình",
+    "keepProportions": "Giữ tỷ lệ",
+    "useSurfaceTip": "Hình uốn theo bề mặt của vật thể thay vì nằm phẳng trên nó",
+    "useSurface": "Theo bề mặt",
+    "svgType": "Loại SVG",
+    "changeType": "Đổi loại",
+    "engraved": "Khắc chìm",
+    "making": "Đang tạo hình…",
+    "undoHint": "Hoàn tác sẽ đưa hình trước đó trở lại."
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Avstängd under utskrift",
+    "disabledPaused": "Avstängd under paus",
+    "position": "Position",
+    "speed": "Hastighet",
+    "flow": "Flöde",
+    "head": "Huvud",
+    "moveHead": "Flytta huvudet",
+    "headBack": "Huvudet bakåt",
+    "headLeft": "Huvudet åt vänster",
+    "homeHead": "Hemkör huvudet",
+    "headRight": "Huvudet åt höger",
+    "headToward": "Huvudet mot dig",
+    "bed": "Byggplatta",
+    "headHeight": "Huvudets höjd",
+    "moveBed": "Flytta byggplattan",
+    "moveHeadZ": "Flytta huvudet upp och ned",
+    "bedUp": "Byggplattan upp",
+    "headUp": "Huvudet upp",
+    "homeBed": "Hemkör byggplattan",
+    "homeHeight": "Hemkör höjden",
+    "bedDown": "Byggplattan ned",
+    "headDown": "Huvudet ned",
+    "step": "Steg",
+    "homeAll": "Hemkör alla",
+    "motorsOff": "Motorer av",
+    "heatFirst": "Värm nozzeln först",
+    "extrude10": "Extrudera 10 mm",
+    "retract": "Retrahera",
+    "homeFirst": "Hemkör skrivaren innan du flyttar den."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "旋转文字",
+    "rotateSvg": "旋转 SVG",
+    "moveText": "将文字移离表面",
+    "moveSvg": "将 SVG 移离表面",
+    "rotationTip": "绕自身轴线顺时针转动（3D 视图中的圆环作用相同）",
+    "rotation": "旋转",
+    "fromSurfaceTip": "它离表面有多远",
+    "fromSurface": "离表面",
+    "keepUpTip": "在表面上滑动或朝向相机时保持直立",
+    "keepUp": "保持直立",
+    "faceCameraTip": "转向你，即你观看它的方向",
+    "faceCamera": "朝向相机",
+    "moveToolsText": "请用那些工具移动或旋转文字。",
+    "moveToolsShape": "请用那些工具移动或旋转形状。",
+    "dragText": "拖动文字或其蓝色框，在对象上滑动。圆环可转动它。",
+    "dragShape": "拖动形状或其蓝色框，在对象上滑动。圆环可转动它。"
+  }
+}

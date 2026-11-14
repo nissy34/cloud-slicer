@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Voleu convertir aquest projecte?",
+    "convert": "Converteix",
+    "setUpFor": "Estava configurat per a <b>{{printer}}</b>. Trieu una de les vostres impressores per imprimir-lo.",
+    "printer": "Impressora",
+    "convertTo": "Converteix a la impressora",
+    "keep": "Conserva els paràmetres del model que el projecte ha canviat: capes, parets, farciment, suports, costures, vora",
+    "remember": "Fes-ho automàticament la propera vegada",
+    "note": "Els paràmetres que el projecte ha deixat als valors per defecte de la seva impressora anterior, i les velocitats, acceleracions, jerk, amplades de línia, calibratge de flux i la torre de purga, vénen de {{printer}}. Els filaments es fan coincidir per material i tipus (mat, seda, alt flux...) i conserven els colors del projecte.",
+    "yourPrinter": "la vostra impressora"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "{{engine}}의 시작 및 필라멘트 교체 G-code를 사용할까요?",
+    "yes": "예, 슬라이스",
+    "body": "이 파일의 시작 및 필라멘트 교체 G-code는 {{app}}용으로 작성되어 {{engine}}에서 사용할 수 없습니다. {{engine}}에는 <b>{{printer}}</b>용으로 정상 작동하는 자체 G-code가 있습니다. 이 선택은 이 프로젝트에 저장됩니다."
+  }
+}

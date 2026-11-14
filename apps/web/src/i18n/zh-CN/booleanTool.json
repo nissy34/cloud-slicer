@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "并集",
+    "difference": "差集",
+    "intersection": "交集",
+    "subtractFrom": "被减对象",
+    "subtractWith": "减去对象",
+    "part": "零件 {{n}}",
+    "partOption": "{{name}}（{{kind}}）",
+    "title": "网格布尔运算",
+    "done": "完成",
+    "operation": "运算",
+    "needTwo": "这适用于同一对象的两个零件。请从对象菜单（右键点击它，或点击对象列表中的 ⋯ 按钮）添加零件、负零件或修改器，放置好后再回到这里。",
+    "unionHint": "把两者合并为一个零件。",
+    "differenceHint": "从第一个中切掉第二个。",
+    "intersectionHint": "只保留两者重叠的部分。",
+    "resultHint": "结果沿用第一个的位置、类型和设置。撤销可恢复两者。",
+    "pickDifferent": "请选取两个不同的零件。",
+    "deleteInput": "删除输入（同时移除第二个）",
+    "working": "处理中…"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "วางไฟล์ STL, 3MF, OBJ, STEP หรือ SVG ที่นี่",
+    "openModel": "เปิดโมเดล",
+    "fromDrive": "เปิดจาก Google Drive",
+    "deletePlateTip": "ลบเพลตนี้และสิ่งที่อยู่บนเพลต",
+    "deletePlate": "ลบเพลต",
+    "clearAsk": "ล้างเพลตหรือไม่",
+    "unsavedChanges": "“{{name}}” มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก",
+    "clearAll": "ล้างทั้งหมด",
+    "dropToAdd": "วางเพื่อเพิ่ม"
+  }
+}

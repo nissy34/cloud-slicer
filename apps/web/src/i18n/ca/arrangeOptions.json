@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Espaiat",
+    "spacingMm": "Espaiat en mm",
+    "autoNote": "0 vol dir espaiat automàtic.",
+    "rotate": "Rotació automàtica per ordenar",
+    "multiMaterial": "Permet diversos materials a la mateixa safata",
+    "alignYOff": "Desactiveu la rotació automàtica per usar-ho",
+    "alignYTip": "Gira cada objecte perquè el costat llarg vagi de davant cap enrere",
+    "alignY": "Alinea a l'eix Y",
+    "arrange": "Ordena",
+    "reset": "Restableix"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Pivoter le texte",
+    "rotateSvg": "Pivoter le SVG",
+    "moveText": "Éloigner le texte de la surface",
+    "moveSvg": "Éloigner le SVG de la surface",
+    "rotationTip": "Le tourne autour de son propre axe, dans le sens horaire (l’anneau dans la vue 3D fait de même)",
+    "rotation": "Rotation",
+    "fromSurfaceTip": "À quelle distance il se tient de la surface",
+    "fromSurface": "Depuis la surface",
+    "keepUpTip": "Le garde à l’endroit pendant que vous le faites glisser sur la surface ou que vous l’orientez vers la caméra",
+    "keepUp": "Garder droit",
+    "faceCameraTip": "Le tourne pour qu’il vous fasse face, depuis où vous le regardez",
+    "faceCamera": "Face à la caméra",
+    "moveToolsText": "Déplacez ou pivotez le texte avec ces outils.",
+    "moveToolsShape": "Déplacez ou pivotez la forme avec ces outils.",
+    "dragText": "Faites glisser le texte ou son cadre bleu pour le faire glisser sur l’objet. L’anneau le fait tourner.",
+    "dragShape": "Faites glisser la forme ou son cadre bleu pour la faire glisser sur l’objet. L’anneau la fait tourner."
+  }
+}

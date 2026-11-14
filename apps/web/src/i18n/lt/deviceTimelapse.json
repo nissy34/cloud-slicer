@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} iš {{size}} MB",
+    "arrivingRelay": "{{got}} iš {{size}} MB per relay",
+    "cannotFetch": "Per šį ryšį su spausdintuvu vaizdo įrašų gauti negalima.",
+    "fetchFailed": "Vaizdo įrašo gauti nepavyko.",
+    "delete": "Ištrinti",
+    "download": "Atsisiųsti",
+    "cantPlay": "Šio tipo vaizdo įrašas naršyklėje negroja. Atsisiųskite jį, kad pažiūrėtumėte.",
+    "none": "Timelapse dar nėra. Pradėdami spausdinti, įjunkite Timelapse.",
+    "watch": "Žiūrėti",
+    "pages": "Timelapse puslapiai",
+    "refresh": "Atnaujinti",
+    "deleteTitle": "Ištrinti timelapse"
+  }
+}

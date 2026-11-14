@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "使用 {{engine}} 的起始和換線 G-code？",
+    "yes": "是，切片",
+    "body": "此檔案的起始和換線 G-code 是為 {{app}} 編寫的，{{engine}} 無法使用。{{engine}} 有適用於 <b>{{printer}}</b> 的內建版本，可以正常運作。此選擇會與這個專案一起儲存。"
+  }
+}

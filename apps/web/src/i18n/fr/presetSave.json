@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Utilisez 1 à 128 caractères, sans / \\ : * ? \" < > |",
+    "notAvailable": "Le préréglage {{name}} n’est pas disponible.",
+    "onlyOwn": "Seuls vos propres préréglages peuvent être enregistrés ; utilisez Enregistrer sous.",
+    "noneSelected": "Aucun préréglage n’est sélectionné.",
+    "sameName": "Deux préréglages ne peuvent pas avoir le même nom.",
+    "nameTaken": "Un préréglage nommé « {{name}} » existe déjà.",
+    "notYours": "Ce préréglage n’est pas l’un des vôtres."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Przywróć wartość z profilu",
+    "keptOld": "Zachowano starą wartość.",
+    "kept": "Zachowano {{value}}.",
+    "plateUses": "Płyta {{n}} używa",
+    "on": "włączone",
+    "off": "wyłączone",
+    "itsOwn": "(własne ustawienie).",
+    "plateSettings": "Ustawienia płyty",
+    "default": "Domyślne",
+    "percentOrMm": "Procent czy mm?",
+    "isItPercent": "{{label}}: czy to {{number}}%, czy {{number}} {{unit}}?",
+    "filamentN": "Filament {{n}}",
+    "mix": "Mieszanka",
+    "mixes": "Mieszanki"
+  }
+}

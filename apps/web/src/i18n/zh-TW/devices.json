@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "您的{{device}}",
+    "another": "另一個裝置",
+    "iPad": "iPad",
+    "phone": "手機",
+    "tablet": "平板電腦",
+    "windows": "Windows 電腦",
+    "mac": "Mac",
+    "chromebook": "Chromebook",
+    "linux": "Linux 電腦",
+    "other": "其他裝置"
+  }
+}

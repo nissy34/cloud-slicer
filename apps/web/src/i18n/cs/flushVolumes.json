@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Objemy proplachu",
+    "ownAmounts": "vlastní množství",
+    "fromColours": "podle barev",
+    "leftNozzle": "Levá tryska",
+    "rightNozzle": "Pravá tryska",
+    "nozzleN": "Tryska {{n}}",
+    "filamentN": "Filament {{n}}",
+    "recalculate": "Přepočítat",
+    "done": "Hotovo",
+    "explain": "Kolik tiskárna vytlačí v mm³ při přechodu z filamentu vlevo na ten nahoře. Vypočteno z barev: z tmavé na světlou je potřeba víc.",
+    "nozzle": "Tryska",
+    "tableLabel": "Objemy proplachu v mm³",
+    "from": "z",
+    "to": "na",
+    "toFilament": "Na {{name}}",
+    "fromFilament": "Z {{name}}",
+    "purgeLabel": "Proplach z {{from}} na {{to}}, mm³",
+    "suggested": "Doporučeno: {{min}} až {{max}} mm³ (mimo tento rozsah se zobrazí červeně).",
+    "multiplier": "Násobitel",
+    "scales": "Škáluje každé množství ({{min}} až {{max}}).",
+    "towerOff": "„Proplach v základní věži“ je v nastavení této tiskárny (stránka Více materiálů) vypnutý, takže každá výměna filamentu proplachuje základní objem ({{volume}} mm³) místo těchto množství. Ta stále určují délku proplachu, kterou dostane G-code výměny tiskárny."
+  }
+}

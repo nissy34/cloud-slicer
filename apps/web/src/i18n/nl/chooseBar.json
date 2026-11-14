@@ -1,0 +1,18 @@
+{
+  "chooseBar": {
+    "chosenModels": "Gekozen modellen",
+    "tapToChoose": "Tik op modellen om ze te kiezen",
+    "chosen_one": "{{count}} gekozen",
+    "chosen_other": "{{count}} gekozen",
+    "selectAll": "Alles selecteren",
+    "all": "Alles",
+    "assemble": "Samenvoegen",
+    "assembleTip": "Voeg ze samen tot één voorwerp, elk onderdeel op zijn plek",
+    "menuTip": "Wat te doen met alle gekozen modellen (of klik met rechts / houd een gekozen model ingedrukt)",
+    "menu": "Wat te doen met de modellen",
+    "doneTip": "Tikken kiest weer één model",
+    "clearTip": "Niets gekozen (Esc)",
+    "done": "Klaar",
+    "clear": "Wissen"
+  }
+}

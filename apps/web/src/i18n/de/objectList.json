@@ -1,0 +1,32 @@
+{
+  "objectList": {
+    "notPrinted": "Wird nicht gedruckt",
+    "someNotPrinted": "Einige Kopien werden nicht gedruckt",
+    "object": "Objekt",
+    "sameAsObject": "Wie das Objekt",
+    "objects": "Objekte",
+    "skippedTip": "{{name}}: {{why}}. Beim Slicen wird es ausgelassen; haken Sie in seinem Menü ⋯ „Druckbar“ an, um es zu drucken.",
+    "objectN": "Objekt {{n}}",
+    "filamentFor": "Filament für {{name}}",
+    "more": "Mehr",
+    "moreFor": "Mehr für {{name}}",
+    "moreTip": "Mehr: klonen, umbenennen, spiegeln, exportieren … (oder Rechtsklick auf das Objekt)",
+    "painted": "(bemalt)",
+    "moreForPart": "Mehr für Teil {{name}}",
+    "partMoreTip": "Umbenennen, Typ ändern, Einstellungen, löschen",
+    "chosen_one": "{{count}} Objekt ausgewählt",
+    "chosen_other": "{{count}} Objekte ausgewählt",
+    "groupHint": "Verschieben, Drehen und Skalieren wirken auf alle. Für den Rest klicken Sie ein ausgewähltes Modell mit der rechten Maustaste an oder drücken es auf dem Smartphone lange.",
+    "deleteAllTip": "Alle löschen (Entf)",
+    "delete": "Löschen",
+    "blockerHint": "{{kind}}: Stützen wachsen nicht dort, wo er das Objekt überlappt, wenn Stützen aktiviert sind. Verschieben Sie ihn mit dem Werkzeug Verschieben.",
+    "enforcerHint": "{{kind}}: Stützen wachsen dort, wo er das Objekt überlappt, wenn Stützen aktiviert sind. Verschieben Sie ihn mit dem Werkzeug Verschieben.",
+    "addInstance": "Instanz hinzufügen",
+    "addInstanceTip": "Eine weitere Kopie daneben (+). Strg+C und Strg+V fügen es als neues Objekt ein.",
+    "removeInstance": "Instanz entfernen",
+    "removeInstanceTip": "Diese Kopie entfernen und die anderen behalten (-)",
+    "simplify": "Vereinfachen",
+    "simplifyTip": "Weniger Dreiecke, wie „Modell vereinfachen“ auf dem Desktop",
+    "deleteTip": "Das Objekt mit allen Kopien (Entf entfernt nur die ausgewählte Kopie)"
+  }
+}

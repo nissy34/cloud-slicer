@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "Lägg till del",
+    "addNegative": "Lägg till negativ del",
+    "addModifier": "Lägg till modifierare",
+    "addBlocker": "Lägg till supportblockerare",
+    "addEnforcer": "Lägg till supportförstärkare",
+    "part": "Del",
+    "negative": "Negativ del",
+    "modifier": "Modifierare",
+    "enforcer": "Supportförstärkare",
+    "blocker": "Supportblockerare",
+    "other": "Övrigt"
+  }
+}

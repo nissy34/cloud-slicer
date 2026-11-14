@@ -1,0 +1,33 @@
+{
+  "layersPanel": {
+    "addDetail": "Adicionar detalhe",
+    "addDetailTip": "Camadas mais finas (desktop: botão esquerdo do mouse)",
+    "removeDetail": "Remover detalhe",
+    "removeDetailTip": "Camadas mais grossas (desktop: botão direito do mouse)",
+    "backToBase": "Voltar ao básico",
+    "backToBaseTip": "Voltar à altura de camada simples (desktop: Shift + botão esquerdo)",
+    "smooth": "Suavizar",
+    "smoothTip": "Suaviza os degraus (desktop: Shift + botão direito)",
+    "profile": "Perfil de altura de camada",
+    "title": "Altura de camada variável",
+    "done": "Concluído",
+    "intro": "Camadas finas onde a forma exige detalhe, grossas onde não exige. O modo Adaptativo faz isso a partir das inclinações; ou mantenha pressionado no gráfico para adicionar ou remover detalhe em torno dessa altura.",
+    "heights": "Alturas de camada",
+    "variable": "Variável",
+    "plain": "Simples",
+    "layers_one": "{{count}} camada",
+    "layers_many": "{{count}} camadas",
+    "layers_other": "{{count}} camadas",
+    "chartEdits": "Edições no gráfico",
+    "band": "Editar faixa",
+    "adaptive": "Adaptativo",
+    "quality": "Qualidade",
+    "qualityOrSpeed": "Qualidade ou velocidade",
+    "speed": "Velocidade",
+    "radius": "Raio",
+    "smoothRadius": "Raio de suavização",
+    "keepMin": "Manter as camadas mais finas",
+    "reset": "Redefinir",
+    "reading": "Lendo as camadas…"
+  }
+}

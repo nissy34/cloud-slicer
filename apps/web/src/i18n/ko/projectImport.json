@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "다른 프린터",
+    "slicedFile": "{{name}}은(는) 슬라이스된 파일입니다. 다른 프린터용 G-code만 있고 모델은 없습니다. 대신 원본 프로젝트(.3mf)를 여세요.",
+    "noObjects": "{{name}}에는 출력할 객체가 없습니다."
+  }
+}

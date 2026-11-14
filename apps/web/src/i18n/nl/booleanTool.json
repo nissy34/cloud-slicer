@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Samenvoegen",
+    "difference": "Verschil",
+    "intersection": "Doorsnede",
+    "subtractFrom": "Aftrekken van",
+    "subtractWith": "Aftrekken met",
+    "part": "Onderdeel {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Mesh booleaan",
+    "done": "Klaar",
+    "operation": "Bewerking",
+    "needTwo": "Dit werkt op twee onderdelen van één voorwerp. Voeg een onderdeel, negatief onderdeel of aanpasser toe via het menu van het voorwerp (klik met rechts, of de knop ⋯ in de voorwerpenlijst), plaats het en kom dan hier terug.",
+    "unionHint": "Voegt de twee samen tot één onderdeel.",
+    "differenceHint": "Snijdt het tweede uit het eerste.",
+    "intersectionHint": "Houdt alleen over waar de twee elkaar overlappen.",
+    "resultHint": "Het resultaat neemt de plaats, het type en de instellingen van het eerste over. Ongedaan maken brengt beide terug.",
+    "pickDifferent": "Kies twee verschillende onderdelen.",
+    "deleteInput": "Invoer verwijderen (ook het tweede verwijderen)",
+    "working": "Bezig…"
+  }
+}

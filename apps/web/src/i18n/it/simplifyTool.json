@@ -1,0 +1,30 @@
+{
+  "simplifyTool": {
+    "title": "Semplifica",
+    "done": "Fatto",
+    "hint": "Meno triangoli rendono un modello grande più veloce da aprire, elaborare e visualizzare. I dettagli fini possono ammorbidirsi; Annulla riporta la vecchia mesh.",
+    "trianglesLabel": "Triangoli",
+    "triangles_one": "{{n}} triangolo",
+    "triangles_other": "{{n}} triangoli",
+    "trianglesUnknown": "… triangoli",
+    "workingOut": "(calcolo in corso…)",
+    "by": "Semplifica per",
+    "detailLevel": "Livello di dettaglio",
+    "ratio": "Rapporto di riduzione",
+    "detail": "Dettaglio",
+    "removeTip": "Quota di triangoli da rimuovere",
+    "remove": "Rimuovi",
+    "paintKept": "La pittura di questo oggetto (colori, supporti, cuciture, superficie ruvida) viene mantenuta sulla mesh semplificata.",
+    "apply": "Applica",
+    "extraHigh": "Altissimo",
+    "high": "Alto",
+    "medium": "Medio",
+    "low": "Basso",
+    "extraLow": "Bassissimo",
+    "million": "{{n}} milioni",
+    "heavyPlates": "{{n}} piatti hanno più di {{limit}} triangoli (fino a {{most}}), che possono essere più di quanti questo dispositivo riesca a gestire. Semplificare ciascuno a circa {{light}} mantiene molti dettagli per la stampa.",
+    "heavyPlate": "Il piatto {{n}} ha {{triangles}} triangoli, che possono essere più di quanti questo dispositivo riesca a gestire. Semplificarlo a circa {{light}} mantiene molti dettagli per la stampa.",
+    "heavyModel": "Questo modello ha {{triangles}} triangoli, che possono essere più di quanti questo dispositivo riesca a gestire. Semplificarlo a circa {{light}} mantiene molti dettagli per la stampa.",
+    "triangles_many": "{{n}} triangoli"
+  }
+}

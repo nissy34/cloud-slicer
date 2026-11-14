@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Tarpai",
+    "spacingMm": "Tarpai mm",
+    "autoNote": "0 reiškia automatinius tarpus.",
+    "rotate": "Automatinis pasukimas išdėstant",
+    "multiMaterial": "Leisti kelias medžiagas toje pačioje plokštėje",
+    "alignYOff": "Išjunkite Automatinį pasukimą, kad galėtumėte tai naudoti",
+    "alignYTip": "Pasuka kiekvieną objektą taip, kad ilgoji pusė eitų iš priekio į galą",
+    "alignY": "Lygiuoti pagal Y ašį",
+    "arrange": "Išdėstyti",
+    "reset": "Nustatyti iš naujo"
+  }
+}

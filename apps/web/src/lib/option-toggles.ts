@@ -7,7 +7,7 @@
 // (it still shows), toggle_line hides its row. Both are kept: `disabled` and
 // `hidden` below. A later toggle of the same setting wins, like desktop.
 import type { OrcaConfig } from '../engine/protocol';
-import { i18n } from '../i18n';
+import { i18n, settingText } from '../i18n';
 import { isVectorType, processFlowModes, splitValues } from './flow-variants';
 import { decodeString, slotEntryIndex, splitStrings } from './slot-values';
 
@@ -547,7 +547,7 @@ export function reviewChange(before: OrcaConfig, after: OrcaConfig, changed: str
     const topPatterns = ctx.options.top_surface_pattern?.enumValues;
     const def = ctx.options.sparse_infill_pattern;
     if (topPatterns && !topPatterns.includes(pattern)) {
-      const label = def?.enumLabels?.[def.enumValues?.indexOf(pattern) ?? -1] ?? pattern;
+      const label = settingText(def?.enumLabels?.[def.enumValues?.indexOf(pattern) ?? -1] ?? pattern);
       const message = i18n.t('settingsCheck.patternNot100', { pattern: label });
       const back = was.num('sparse_infill_density') === 100 ? '15%' : `${was.num('sparse_infill_density')}%`;
       const yes = { sparse_infill_pattern: 'rectilinear', sparse_infill_density: '100%' };

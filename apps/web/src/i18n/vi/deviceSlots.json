@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "một filament phù hợp",
+    "noSlot": "Không có {{noun}} nào có {{material}}. Hãy nạp nó, hoặc đổi filament trong slicer và slice lại.",
+    "noSlotNozzle": "Không có {{noun}} nào có {{material}} với đầu phun {{nozzle}} mm. Hãy nạp nó, hoặc đổi filament trong slicer và slice lại.",
+    "noType": "{{slot}} chưa đặt loại filament. {{unset}}",
+    "otherMaterial": "{{slot}} có {{has}}, nhưng filament này được slice là {{material}}.",
+    "otherNozzle": "{{slot}} có đầu phun {{has}} mm, nhưng tệp được slice cho {{nozzle}} mm.",
+    "highFlow": "Tệp được slice cho đầu phun lưu lượng cao, nhưng {{slot}} có đầu phun tiêu chuẩn."
+  }
+}

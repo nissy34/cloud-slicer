@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "工作区",
+    "prepare": "准备",
+    "preview": "预览",
+    "device": "设备",
+    "calibration": "校准",
+    "slicingWith": "正在使用 {{name}} {{version}} 切片"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "clearance": {
+    "printsFirst": "가장 먼저 출력",
+    "printsAs": "{{n}}번째로 출력"
+  }
+}

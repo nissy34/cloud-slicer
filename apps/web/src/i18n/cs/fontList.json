@@ -1,0 +1,8 @@
+{
+  "fontList": {
+    "hebrew": "Hebrejština",
+    "pickScriptFont": "Vyberte písmo pro {{script}}, například {{fonts}}.",
+    "pickAnyFont": "Vyberte písmo, které je obsahuje: soubor písma nebo jedno z písem tohoto počítače.",
+    "noLetters": "Toto písmo nemá znaky pro {{letters}}, takže se vynechají."
+  }
+}

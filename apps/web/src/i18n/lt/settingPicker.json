@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "Parametrai, kuriuos galima pridėti prie šio objekto",
+    "forPart": "Parametrai, kuriuos galima pridėti prie šios dalies",
+    "forModifier": "Parametrai, kuriuos galima pridėti prie šio modifikatoriaus",
+    "search": "Ieškoti parametrų",
+    "done": "Atlikta",
+    "noMatch": "Joks parametras neatitinka „{{query}}“.",
+    "more": "Daugiau parametrų"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · Szeletelés · {{title}}",
+    "doneTitle": "A szeletelés kész",
+    "plateSliced": "A(z) {{plate}}. tálca szeletelve. Koppintson a megtekintéséhez.",
+    "tapToSee": "Koppintson a megtekintéséhez.",
+    "questionTitle": "A szeletelésnek szüksége van Önre",
+    "questionBody": "Kérdése van, mielőtt befejezhetné. Koppintson a válaszadáshoz.",
+    "failedTitle": "A szeletelés nem sikerült",
+    "tapToSeeWhy": "Koppintson, hogy lássa, miért."
+  }
+}

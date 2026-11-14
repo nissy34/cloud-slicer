@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "Voleu desar «{{name}}»?",
+    "saveText": "Encara no és als vostres projectes en línia. Si no el deseu, es perd.",
+    "save": "Desa",
+    "dontSave": "No desis",
+    "discardTitle": "Voleu descartar els canvis sense desar?",
+    "discard": "Descarta els canvis",
+    "openTitle": "Obre {{what}}",
+    "addToText": "Estàveu treballant a «{{project}}». Voleu afegir-ho allà o començar un projecte nou amb això?",
+    "newProject": "Projecte nou",
+    "addTo": "Afegeix a {{project}}"
+  }
+}

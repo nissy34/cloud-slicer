@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Sleep STL-, 3MF-, OBJ-, STEP- of SVG-bestanden hierheen",
+    "openModel": "Model openen",
+    "fromDrive": "Openen vanuit Google Drive",
+    "deletePlateTip": "Dit printbed en wat erop staat verwijderen",
+    "deletePlate": "Printbed verwijderen",
+    "clearAsk": "Het printbed leegmaken?",
+    "unsavedChanges": "“{{name}}” heeft wijzigingen die nog niet zijn bewaard.",
+    "clearAll": "Alles wissen",
+    "dropToAdd": "Loslaten om toe te voegen"
+  }
+}

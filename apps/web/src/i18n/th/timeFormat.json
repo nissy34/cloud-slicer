@@ -1,0 +1,10 @@
+{
+  "timeFormat": {
+    "clockH": "{{n}} ชม.",
+    "clockM": "{{n}} นาที",
+    "clockS": "{{n}} วิ",
+    "minutes": "{{m}} นาที",
+    "hours": "{{h}} ชม.",
+    "hoursMinutes": "{{h}} ชม. {{m}} นาที"
+  }
+}

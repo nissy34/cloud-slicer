@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Verplaatsen",
+    "rotate": "Draaien",
+    "scale": "Schalen",
+    "rotateText": "Tekst draaien",
+    "moveSvgSurface": "SVG over het oppervlak verplaatsen",
+    "moveTextSurface": "Tekst over het oppervlak verplaatsen",
+    "movePart": "Onderdeel verplaatsen",
+    "rotatePart": "Onderdeel draaien",
+    "scalePart": "Onderdeel schalen",
+    "plates": "Printbedden",
+    "ownSettingsTip": "Dit printbed heeft eigen instellingen",
+    "ownSettings": "heeft eigen instellingen",
+    "plateSettings": "Printbedinstellingen",
+    "plateNSettings": "Instellingen van printbed {{n}}"
+  }
+}

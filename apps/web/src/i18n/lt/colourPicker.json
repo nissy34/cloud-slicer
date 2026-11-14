@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "Balta",
+    "yellow": "Geltona",
+    "lime": "Salotinė",
+    "green": "Žalia",
+    "darkGreen": "Tamsiai žalia",
+    "teal": "Žalsvai mėlyna",
+    "mint": "Mėtinė",
+    "skyBlue": "Dangaus mėlyna",
+    "lightBlue": "Šviesiai mėlyna",
+    "blue": "Mėlyna",
+    "indigo": "Indigo",
+    "purple": "Violetinė",
+    "magenta": "Purpurinė",
+    "lavender": "Levandų",
+    "pink": "Rožinė",
+    "red": "Raudona",
+    "brown": "Ruda",
+    "orange": "Oranžinė",
+    "cream": "Kreminė",
+    "beige": "Smėlio",
+    "tan": "Įdegio",
+    "grey": "Pilka",
+    "lightGrey": "Šviesiai pilka",
+    "black": "Juoda",
+    "colours": "Spalvos",
+    "recent": "Naujausios",
+    "recentColours": "Naujausios spalvos",
+    "hex": "Hex kodas",
+    "custom": "Pasirinktinė"
+  }
+}

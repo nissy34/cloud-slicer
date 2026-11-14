@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Mes imprimantes",
+    "otherPrinters": "Autres",
+    "printer": "Imprimante",
+    "manage": "Gérer",
+    "printerPreset": "Préréglage d’imprimante",
+    "addRemovePrinters": "Ajouter ou retirer des imprimantes…",
+    "sendsFromDevice": "Envoyez-lui des impressions depuis l’onglet Appareil.",
+    "noDirectPrint": "Pas d’impression directe pour cette imprimante (ni Klipper, ni Prusa, ni Centauri Carbon) : téléchargez le G-code pour l’imprimer, ou envoyez-le depuis l’onglet Appareil si OctoPrint pilote l’imprimante.",
+    "plateType": "Type de plaque",
+    "filament": "Filament",
+    "addFilament": "Ajouter un filament",
+    "add": "+ Ajouter",
+    "filamentColour": "Couleur du filament",
+    "filamentNColour": "Couleur du filament {{n}}",
+    "filamentNPreset": "Préréglage du filament {{n}}",
+    "addRemoveFilaments": "Ajouter ou retirer des filaments…",
+    "removeFilament": "Retirer ce filament",
+    "removeFilamentN": "Retirer le filament {{n}}",
+    "process": "Traitement",
+    "processPreset": "Préréglage de traitement",
+    "readingFilaments": "Lecture des filaments de l’imprimante…",
+    "myPresets": "Mes préréglages",
+    "systemPresets": "Préréglages système",
+    "show": "Afficher la barre latérale (Shift+Tab)",
+    "hide": "Masquer la barre latérale (Shift+Tab)",
+    "width": "Largeur de la barre latérale"
+  }
+}

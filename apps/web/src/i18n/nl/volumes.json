@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "Onderdeel toevoegen",
+    "addNegative": "Negatief onderdeel toevoegen",
+    "addModifier": "Aanpasser toevoegen",
+    "addBlocker": "Ondersteuningsblokkade toevoegen",
+    "addEnforcer": "Ondersteuningsafdwinger toevoegen",
+    "part": "Onderdeel",
+    "negative": "Negatief onderdeel",
+    "modifier": "Aanpasser",
+    "enforcer": "Ondersteuningsafdwinger",
+    "blocker": "Ondersteuningsblokkade",
+    "other": "Overig"
+  }
+}

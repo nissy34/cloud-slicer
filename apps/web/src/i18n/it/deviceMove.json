@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Disattivato durante la stampa",
+    "disabledPaused": "Disattivato in pausa",
+    "position": "Posizione",
+    "speed": "Velocità",
+    "flow": "Flusso",
+    "head": "Testina",
+    "moveHead": "Muovi la testina",
+    "headBack": "Testina indietro",
+    "headLeft": "Testina a sinistra",
+    "homeHead": "Porta la testina all'origine",
+    "headRight": "Testina a destra",
+    "headToward": "Testina verso di te",
+    "bed": "Piatto",
+    "headHeight": "Altezza testina",
+    "moveBed": "Muovi il piatto",
+    "moveHeadZ": "Muovi la testina su e giù",
+    "bedUp": "Piatto su",
+    "headUp": "Testina su",
+    "homeBed": "Porta il piatto all'origine",
+    "homeHeight": "Porta l'altezza all'origine",
+    "bedDown": "Piatto giù",
+    "headDown": "Testina giù",
+    "step": "Passo",
+    "homeAll": "Origine tutti gli assi",
+    "motorsOff": "Motori spenti",
+    "heatFirst": "Scalda prima l'ugello",
+    "extrude10": "Estrudi 10 mm",
+    "retract": "Ritrai",
+    "homeFirst": "Porta la stampante all'origine prima di muoverla."
+  }
+}

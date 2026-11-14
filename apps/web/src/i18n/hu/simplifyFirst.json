@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "Előbb egyszerűsíti ezt a modellt?",
+    "openAsIs": "Megnyitás így",
+    "simplify": "Egyszerűsítés",
+    "paintKept": "A festése megmarad az egyszerűsített hálón.",
+    "dontAsk": "Ne kérdezze újra ezen az eszközön"
+  }
+}

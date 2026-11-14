@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · 切片中 · {{title}}",
+    "doneTitle": "切片完成",
+    "plateSliced": "第 {{plate}} 盘已切片。点按查看。",
+    "tapToSee": "点按查看。",
+    "questionTitle": "切片需要你处理",
+    "questionBody": "完成前有一个问题。点按回答。",
+    "failedTitle": "切片失败",
+    "tapToSeeWhy": "点按查看原因。"
+  }
+}

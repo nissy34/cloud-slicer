@@ -1,0 +1,6 @@
+{
+  "clearance": {
+    "printsFirst": "S’imprime en premier",
+    "printsAs": "S’imprime en numéro {{n}}"
+  }
+}

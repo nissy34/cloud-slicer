@@ -1,0 +1,22 @@
+{
+  "deviceFiles": {
+    "print": "Yazdır…",
+    "deleteName": "{{name}} dosyasını sil",
+    "delete": "Sil",
+    "title": "Yazıcıdaki dosyalar",
+    "upload": "G-code yükle…",
+    "timelapses": "Timelapse'ler",
+    "none": "Henüz G-code dosyası yok.",
+    "searchN_one": "{{count}} dosyada ara",
+    "searchN_other": "{{count}} dosyada ara",
+    "search": "Dosyalarda ara",
+    "noMatch": "“{{query}}” ile eşleşen dosya yok.",
+    "deleteFile": "Dosyayı sil",
+    "deleteText": "{{name}} yazıcıdan silinsin mi?",
+    "deleted": "Silindi",
+    "pages": "Dosya sayfaları",
+    "newer": "Daha yeni",
+    "older": "Daha eski",
+    "range": "{{from}}–{{to}} / {{total}}"
+  }
+}

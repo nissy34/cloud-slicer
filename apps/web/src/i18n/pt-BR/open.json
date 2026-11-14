@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Solte aqui arquivos STL, 3MF, OBJ, STEP ou SVG",
+    "openModel": "Abrir modelo",
+    "fromDrive": "Abrir do Google Drive",
+    "deletePlateTip": "Excluir esta placa e o que há nela",
+    "deletePlate": "Excluir placa",
+    "clearAsk": "Limpar a placa?",
+    "unsavedChanges": "“{{name}}” tem alterações que ainda não foram salvas.",
+    "clearAll": "Limpar tudo",
+    "dropToAdd": "Solte para adicionar"
+  }
+}

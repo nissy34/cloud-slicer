@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "din {{device}}",
+    "another": "en annan enhet",
+    "iPad": "iPad",
+    "phone": "telefon",
+    "tablet": "surfplatta",
+    "windows": "Windows-dator",
+    "mac": "Mac",
+    "chromebook": "Chromebook",
+    "linux": "Linux-dator",
+    "other": "annan enhet"
+  }
+}

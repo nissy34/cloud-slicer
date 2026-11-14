@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "间距",
+    "spacingMm": "间距（毫米）",
+    "autoNote": "0 表示自动间距。",
+    "rotate": "摆放时自动旋转",
+    "multiMaterial": "允许同一盘使用多种材料",
+    "alignYOff": "关闭“自动旋转”后才能使用",
+    "alignYTip": "旋转每个对象，使其长边沿前后方向",
+    "alignY": "对齐到 Y 轴",
+    "arrange": "自动摆放",
+    "reset": "重置"
+  }
+}

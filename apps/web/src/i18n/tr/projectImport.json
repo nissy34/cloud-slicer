@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "başka bir yazıcı",
+    "slicedFile": "{{name}} dilimlenmiş bir dosya: başka bir yazıcı için G-code içeriyor ama model içermiyor. Bunun yerine özgün projeyi (.3mf) açın.",
+    "noObjects": "{{name}} dosyasında basılacak nesne yok."
+  }
+}

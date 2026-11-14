@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Text drehen",
+    "rotateSvg": "SVG drehen",
+    "moveText": "Text von der Oberfläche abheben",
+    "moveSvg": "SVG von der Oberfläche abheben",
+    "rotationTip": "Um die eigene Achse im Uhrzeigersinn drehen (der Ring in der 3D-Ansicht tut dasselbe)",
+    "rotation": "Drehung",
+    "fromSurfaceTip": "Wie weit es von der Oberfläche absteht",
+    "fromSurface": "Abstand zur Oberfläche",
+    "keepUpTip": "Hält es aufrecht, während Sie es über die Oberfläche schieben oder zur Kamera ausrichten",
+    "keepUp": "Aufrecht halten",
+    "faceCameraTip": "Dreht es zu Ihnen, dorthin, von wo Sie es ansehen",
+    "faceCamera": "Zur Kamera ausrichten",
+    "moveToolsText": "Verschieben oder drehen Sie den Text mit diesen Werkzeugen.",
+    "moveToolsShape": "Verschieben oder drehen Sie die Form mit diesen Werkzeugen.",
+    "dragText": "Ziehen Sie den Text oder seinen blauen Rahmen, um ihn über das Objekt zu schieben. Der Ring dreht ihn.",
+    "dragShape": "Ziehen Sie die Form oder ihren blauen Rahmen, um sie über das Objekt zu schieben. Der Ring dreht sie."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Otras aplicaciones de chat",
+    "title": "Usar con una aplicación de IA",
+    "more": "Más información",
+    "intro": "Pida a su aplicación de IA que lamine por usted: “Lamina este Benchy para mi U1 en PETG con 4 perímetros y dime el tiempo.” Instálelo en Claude Desktop como extensión, o en otras aplicaciones de chat de su equipo como LM Studio y Msty. Lamina en su equipo con los mismos motores y perfiles que este sitio, y sus modelos se quedan allí.",
+    "whichApp": "Qué aplicación",
+    "step1": "Descargue la extensión de Cloud Slicer.",
+    "download": "Descargar para Claude Desktop",
+    "size": "unos 11 MB. ¿Ya lo tiene instalado? Vuelva a descargarlo para actualizar.",
+    "step2": "Abra el archivo. Claude Desktop le pide instalarlo: haga clic en <b>Instalar</b>.",
+    "step3": "Pida a Claude que lamine un archivo de su equipo.",
+    "otherStep1": "En los ajustes de su aplicación de chat, añada un servidor MCP con esto (la mayoría de las aplicaciones lo aceptan tal cual):",
+    "otherStep2": "Necesita Node 20 o posterior en su equipo (<a>nodejs.org</a>).",
+    "canDo": "Puede abrir modelos y proyectos, elegir la impresora, el proceso y los filamentos, definir colores y qué filamento imprime cada objeto, cambiar ajustes, organizar placas y laminar. Mientras su equipo esté encendido, Claude en su teléfono también puede usarlo. Con la sesión iniciada, también usa sus perfiles e impresoras, y le pregunta antes de iniciar una impresión.",
+    "version": "Versión {{version}}"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Punkt",
+    "edge": "Krawędź",
+    "circle": "Okrąg",
+    "plane": "Płaszczyzna",
+    "position": "Położenie",
+    "length": "Długość",
+    "from": "Od",
+    "to": "Do",
+    "diameter": "Średnica",
+    "radius": "Promień",
+    "centre": "Środek",
+    "normal": "Normalna",
+    "angle": "Kąt",
+    "distance": "Odległość",
+    "perpendicular": "Odległość prostopadła",
+    "along": "Wzdłuż {{axis}}"
+  }
+}

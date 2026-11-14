@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "Pirmiausia supaprastinti šį modelį?",
+    "openAsIs": "Atidaryti taip, kaip yra",
+    "simplify": "Supaprastinti",
+    "paintKept": "Jo dažymas bus išlaikytas supaprastintame tinkle.",
+    "dontAsk": "Daugiau neklausti šiame įrenginyje"
+  }
+}

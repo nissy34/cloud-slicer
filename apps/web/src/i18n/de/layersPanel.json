@@ -1,0 +1,32 @@
+{
+  "layersPanel": {
+    "addDetail": "Details hinzufügen",
+    "addDetailTip": "Dünnere Schichten (Desktop: linke Maustaste)",
+    "removeDetail": "Details entfernen",
+    "removeDetailTip": "Dickere Schichten (Desktop: rechte Maustaste)",
+    "backToBase": "Zurück zur Basis",
+    "backToBaseTip": "Zurück zur einfachen Schichthöhe (Desktop: Shift + linke Taste)",
+    "smooth": "Glätten",
+    "smoothTip": "Stufen ausgleichen (Desktop: Shift + rechte Taste)",
+    "profile": "Schichthöhenprofil",
+    "title": "Variable Schichthöhe",
+    "done": "Fertig",
+    "intro": "Dünne Schichten, wo die Form Details braucht, dicke, wo nicht. „Adaptiv“ berechnet das aus den Neigungen; oder halten Sie im Diagramm gedrückt, um Details rund um diese Höhe hinzuzufügen oder zu entfernen.",
+    "heights": "Schichthöhen",
+    "variable": "Variabel",
+    "plain": "Einfach",
+    "layers_one": "{{count}} Schicht",
+    "layers_other": "{{count}} Schichten",
+    "chartEdits": "Diagrammbearbeitung",
+    "band": "Bereich bearbeiten",
+    "adaptive": "Adaptiv",
+    "quality": "Qualität",
+    "qualityOrSpeed": "Qualität oder Geschwindigkeit",
+    "speed": "Geschwindigkeit",
+    "radius": "Radius",
+    "smoothRadius": "Glättungsradius",
+    "keepMin": "Dünnste Schichten beibehalten",
+    "reset": "Zurücksetzen",
+    "reading": "Schichten werden gelesen…"
+  }
+}

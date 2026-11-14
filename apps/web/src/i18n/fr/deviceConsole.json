@@ -1,0 +1,27 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Températures",
+    "filterTimelapse": "Timelapse",
+    "filterTimelapseExample": "messages d’images de timelapse",
+    "filterProgress": "Progression de l’impression",
+    "filterOk": "« ok » seul",
+    "done": "Terminé",
+    "filtersN": "Filtres ({{n}})",
+    "filters": "Filtres",
+    "hideThese": "Masquer ces lignes",
+    "hideLike": "Masquer les lignes comme : {{example}}",
+    "hideContaining": "Masquer les lignes contenant « {{text}} »",
+    "removeFilter": "Retirer le filtre « {{text}} »",
+    "remove": "Retirer",
+    "hideContainingPlaceholder": "Masquer les lignes contenant…",
+    "hideContainingLabel": "Masquer les lignes contenant",
+    "add": "Ajouter",
+    "filtersHelp": "Touchez une pastille pour l’activer ou la désactiver. Ce que vous envoyez et les erreurs s’affichent toujours.",
+    "linesHidden_one": "1 ligne masquée par les filtres",
+    "linesHidden_many": "{{count}} lignes masquées par les filtres",
+    "linesHidden_other": "{{count}} lignes masquées par les filtres",
+    "sendPlaceholder": "Envoyer du G-code, p. ex. M115",
+    "commandLabel": "Commande G-code",
+    "send": "Envoyer"
+  }
+}

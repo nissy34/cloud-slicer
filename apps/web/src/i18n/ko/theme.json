@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "테마",
+    "current": "테마: {{choice}}",
+    "system": "시스템",
+    "systemHint": "이 기기에 맞춤",
+    "light": "밝게",
+    "dark": "어둡게"
+  }
+}

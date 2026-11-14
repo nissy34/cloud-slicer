@@ -1,0 +1,8 @@
+{
+  "presetEngines": {
+    "split_one": "Ezarpen {{count}} ez da berdina jada bi motoretan; “{{name}}” aurrezarpenak bere balioak mantentzen ditu bakoitzean.",
+    "split_other": "{{count}} ezarpen ez dira berdinak jada bi motoretan; “{{name}}” aurrezarpenak bere balioak mantentzen ditu bakoitzean.",
+    "separate_one": "“{{name}}” aurrezarpeneko ezarpen {{count}} berdina izan daiteke orain bi motoretan, baina desberdina da; bere menuko “Erabili balio berak bi motoretan” aukerak berdindu egiten ditu.",
+    "separate_other": "“{{name}}” aurrezarpeneko {{count}} ezarpen berdinak izan daitezke orain bi motoretan, baina desberdinak dira; bere menuko “Erabili balio berak bi motoretan” aukerak berdindu egiten ditu."
+  }
+}

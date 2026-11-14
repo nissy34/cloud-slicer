@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { objectSettingGroups, objectSettingLabel } from '../lib/object-settings';
+import { settingText } from '../i18n';
 import { useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
@@ -59,12 +60,12 @@ export function ObjectSettings({ object, volume = -1 }: { object: number; volume
       )}
       {[...shown].map(([group, groupKeys]) => (
         <div key={group} className="object-settings-group">
-          <span className="object-settings-cat">{group === 'Others' ? t('objectSettings.others') : group}</span>
+          <span className="object-settings-cat">{group === 'Others' ? t('objectSettings.others') : settingText(group)}</span>
           {groupKeys.map((k) => (
             <OptionField
               key={k}
               optKey={k}
-              label={objectSettingLabel(k)}
+              label={settingText(objectSettingLabel(k) ?? '') || undefined}
               value={settings[k]}
               resetLabel={t(kind === 'object' ? 'objectSettings.removeFromObject' : kind === 'modifier' ? 'objectSettings.removeFromModifier' : 'objectSettings.removeFromPart')}
               disabled={states.disabled.has(k) || states.hidden.has(k)}

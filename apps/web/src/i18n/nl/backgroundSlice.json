@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · Slicen · {{title}}",
+    "doneTitle": "Slicen klaar",
+    "plateSliced": "Printbed {{plate}} is geslicet. Tik om het te bekijken.",
+    "tapToSee": "Tik om het te bekijken.",
+    "questionTitle": "Slicen heeft u nodig",
+    "questionBody": "Er is een vraag voordat het kan afronden. Tik om te antwoorden.",
+    "failedTitle": "Slicen mislukt",
+    "tapToSeeWhy": "Tik om te zien waarom."
+  }
+}

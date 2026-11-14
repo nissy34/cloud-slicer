@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} {{size}} boyutunda; bir ön ayar dosyası en fazla {{max}} olabilir.",
+    "notJson": "{{label}} bir ön ayar dosyası değil (JSON değil).",
+    "tooMany": "Aynı anda yalnızca {{max}} ön ayar içe aktarılabilir; {{label}} dışarıda bırakıldı.",
+    "bundleTooBig": "{{name}} {{size}} boyutunda; bir paket en fazla {{max}} olabilir.",
+    "badZip": "{{name}} zip olarak açılamadı.",
+    "unpacksTooBig": "{{name}} açıldığında {{max}} değerinden büyük oluyor veya {{fileMax}} değerini aşan bir dosya içeriyor; ondan hiçbir şey içe aktarılmadı.",
+    "empty": "{{name}} içinde ön ayar dosyası yok.",
+    "tooManyKeys": "{{max}} ayardan fazlasını değiştiriyor.",
+    "tooLarge": "Ayarları {{max}} değerini aşıyor.",
+    "fileN": "dosya {{n}}",
+    "unreadable": "Orca'nın okuyabileceği bir ön ayar değil: {{error}}.",
+    "noName": "Kullanılabilir bir adı yok.",
+    "anotherPrinter": "başka bir yazıcı",
+    "otherPrinter": "{{made}} içindir, ki bu uygulamada yok. Yazıcı ayarları makineye özeldir, bu yüzden başka bir yazıcıya taşınamaz.",
+    "noPrinterBase": "Bu uygulamadaki bir yazıcıya dayanmıyor.",
+    "noFilamentBase": "Üzerine konacak bir filament ön ayarı yok.",
+    "noProcessBase": "Üzerine konacak bir işlem ön ayarı yok."
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Nyomtatóim",
+    "otherPrinters": "Egyéb",
+    "printer": "Nyomtató",
+    "manage": "Kezelés",
+    "printerPreset": "Nyomtató-előbeállítás",
+    "addRemovePrinters": "Nyomtatók hozzáadása vagy eltávolítása…",
+    "sendsFromDevice": "Nyomtatások küldése rá az Eszköz fülről.",
+    "noDirectPrint": "Ennél a nyomtatónál nincs közvetlen nyomtatás (nem Klipper, Prusa vagy Centauri Carbon): töltse le a G-code-ot a nyomtatáshoz, vagy küldje el az Eszköz fülről, ha a nyomtatót az OctoPrint vezérli.",
+    "plateType": "Tálcatípus",
+    "filament": "Filament",
+    "addFilament": "Filament hozzáadása",
+    "add": "+ Hozzáadás",
+    "filamentColour": "Filament színe",
+    "filamentNColour": "{{n}}. filament színe",
+    "filamentNPreset": "{{n}}. filament előbeállítása",
+    "addRemoveFilaments": "Filamentek hozzáadása vagy eltávolítása…",
+    "removeFilament": "Filament eltávolítása",
+    "removeFilamentN": "{{n}}. filament eltávolítása",
+    "process": "Folyamat",
+    "processPreset": "Folyamat-előbeállítás",
+    "readingFilaments": "A nyomtató filamentjeinek beolvasása…",
+    "myPresets": "Előbeállításaim",
+    "systemPresets": "Rendszer-előbeállítások",
+    "show": "Oldalsáv megjelenítése (Shift+Tab)",
+    "hide": "Oldalsáv elrejtése (Shift+Tab)",
+    "width": "Oldalsáv szélessége"
+  }
+}

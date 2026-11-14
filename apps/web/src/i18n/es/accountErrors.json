@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "No respondió a tiempo",
+    "noAccounts": "Las cuentas no están disponibles en este servidor",
+    "siteNoAnswer": "Cloud Slicer no respondió. Compruebe su conexión e inténtelo de nuevo.",
+    "driveReconnect": "Hay que volver a conectar Google Drive. Abra el menú de la cuenta (arriba a la derecha) y pulse Conectar Google Drive.",
+    "driveNoAnswer": "Google Drive no respondió. Compruebe su conexión y vuelva a guardar.",
+    "driveFull": "Su Google Drive está lleno. Libere espacio en Drive y vuelva a guardar.",
+    "driveGone": "Este proyecto ya no está en su Google Drive",
+    "driveNoUpload": "Google Drive no inició la subida",
+    "pickerBlocked": "Su navegador bloqueó la ventana de Google Drive. Permita las ventanas emergentes de este sitio e inténtelo de nuevo.",
+    "driveSignIn": "Inicie sesión con Google para abrir archivos de su Google Drive.",
+    "driveConnectFirst": "Primero conecte Google Drive en el menú de la cuenta.",
+    "pickerNotSetUp": "Abrir desde Google Drive aún no está configurado en este sitio."
+  }
+}

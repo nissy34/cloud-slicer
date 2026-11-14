@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Šio kodo galiojimas baigėsi. Paprašykite savo DI programos prisijungti iš naujo, kad gautumėte naują.",
+    "invalid": "Šis kodas netinkamas. Palyginkite jį su tuo, kurį rodo jūsų DI programa, arba paprašykite jos prisijungti iš naujo.",
+    "siteAnswered": "Svetainė atsakė {{status}}",
+    "checkingAccount": "Tikrinama jūsų paskyra…",
+    "signInFirst": "Pirmiausia prisijunkite prie Cloud Slicer. Tada šis langas paprašys prijungti jūsų DI programą.",
+    "noSignIn": "Prisijungimas šioje svetainėje nesukonfigūruotas.",
+    "codeLabel": "Kodas, kurį rodo jūsų DI programa",
+    "checkingCode": "Tikrinamas kodas…",
+    "connected": "Prijungta. Grįžkite į savo DI programą: joje prisijungta kaip {{name}}.",
+    "turnedDown": "Atmesta. Jūsų DI programa neprisijungusi.",
+    "asks": "DI programa jūsų kompiuteryje (Cloud Slicer priedas) prašo naudoti jūsų paskyrą <b>{{email}}</b>. Patikrinkite, ar ji rodo šį kodą:",
+    "willSee": "Ji matys jūsų išsaugotus profilius ir spausdintuvus, gali tikrinti jūsų spausdintuvus ir įkelti į juos. Prieš pradėdama spausdinti, kiekvieną kartą paklausia jūsų. Ją galite atjungti DI programoje.",
+    "continueGoogle": "Tęsti su Google",
+    "dontConnect": "Neprijungti",
+    "connect": "Prijungti",
+    "title": "Prijungti DI programą"
+  }
+}

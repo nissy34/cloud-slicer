@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · Bereder · {{title}}",
+    "doneTitle": "Beredningen är klar",
+    "plateSliced": "Platta {{plate}} är beredd. Tryck för att se den.",
+    "tapToSee": "Tryck för att se den.",
+    "questionTitle": "Beredningen behöver dig",
+    "questionBody": "Den har en fråga innan den kan bli klar. Tryck för att svara.",
+    "failedTitle": "Beredningen misslyckades",
+    "tapToSeeWhy": "Tryck för att se varför."
+  }
+}

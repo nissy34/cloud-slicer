@@ -1,0 +1,32 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} de {{total}}",
+    "engineNoStart": "{{engine}} no pudo iniciarse",
+    "openedWith": "Abierto con {{engine}}, el motor con el que se hizo este proyecto.",
+    "somethingWrong": "Algo ha salido mal",
+    "files_one": "{{count}} archivo",
+    "files_many": "{{count}} archivos",
+    "files_other": "{{count}} archivos",
+    "saving": "Guardando…",
+    "savingAfterSlice": "Guardando… tras el laminado",
+    "savingMaking": "Guardando… creando el 3MF",
+    "savingSent": "Guardando… {{progress}}",
+    "savingFinishing": "Guardando… terminando",
+    "saved": "“{{name}}” guardado en sus proyectos",
+    "notSaved": "No guardado: {{error}}",
+    "preparing": "Preparando el 3MF…",
+    "makeFailed": "No se pudo crear el 3MF: {{error}}",
+    "opening": "Abriendo “{{name}}”…",
+    "openFailed": "No se pudo abrir “{{name}}”: {{error}}",
+    "saveCancelled": "Guardado cancelado",
+    "viewOnly": "Este proyecto es de solo lectura aquí. Use “Editar aquí en su lugar” para cambiarlo.",
+    "openDriveFailed": "No se pudo abrir “{{name}}” desde Google Drive: {{error}}",
+    "quoted": "“{{name}}”",
+    "cantOpen": "Cloud Slicer no puede abrir {{names}}.",
+    "cantOpenShared": "Cloud Slicer no puede abrir {{names}}",
+    "openedDriveFile": "“{{name}}” abierto desde su Google Drive. Guardar conserva una copia en su carpeta de Cloud Slicer. El archivo de Drive no cambia.",
+    "openedDriveFiles": "{{name}} abiertos desde su Google Drive. Guardar conserva una copia en su carpeta de Cloud Slicer. Los archivos de Drive no cambian.",
+    "myProject": "Mi proyecto",
+    "removed": "“{{name}}” quitado de sus proyectos"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "将 STL、3MF、OBJ、STEP 或 SVG 文件拖放到这里",
+    "openModel": "打开模型",
+    "fromDrive": "从 Google Drive 打开",
+    "deletePlateTip": "删除此盘及其上的内容",
+    "deletePlate": "删除盘",
+    "clearAsk": "清空此盘？",
+    "unsavedChanges": "“{{name}}”有尚未保存的更改。",
+    "clearAll": "全部清空",
+    "dropToAdd": "拖放以添加"
+  }
+}

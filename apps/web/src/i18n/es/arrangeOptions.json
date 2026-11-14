@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Separación",
+    "spacingMm": "Separación en mm",
+    "autoNote": "0 significa separación automática.",
+    "rotate": "Rotación automática al organizar",
+    "multiMaterial": "Permitir varios materiales en la misma placa",
+    "alignYOff": "Desactive la rotación automática para usar esto",
+    "alignYTip": "Gira cada objeto para que su lado largo vaya de delante hacia atrás",
+    "alignY": "Alinear con el eje Y",
+    "arrange": "Organizar",
+    "reset": "Restablecer"
+  }
+}

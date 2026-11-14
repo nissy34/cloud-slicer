@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Espacement",
+    "spacingMm": "Espacement en mm",
+    "autoNote": "0 signifie espacement automatique.",
+    "rotate": "Rotation automatique pour l’organisation",
+    "multiMaterial": "Autoriser plusieurs matériaux sur la même plaque",
+    "alignYOff": "Désactivez la rotation automatique pour l’utiliser",
+    "alignYTip": "Tourne chaque objet pour que son grand côté soit orienté de l’avant vers l’arrière",
+    "alignY": "Aligner sur l’axe Y",
+    "arrange": "Organiser",
+    "reset": "Réinitialiser"
+  }
+}

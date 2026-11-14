@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Das Kartenlayout konnte nicht gespeichert werden. Es bleibt bestehen, bis Sie die Seite neu laden.",
+    "pageCard": "Seitenkarte {{n}}",
+    "cameraCard": "Kamerakarte {{n}}",
+    "arrangingFor": "Karten für {{name}} anordnen.",
+    "helpPhone": "Halten Sie eine Karte am Griff und ziehen Sie sie nach oben oder unten.",
+    "helpDesktop": "Ziehen Sie eine Karte am Griff in eine Spalte oder über den oberen oder unteren Rand.",
+    "helpRest": "Ausgeblendete Karten bleiben hier, abgeblendet. Andere Drucker behalten ihr eigenes Layout.",
+    "columns": "Spalten",
+    "addCameraCard": "Kamerakarte hinzufügen",
+    "addPageCard": "Seitenkarte hinzufügen",
+    "backToDefault": "Zurück zum Standard",
+    "acrossTop": "Über die ganze Breite oben",
+    "column": "Spalte {{n}}",
+    "acrossBottom": "Über die ganze Breite unten",
+    "small": "Klein",
+    "medium": "Mittel",
+    "large": "Groß",
+    "moveCard": "{{name}} verschieben",
+    "halfWidthTip": "Halbe Breite: Zwei halbe Karten stehen nebeneinander",
+    "halfWidth": "Halbe Breite",
+    "cameraSize": "Kameragröße",
+    "remove": "Entfernen"
+  }
+}

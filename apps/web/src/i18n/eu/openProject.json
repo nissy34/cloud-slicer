@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Fitxategi hau",
+    "title": "Proiektu gisa ireki?",
+    "geometryOnly": "Inportatu geometria soilik",
+    "open": "Ireki proiektua",
+    "body": "<b>{{name}}</b> bere plaka eta ezarpenak dituen proiektu bat da. Irekitzean, zure plaketan dagoena ordezkatzen da. Geometria inportatzean, bere objektuak zure plakara gehitzen dira eta zure ezarpenak mantentzen dira."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "SVG alakzat",
+    "done": "Kész",
+    "pickHint": "Válasszon egy SVG alakzatot az objektumlistában vagy a 3D nézetben a módosításához, vagy adjon hozzá egyet egy .svg fájlból: a kijelölt objektumra, vagy önálló objektumként, ha nincs semmi kijelölve. Egy .svg fájl megnyitása vagy ide húzása is hozzáad egyet.",
+    "addSvg": "SVG hozzáadása…",
+    "depth": "Mélység",
+    "depthCutTip": "Milyen mélyen vág bele az alakzat",
+    "depthTip": "Milyen messze áll ki az alakzat",
+    "width": "Szélesség",
+    "widthTip": "Az alakzat szélessége",
+    "height": "Magasság",
+    "heightTip": "Az alakzat magassága",
+    "keepProportions": "Arányok megtartása",
+    "useSurfaceTip": "Az alakzat követi az objektum felületének ívét, ahelyett hogy laposan állna rajta",
+    "useSurface": "Felület használata",
+    "svgType": "SVG típusa",
+    "changeType": "Típus módosítása",
+    "engraved": "Vésett",
+    "making": "Az alakzat készítése…",
+    "undoHint": "A Visszavonás visszahozza az utolsó alakzatot."
+  }
+}

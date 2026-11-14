@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Impossibile salvare la disposizione delle schede. Viene mantenuta finché non ricarichi la pagina.",
+    "pageCard": "Scheda pagina {{n}}",
+    "cameraCard": "Scheda telecamera {{n}}",
+    "arrangingFor": "Disposizione delle schede per {{name}}.",
+    "helpPhone": "Tieni premuta una scheda dalla maniglia e trascinala su o giù.",
+    "helpDesktop": "Trascina una scheda dalla maniglia in una colonna, o in alto o in basso su tutta la larghezza.",
+    "helpRest": "Le schede nascoste restano qui, sbiadite. Le altre stampanti mantengono la propria disposizione.",
+    "columns": "Colonne",
+    "addCameraCard": "Aggiungi una scheda telecamera",
+    "addPageCard": "Aggiungi una scheda pagina",
+    "backToDefault": "Ripristina predefinito",
+    "acrossTop": "In alto, a tutta larghezza",
+    "column": "Colonna {{n}}",
+    "acrossBottom": "In basso, a tutta larghezza",
+    "small": "Piccola",
+    "medium": "Media",
+    "large": "Grande",
+    "moveCard": "Sposta {{name}}",
+    "halfWidthTip": "Mezza larghezza: due mezze schede stanno affiancate",
+    "halfWidth": "Mezza larghezza",
+    "cameraSize": "Dimensione telecamera",
+    "remove": "Rimuovi"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "关闭窗口",
+    "moreAboutThis": "了解更多",
+    "plannedForPhase": "计划在第 {{phase}} 阶段推出。",
+    "saving": "正在保存",
+    "loadedOf": "{{loaded}} / {{total}}"
+  }
+}

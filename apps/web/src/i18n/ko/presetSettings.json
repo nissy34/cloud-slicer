@@ -1,0 +1,32 @@
+{
+  "presetSettings": {
+    "editPrinter": "프린터 설정 편집",
+    "editFilament": "필라멘트 {{n}} 설정 편집",
+    "savedInProject": "{{name}} 프로젝트에 저장되었습니다.",
+    "savedIn3mf": "다운로드한 프로젝트 3MF에 저장되었습니다.",
+    "nameTaken": "같은 이름의 사전 설정이 이미 있습니다.",
+    "savedAs": "{{name}}(으)로 저장되었습니다.",
+    "whereAccount": "내 계정에 저장되었습니다.",
+    "whereBrowser": "로그인할 때까지 이 브라우저에 저장됩니다.",
+    "printerTitle": "프린터 설정",
+    "filamentNTitle": "필라멘트 {{n}} 설정",
+    "filamentTitle": "필라멘트 설정",
+    "newPrinterName": "새 프린터 사전 설정 이름",
+    "newFilamentName": "새 필라멘트 사전 설정 이름",
+    "back": "뒤로",
+    "saving": "저장 중…",
+    "save": "저장",
+    "unsaved_other": "저장하지 않은 변경 {{count}}개",
+    "noChanges": "변경 사항 없음",
+    "discard": "변경 사항 버리기",
+    "saveAsNew": "새 사전 설정으로 저장…",
+    "savedName": "{{name}}을(를) 저장했습니다.",
+    "saveToPreset": "사전 설정에 저장",
+    "saveToProjectTip": "이 변경 사항을 이 프로젝트에만 유지하고 프로젝트를 저장합니다",
+    "saveToProject": "프로젝트에 저장",
+    "modified": "(수정됨)",
+    "yours": "{{parent}}를 기반으로 한 내 사전 설정입니다.",
+    "system": "시스템 사전 설정입니다. 변경 사항을 유지하려면 다른 이름으로 저장을 사용하세요.",
+    "footHint": "프로젝트에 저장하면 변경 사항이 이 프로젝트에만 유지되며, 프로젝트를 열면 다시 나타납니다. 사전 설정에 저장하면 모든 프로젝트에서 유지됩니다. {{where}} 내보내기, 가져오기, 이름 바꾸기, 삭제는 ⋯ 메뉴에 있습니다."
+  }
+}

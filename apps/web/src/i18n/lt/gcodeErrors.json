@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "„{{variable}}“ nėra parametras, kurį šis sluoksniuoklis žino (jis gali būti iš kito sluoksniuoklio arba naujesnės versijos).",
+    "unknownName": "jame naudojamas pavadinimas, kurio šis sluoksniuoklis nežino.",
+    "negativeIndex": "„{{variable}}“ skaitomas prieš įkeliant pirmą giją (ten jo indeksas yra -1); pirmiausia patikrinkite tą indeksą su {if ...}.",
+    "negativeIndexList": "sąrašas skaitomas prieš įkeliant pirmą giją (ten jo indeksas yra -1); pirmiausia patikrinkite tą indeksą su {if ...}.",
+    "reasonAt": "{{reason}} ties „{{variable}}“.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, {{line}} eilutė: {{why}}",
+    "filamentSettings": "gijos parametruose",
+    "printerSettings": "spausdintuvo parametruose",
+    "or": " arba ",
+    "stoppedOne": "Sluoksniavimas sustojo: pasirinktinio G-code užpildyti negalima.",
+    "stoppedSome": "Sluoksniavimas sustojo: dalies pasirinktinio G-code užpildyti negalima.",
+    "fix": "Pataisykite jį {{where}} arba nustatykite profilio G-code iš naujo."
+  }
+}

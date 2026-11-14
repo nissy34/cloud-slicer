@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "API raktas",
+    "klipperHint": "Mainsail ir Fluidd rodo jį savo parametruose.",
+    "klipperLocked": "Šis spausdintuvas užrakintas: įveskite jo API raktą",
+    "prusaKey": "PrusaLink slaptažodis",
+    "prusaHint": "Spausdintuvas jį rodo skiltyje Settings, Network, PrusaLink (vartotojo vardas ten yra maker).",
+    "prusaLocked": "Įveskite PrusaLink slaptažodį iš spausdintuvo ekrano",
+    "octoprintKey": "OctoPrint API raktas",
+    "octoprintHint": "OctoPrint: Settings, Application Keys, tada sukurkite raktą Cloud Slicer (arba nukopijuokite savo vartotojo API raktą skiltyje Settings, API).",
+    "octoprintLocked": "Šis OctoPrint užrakintas: įveskite API raktą iš jo parametrų",
+    "bambuKey": "LAN prieigos kodas",
+    "bambuHint": "Spausdintuvas jį rodo savo ekrane, tinklo parametruose šalia LAN Only režimo. Kad iš čia siųstumėte spausdinimus ir juo valdytumėte, ten taip pat įjunkite LAN Only režimą ir Developer Mode (kol jie įjungti, Bambu debesis ir Bambu Handy programa neveikia).",
+    "bambuLocked": "Įveskite prieigos kodą iš spausdintuvo ekrano",
+    "featStatus": "Būsena",
+    "featSend": "Siųsti ir spausdinti",
+    "featCamera": "Kamera",
+    "featMove": "Judinimas ir temperatūros",
+    "featMoveShort": "Judinimas ir temp.",
+    "featConsole": "Konsolė",
+    "klipperName": "Klipper spausdintuvai",
+    "klipperExamples": "Snapmaker U1, Voron, Qidi, Sovol",
+    "prusaName": "Prusa su PrusaLink",
+    "prusaExamples": "MK4, Core One, XL, Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "bet kuris spausdintuvas, kuriame veikia OctoPrint",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "Carbon 2 kol kas ne",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1, P1, P2S, A1, H2; kamera P1 ir A1; reikia Developer Mode"
+  }
+}

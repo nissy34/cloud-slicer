@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · 슬라이싱 · {{title}}",
+    "doneTitle": "슬라이싱 완료",
+    "plateSliced": "플레이트 {{plate}}의 슬라이스가 끝났습니다. 눌러서 확인하세요.",
+    "tapToSee": "눌러서 확인하세요.",
+    "questionTitle": "슬라이싱에 확인이 필요합니다",
+    "questionBody": "끝내기 전에 물어볼 것이 있습니다. 눌러서 답하세요.",
+    "failedTitle": "슬라이싱 실패",
+    "tapToSeeWhy": "눌러서 이유를 확인하세요."
+  }
+}

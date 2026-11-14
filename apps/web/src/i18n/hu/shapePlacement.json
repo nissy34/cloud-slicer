@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Szöveg forgatása",
+    "rotateSvg": "SVG forgatása",
+    "moveText": "Szöveg mozgatása a felülettől",
+    "moveSvg": "SVG mozgatása a felülettől",
+    "rotationTip": "Elfordítja a saját tengelye körül, óramutató járásával megegyezően (a 3D nézetben lévő gyűrű ugyanezt teszi)",
+    "rotation": "Forgatás",
+    "fromSurfaceTip": "Milyen messze áll ki a felületből",
+    "fromSurface": "Felülettől",
+    "keepUpTip": "Felfelé tartja, miközben a felületen csúsztatja, vagy a kamera felé fordítja",
+    "keepUp": "Felfelé tartás",
+    "faceCameraTip": "Úgy fordítja, hogy szembenézzen Önnel, onnan, ahonnan nézi",
+    "faceCamera": "A kamera felé fordítás",
+    "moveToolsText": "Mozgassa vagy forgassa a szöveget ezekkel az eszközökkel.",
+    "moveToolsShape": "Mozgassa vagy forgassa az alakzatot ezekkel az eszközökkel.",
+    "dragText": "Húzza a szöveget vagy a kék keretét, hogy az objektumon csúsztassa. A gyűrű forgatja.",
+    "dragShape": "Húzza az alakzatot vagy a kék keretét, hogy az objektumon csúsztassa. A gyűrű forgatja."
+  }
+}

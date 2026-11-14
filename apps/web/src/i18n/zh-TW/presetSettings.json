@@ -1,0 +1,32 @@
+{
+  "presetSettings": {
+    "editPrinter": "編輯列印裝置設定",
+    "editFilament": "編輯線材 {{n}} 設定",
+    "savedInProject": "已儲存於專案 {{name}}。",
+    "savedIn3mf": "已儲存於下載的專案 3MF。",
+    "nameTaken": "已有同名的預設。",
+    "savedAs": "已儲存為 {{name}}。",
+    "whereAccount": "已儲存到您的帳號。",
+    "whereBrowser": "登入前會儲存在此瀏覽器中。",
+    "printerTitle": "列印裝置設定",
+    "filamentNTitle": "線材 {{n}} 設定",
+    "filamentTitle": "線材設定",
+    "newPrinterName": "新列印裝置預設名稱",
+    "newFilamentName": "新線材預設名稱",
+    "back": "返回",
+    "saving": "儲存中…",
+    "save": "儲存",
+    "unsaved_other": "{{count}} 項未儲存的變更",
+    "noChanges": "沒有變更",
+    "discard": "捨棄變更",
+    "saveAsNew": "另存為新預設…",
+    "savedName": "已儲存 {{name}}。",
+    "saveToPreset": "儲存到預設",
+    "saveToProjectTip": "只在此專案中保留這些變更，並儲存專案",
+    "saveToProject": "儲存到專案",
+    "modified": "（已修改）",
+    "yours": "您自己的預設，以 {{parent}} 為基礎。",
+    "system": "系統預設：請使用「另存新檔」來保留您的變更。",
+    "footHint": "「儲存到專案」只在此專案中保留這些變更，開啟專案時會恢復。預設則會讓所有專案都保留這些變更。{{where}}匯出、匯入、重新命名和刪除都在 ⋯ 選單中。"
+  }
+}

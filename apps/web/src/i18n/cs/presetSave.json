@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Použijte 1-128 znaků, bez / \\ : * ? \" < > |",
+    "notAvailable": "Předvolba {{name}} není k dispozici.",
+    "onlyOwn": "Uložit lze jen vaše vlastní předvolby; použijte Uložit jako.",
+    "noneSelected": "Není vybrána žádná předvolba.",
+    "sameName": "Dvě předvolby nemohou mít stejný název.",
+    "nameTaken": "Předvolba s názvem „{{name}}“ už existuje.",
+    "notYours": "Tato předvolba není vaše."
+  }
+}

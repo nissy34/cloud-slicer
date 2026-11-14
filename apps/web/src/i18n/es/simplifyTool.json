@@ -1,0 +1,30 @@
+{
+  "simplifyTool": {
+    "title": "Simplificar",
+    "done": "Hecho",
+    "hint": "Menos triángulos hacen que un modelo grande se abra, lamine y previsualice más rápido. Los detalles finos pueden suavizarse; Deshacer recupera la malla anterior.",
+    "trianglesLabel": "Triángulos",
+    "triangles_one": "{{n}} triángulos",
+    "triangles_many": "{{n}} triángulos",
+    "triangles_other": "{{n}} triángulos",
+    "trianglesUnknown": "… triángulos",
+    "workingOut": "(calculando…)",
+    "by": "Simplificar por",
+    "detailLevel": "Nivel de detalle",
+    "ratio": "Relación de decimación",
+    "detail": "Detalle",
+    "removeTip": "Proporción de triángulos que se quitan",
+    "remove": "Quitar",
+    "paintKept": "La pintura de este objeto (colores, soportes, costuras, piel rugosa) se conserva en la malla simplificada.",
+    "apply": "Aplicar",
+    "extraHigh": "Muy alto",
+    "high": "Alto",
+    "medium": "Medio",
+    "low": "Bajo",
+    "extraLow": "Muy bajo",
+    "million": "{{n}} millones",
+    "heavyPlates": "{{n}} placas tienen más de {{limit}} triángulos (hasta {{most}}), lo que puede superar lo que este dispositivo aguanta. Simplificar cada una a unos {{light}} conserva detalle de sobra para imprimir.",
+    "heavyPlate": "La placa {{n}} tiene {{triangles}} triángulos, lo que puede superar lo que este dispositivo aguanta. Simplificarla a unos {{light}} conserva detalle de sobra para imprimir.",
+    "heavyModel": "Este modelo tiene {{triangles}} triángulos, lo que puede superar lo que este dispositivo aguanta. Simplificarlo a unos {{light}} conserva detalle de sobra para imprimir."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "chooseBar": {
+    "chosenModels": "Models triats",
+    "tapToChoose": "Toqueu models per triar-los",
+    "chosen_one": "{{count}} triat",
+    "chosen_many": "{{count}} triats",
+    "chosen_other": "{{count}} triats",
+    "selectAll": "Selecciona-ho tot",
+    "all": "Tot",
+    "assemble": "Munta",
+    "assembleTip": "Uneix-los en un sol objecte, cada peça on és",
+    "menuTip": "Què fer amb tots (o clic dret / premeu llargament un model triat)",
+    "menu": "Què fer-ne",
+    "doneTip": "Els tocs tornen a triar un sol model",
+    "clearTip": "Res triat (Esc)",
+    "done": "Fet",
+    "clear": "Neteja"
+  }
+}

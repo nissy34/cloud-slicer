@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Suma",
+    "difference": "Różnica",
+    "intersection": "Przecięcie",
+    "subtractFrom": "Odejmij od",
+    "subtractWith": "Odejmij za pomocą",
+    "part": "Część {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Operacja logiczna na siatce",
+    "done": "Gotowe",
+    "operation": "Operacja",
+    "needTwo": "Działa na dwóch częściach jednego obiektu. Dodaj część, część ujemną lub modyfikator z menu obiektu (kliknij go prawym przyciskiem lub użyj przycisku ⋯ na liście obiektów), ustaw go, a potem wróć tutaj.",
+    "unionHint": "Łączy obie w jedną część.",
+    "differenceHint": "Wycina drugą z pierwszej.",
+    "intersectionHint": "Zostawia tylko miejsce, w którym obie się pokrywają.",
+    "resultHint": "Wynik zajmuje miejsce pierwszej, z jej typem i ustawieniami. Cofnij przywraca obie.",
+    "pickDifferent": "Wybierz dwie różne części.",
+    "deleteInput": "Usuń dane wejściowe (usuń też drugą)",
+    "working": "Pracuję…"
+  }
+}

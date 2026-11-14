@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "Tvar SVG",
+    "done": "Hotovo",
+    "pickHint": "Vyberte tvar SVG v seznamu objektů nebo v 3D pohledu, abyste ho změnili, nebo přidejte nový ze souboru .svg: na vybraný objekt, nebo jako samostatný objekt, když nic není vybráno. Přidá ho i otevření nebo přetažení souboru .svg.",
+    "addSvg": "Přidat SVG…",
+    "depth": "Hloubka",
+    "depthCutTip": "Jak hluboko tvar zaříznou",
+    "depthTip": "Jak daleko tvar vyčnívá",
+    "width": "Šířka",
+    "widthTip": "Velikost napříč tvarem",
+    "height": "Výška",
+    "heightTip": "Velikost podél tvaru",
+    "keepProportions": "Zachovat proporce",
+    "useSurfaceTip": "Tvar se ohýbá podle povrchu objektu místo toho, aby na něm stál naplocho",
+    "useSurface": "Použít povrch",
+    "svgType": "Typ SVG",
+    "changeType": "Změnit typ",
+    "engraved": "Vyrytý",
+    "making": "Vytváření tvaru…",
+    "undoHint": "Zpět vrátí poslední tvar."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Ripristina al valore del profilo",
+    "keptOld": "Mantenuto il vecchio valore.",
+    "kept": "Mantenuto {{value}}.",
+    "plateUses": "Il piatto {{n}} usa",
+    "on": "attivo",
+    "off": "disattivo",
+    "itsOwn": "(una sua impostazione).",
+    "plateSettings": "Impostazioni del piatto",
+    "default": "Predefinito",
+    "percentOrMm": "Percentuale o mm?",
+    "isItPercent": "{{label}}: è {{number}}% o {{number}} {{unit}}?",
+    "filamentN": "Filamento {{n}}",
+    "mix": "Miscela",
+    "mixes": "Miscele"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Nem sikerült menteni a kártyák elrendezését. Az oldal újratöltéséig megmarad.",
+    "pageCard": "{{n}}. oldalkártya",
+    "cameraCard": "{{n}}. kamerakártya",
+    "arrangingFor": "Kártyák elrendezése: {{name}}.",
+    "helpPhone": "Fogja meg a kártyát a fogantyújánál, és húzza fel vagy le.",
+    "helpDesktop": "Húzza a kártyát a fogantyújánál fogva egy oszlopba, vagy felülre, illetve alulra, teljes szélességben.",
+    "helpRest": "Az elrejtett kártyák itt maradnak, halványan. A többi nyomtató megtartja a saját elrendezését.",
+    "columns": "Oszlopok",
+    "addCameraCard": "Kamerakártya hozzáadása",
+    "addPageCard": "Oldalkártya hozzáadása",
+    "backToDefault": "Vissza az alapértelmezetthez",
+    "acrossTop": "Felül, teljes szélességben",
+    "column": "{{n}}. oszlop",
+    "acrossBottom": "Alul, teljes szélességben",
+    "small": "Kicsi",
+    "medium": "Közepes",
+    "large": "Nagy",
+    "moveCard": "{{name}} áthelyezése",
+    "halfWidthTip": "Fél szélesség: két fél kártya fér el egymás mellett",
+    "halfWidth": "Fél szélesség",
+    "cameraSize": "Kamera mérete",
+    "remove": "Eltávolítás"
+  }
+}

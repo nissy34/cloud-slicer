@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "API-sleutel",
+    "klipperHint": "Mainsail en Fluidd tonen die in hun instellingen.",
+    "klipperLocked": "Deze printer is vergrendeld: typ de API-sleutel",
+    "prusaKey": "PrusaLink-wachtwoord",
+    "prusaHint": "De printer toont het onder Instellingen, Netwerk, PrusaLink (de gebruikersnaam daar is maker).",
+    "prusaLocked": "Typ het PrusaLink-wachtwoord van het scherm van de printer",
+    "octoprintKey": "OctoPrint-API-sleutel",
+    "octoprintHint": "In OctoPrint: Instellingen, Application Keys, maak dan een sleutel voor Cloud Slicer (of kopieer de API-sleutel van uw gebruiker onder Instellingen, API).",
+    "octoprintLocked": "Deze OctoPrint is vergrendeld: typ een API-sleutel uit de instellingen ervan",
+    "bambuKey": "LAN-toegangscode",
+    "bambuHint": "De printer toont die op zijn scherm, in de netwerkinstellingen naast de LAN Only-modus. Om vanaf hier prints te versturen en de printer te bedienen, zet u daar ook de LAN Only-modus en de Developer-modus aan (de cloud van Bambu en de app Bambu Handy werken niet zolang ze aanstaan).",
+    "bambuLocked": "Typ de toegangscode van het scherm van de printer",
+    "featStatus": "Status",
+    "featSend": "Versturen en printen",
+    "featCamera": "Camera",
+    "featMove": "Verplaatsen en temperaturen",
+    "featMoveShort": "Verplaatsen en temp.",
+    "featConsole": "Console",
+    "klipperName": "Klipper-printers",
+    "klipperExamples": "Snapmaker U1, Voron, Qidi, Sovol",
+    "prusaName": "Prusa met PrusaLink",
+    "prusaExamples": "MK4, Core One, XL, Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "elke printer die OctoPrint bestuurt",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "de Carbon 2 nog niet",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1, P1, P2S, A1, H2; camera op P1 en A1; vereist Developer-modus"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "カメラ",
+    "climate": "ベッドと庫内",
+    "move": "移動",
+    "console": "コンソール",
+    "print": "印刷",
+    "toolHeads": "ツールヘッド",
+    "alerts": "通知",
+    "files": "ファイル",
+    "unfold": "このカードを開く",
+    "fold": "このカードを閉じる",
+    "targetOf": "{{label}}の目標温度",
+    "turnOff": "{{label}}をオフにする",
+    "off": "オフ",
+    "keepGoing": "続行",
+    "chamberLight": "庫内ライト",
+    "purifierExhaust": "清浄機の排気",
+    "purifierFilter": "清浄機のフィルター",
+    "fanAuto": "このファンはプリンターが自動で制御します"
+  }
+}

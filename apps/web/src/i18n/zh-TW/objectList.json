@@ -1,0 +1,31 @@
+{
+  "objectList": {
+    "notPrinted": "不列印",
+    "someNotPrinted": "部分副本不列印",
+    "object": "物件",
+    "sameAsObject": "與物件相同",
+    "objects": "物件",
+    "skippedTip": "{{name}}：{{why}}。切片時會略過它；在其 ⋯ 選單中勾選「可列印」即可列印。",
+    "objectN": "物件 {{n}}",
+    "filamentFor": "{{name}} 的線材",
+    "more": "更多",
+    "moreFor": "{{name}} 的更多選項",
+    "moreTip": "更多：複製、重新命名、鏡像、匯出…（或在物件上按右鍵）",
+    "painted": "（已繪製）",
+    "moreForPart": "零件 {{name}} 的更多選項",
+    "partMoreTip": "重新命名、變更類型、設定、刪除",
+    "chosen_other": "已選取 {{count}} 個物件",
+    "groupHint": "移動、旋轉和縮放會作用於所有已選物件。其他操作請對已選取的模型按右鍵，或在手機上長按。",
+    "deleteAllTip": "全部刪除 (Del)",
+    "delete": "刪除",
+    "blockerHint": "{{kind}}：開啟支撐時，支撐不會長在它與物件重疊的地方。可用移動工具移動它。",
+    "enforcerHint": "{{kind}}：開啟支撐時，支撐會長在它與物件重疊的地方。可用移動工具移動它。",
+    "addInstance": "新增實例",
+    "addInstanceTip": "在它旁邊再多一個副本 (+)。Ctrl+C 和 Ctrl+V 會將它貼為新物件。",
+    "removeInstance": "移除實例",
+    "removeInstanceTip": "移除此副本，保留其他副本 (-)",
+    "simplify": "簡化",
+    "simplifyTip": "減少三角面，類似桌面版的「簡化模型」",
+    "deleteTip": "物件及其所有副本（按 Del 只會移除選取的副本）"
+  }
+}

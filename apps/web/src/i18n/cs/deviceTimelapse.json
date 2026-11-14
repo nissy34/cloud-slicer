@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} z {{size}} MB",
+    "arrivingRelay": "{{got}} z {{size}} MB přes relay",
+    "cannotFetch": "Toto připojení k tiskárně nemůže stahovat videa.",
+    "fetchFailed": "Video se nepodařilo stáhnout.",
+    "delete": "Smazat",
+    "download": "Stáhnout",
+    "cantPlay": "Tento druh videa se v prohlížeči nepřehraje. Stáhněte ho, abyste ho mohli sledovat.",
+    "none": "Zatím žádné časosběry. Při zahájení tisku zapněte Časosběr.",
+    "watch": "Sledovat",
+    "pages": "Stránky časosběrů",
+    "refresh": "Obnovit",
+    "deleteTitle": "Smazat časosběr"
+  }
+}

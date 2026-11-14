@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} filament {{heads}} fejen: a nyomtatás küldésekor Ön választja ki, melyik fej nyomtatja az egyiket.",
+    "warn": "{{n}} filament egy {{heads}} fejes nyomtatón."
+  }
+}

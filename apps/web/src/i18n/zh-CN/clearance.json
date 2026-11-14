@@ -1,0 +1,6 @@
+{
+  "clearance": {
+    "printsFirst": "最先打印",
+    "printsAs": "第 {{n}} 个打印"
+  }
+}

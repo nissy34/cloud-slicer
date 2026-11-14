@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · 切片中 · {{title}}",
+    "doneTitle": "切片完成",
+    "plateSliced": "列印板 {{plate}} 已切片。點選即可查看。",
+    "tapToSee": "點選即可查看。",
+    "questionTitle": "切片需要您處理",
+    "questionBody": "切片完成前有個問題要問您。點選即可回答。",
+    "failedTitle": "切片失敗",
+    "tapToSeeWhy": "點選即可查看原因。"
+  }
+}

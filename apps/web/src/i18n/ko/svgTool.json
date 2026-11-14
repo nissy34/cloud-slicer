@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "SVG 도형",
+    "done": "완료",
+    "pickHint": "바꿀 SVG 도형을 객체 목록이나 3D 보기에서 고르거나, .svg 파일에서 추가하세요. 선택한 객체에 추가되고, 선택한 것이 없으면 별도의 객체로 추가됩니다. .svg 파일을 열거나 끌어다 놓아도 추가됩니다.",
+    "addSvg": "SVG 추가…",
+    "depth": "깊이",
+    "depthCutTip": "도형이 파고드는 깊이",
+    "depthTip": "도형이 튀어나오는 정도",
+    "width": "너비",
+    "widthTip": "도형의 가로 크기",
+    "height": "높이",
+    "heightTip": "도형의 세로 크기",
+    "keepProportions": "비율 유지",
+    "useSurfaceTip": "도형이 평평하게 놓이는 대신 객체의 표면을 따라 휘어집니다",
+    "useSurface": "표면 사용",
+    "svgType": "SVG 종류",
+    "changeType": "종류 변경",
+    "engraved": "음각",
+    "making": "도형을 만드는 중…",
+    "undoHint": "실행 취소를 누르면 마지막 도형이 돌아옵니다."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Hợp",
+    "difference": "Hiệu",
+    "intersection": "Giao",
+    "subtractFrom": "Trừ khỏi",
+    "subtractWith": "Trừ bằng",
+    "part": "Phần {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Boolean lưới",
+    "done": "Xong",
+    "operation": "Phép toán",
+    "needTwo": "Công cụ này dùng cho hai phần của một vật thể. Thêm một phần, phần âm hoặc modifier từ menu của vật thể (nhấp chuột phải vào nó, hoặc nút ⋯ trong danh sách vật thể), đặt nó vào vị trí, rồi quay lại đây.",
+    "unionHint": "Ghép hai phần thành một phần.",
+    "differenceHint": "Cắt phần thứ hai ra khỏi phần thứ nhất.",
+    "intersectionHint": "Chỉ giữ chỗ hai phần chồng lên nhau.",
+    "resultHint": "Kết quả thay thế vị trí, loại và cài đặt của phần thứ nhất. Hoàn tác sẽ khôi phục cả hai.",
+    "pickDifferent": "Hãy chọn hai phần khác nhau.",
+    "deleteInput": "Xóa đầu vào (xóa luôn phần thứ hai)",
+    "working": "Đang xử lý…"
+  }
+}

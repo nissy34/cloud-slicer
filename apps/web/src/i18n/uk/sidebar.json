@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Мої принтери",
+    "otherPrinters": "Інші",
+    "printer": "Принтер",
+    "manage": "Керувати",
+    "printerPreset": "Пресет принтера",
+    "addRemovePrinters": "Додати або видалити принтери…",
+    "sendsFromDevice": "Надсилайте на нього друки з вкладки «Пристрій».",
+    "noDirectPrint": "Для цього принтера немає прямого друку (не Klipper, не Prusa і не Centauri Carbon): завантажте G-code, щоб надрукувати, або надішліть його з вкладки «Пристрій», якщо принтером керує OctoPrint.",
+    "plateType": "Тип пластини",
+    "filament": "Філамент",
+    "addFilament": "Додати філамент",
+    "add": "+ Додати",
+    "filamentColour": "Колір філаменту",
+    "filamentNColour": "Колір філаменту {{n}}",
+    "filamentNPreset": "Пресет філаменту {{n}}",
+    "addRemoveFilaments": "Додати або видалити філаменти…",
+    "removeFilament": "Прибрати цей філамент",
+    "removeFilamentN": "Прибрати філамент {{n}}",
+    "process": "Процес",
+    "processPreset": "Пресет процесу",
+    "readingFilaments": "Зчитування філаментів принтера…",
+    "myPresets": "Мої пресети",
+    "systemPresets": "Системні пресети",
+    "show": "Показати бічну панель (Shift+Tab)",
+    "hide": "Сховати бічну панель (Shift+Tab)",
+    "width": "Ширина бічної панелі"
+  }
+}

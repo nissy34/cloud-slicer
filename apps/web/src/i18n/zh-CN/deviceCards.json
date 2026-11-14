@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "摄像头",
+    "climate": "热床和腔室",
+    "move": "移动",
+    "console": "控制台",
+    "print": "打印",
+    "toolHeads": "工具头",
+    "alerts": "提醒",
+    "files": "文件",
+    "unfold": "展开此卡片",
+    "fold": "折叠此卡片",
+    "targetOf": "{{label}}目标",
+    "turnOff": "关闭{{label}}",
+    "off": "关",
+    "keepGoing": "继续",
+    "chamberLight": "腔室灯",
+    "purifierExhaust": "净化器排风",
+    "purifierFilter": "净化器滤芯",
+    "fanAuto": "打印机会自动控制此风扇"
+  }
+}

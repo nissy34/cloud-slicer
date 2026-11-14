@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "STL, 3MF, OBJ, STEP 또는 SVG 파일을 여기에 놓으세요",
+    "openModel": "모델 열기",
+    "fromDrive": "Google Drive에서 열기",
+    "deletePlateTip": "이 플레이트와 그 위의 내용을 삭제",
+    "deletePlate": "플레이트 삭제",
+    "clearAsk": "플레이트를 비울까요?",
+    "unsavedChanges": "“{{name}}”에 아직 저장되지 않은 변경 사항이 있습니다.",
+    "clearAll": "모두 비우기",
+    "dropToAdd": "놓아서 추가"
+  }
+}

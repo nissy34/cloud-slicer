@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "ウィンドウを閉じる",
+    "moreAboutThis": "詳しく見る",
+    "plannedForPhase": "フェーズ {{phase}} で予定しています。",
+    "saving": "保存中",
+    "loadedOf": "{{total}} 中 {{loaded}}"
+  }
+}

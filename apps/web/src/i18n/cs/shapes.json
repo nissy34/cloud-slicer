@@ -1,0 +1,10 @@
+{
+  "shapes": {
+    "cube": "Krychle",
+    "cylinder": "Válec",
+    "sphere": "Koule",
+    "cone": "Kužel",
+    "disc": "Disk",
+    "torus": "Torus"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "匹配的耗材",
+    "noSlot": "没有{{noun}}装有 {{material}}。请装入它，或在切片器中更改耗材并重新切片。",
+    "noSlotNozzle": "没有{{noun}}装有使用 {{nozzle}} mm 喷嘴的 {{material}}。请装入它，或在切片器中更改耗材并重新切片。",
+    "noType": "{{slot}}未设置耗材类型。{{unset}}",
+    "otherMaterial": "{{slot}}装的是 {{has}}，但此耗材是按 {{material}} 切片的。",
+    "otherNozzle": "{{slot}}使用 {{has}} mm 喷嘴，但文件是为 {{nozzle}} mm 切片的。",
+    "highFlow": "文件是为高流量喷嘴切片的，但{{slot}}使用的是标准喷嘴。"
+  }
+}

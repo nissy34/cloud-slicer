@@ -1,0 +1,23 @@
+{
+  "presetChanges": {
+    "filamentN": "{{n}}. filamentua",
+    "process": "Prozesua",
+    "printer": "Inprimagailua",
+    "changes_one": "Aldaketa {{count}}",
+    "changes_other": "{{count}} aldaketa",
+    "saveTitle": "Gorde aldatutako ezarpenak",
+    "back": "Atzera",
+    "saving": "Gordetzen…",
+    "save": "Gorde",
+    "namesText": "Zure aurrezarpenek izena mantentzen dute eta aldaketak hartzen dituzte. Eman izen berri bat horren ordez kopia bat gordetzeko.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Aldatutako ezarpenak mantendu?",
+    "discard": "Baztertu",
+    "saveMenu": "Gorde…",
+    "keep": "Mantendu",
+    "text": "Aurrezarpen batzuek ezarpen aldatuak dituzte. Mantendu proiektu berrian, baztertu, edo gorde aurrezarpenetan.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Gogoratu nire aukera (Mantendu edo Baztertu)"
+  }
+}

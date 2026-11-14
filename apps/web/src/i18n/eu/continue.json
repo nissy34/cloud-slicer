@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Utzi zenuen lekutik jarraitu?",
+    "local": "{{name}}, {{when}} aldatua. Nabigatzaile honetan dago, gorde gabe.",
+    "discard": "Baztertu",
+    "continue": "Jarraitu",
+    "projectAsk": "{{name}} jarraitu?",
+    "project": "Jarraitu {{name}}",
+    "openHere": "Hemen irekita zeneukan, {{when}} editatua",
+    "editedOn": "{{when}} editatua {{device}} gailuan",
+    "notNow": "Orain ez",
+    "editedElsewhere": "{{name}} editatzen ari da {{device}} gailuan",
+    "viewOnly": "Fitxa hau ikusteko soilik da.",
+    "viewOnlyUnsaved": "Fitxa hau ikusteko soilik da. Hemen egindako aldaketak ez daude bertan.",
+    "saveMineAsCopy": "Gorde nirea kopia gisa",
+    "editHere": "Editatu hemen",
+    "gone": "“{{name}}” ezabatu da {{device}} gailuan. Hemen irekita dago oraindik, gorde gabe."
+  }
+}

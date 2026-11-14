@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Mijn printers",
+    "otherPrinters": "Overige",
+    "printer": "Printer",
+    "manage": "Beheren",
+    "printerPreset": "Printervoorinstelling",
+    "addRemovePrinters": "Printers toevoegen of verwijderen…",
+    "sendsFromDevice": "Verstuur prints ernaartoe vanaf het tabblad Apparaat.",
+    "noDirectPrint": "Geen direct printen voor deze printer (geen Klipper, Prusa of Centauri Carbon): download de G-code om te printen, of verstuur hem vanaf het tabblad Apparaat als OctoPrint de printer bestuurt.",
+    "plateType": "Printbedtype",
+    "filament": "Filament",
+    "addFilament": "Filament toevoegen",
+    "add": "+ Toevoegen",
+    "filamentColour": "Filamentkleur",
+    "filamentNColour": "Kleur van filament {{n}}",
+    "filamentNPreset": "Voorinstelling van filament {{n}}",
+    "addRemoveFilaments": "Filamenten toevoegen of verwijderen…",
+    "removeFilament": "Dit filament verwijderen",
+    "removeFilamentN": "Filament {{n}} verwijderen",
+    "process": "Proces",
+    "processPreset": "Procesvoorinstelling",
+    "readingFilaments": "De filamenten van de printer worden gelezen…",
+    "myPresets": "Mijn voorinstellingen",
+    "systemPresets": "Systeemvoorinstellingen",
+    "show": "Zijbalk tonen (Shift+Tab)",
+    "hide": "Zijbalk verbergen (Shift+Tab)",
+    "width": "Breedte van de zijbalk"
+  }
+}

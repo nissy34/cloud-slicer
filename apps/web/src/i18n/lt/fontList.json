@@ -1,0 +1,8 @@
+{
+  "fontList": {
+    "hebrew": "Hebrajų",
+    "pickScriptFont": "Pasirinkite {{script}} šriftą, pavyzdžiui, {{fonts}}.",
+    "pickAnyFont": "Pasirinkite šriftą, kuriame jų yra: šrifto failą arba vieną iš šio kompiuterio šriftų.",
+    "noLetters": "Šiame šrifte nėra raidžių: {{letters}}, todėl jos praleidžiamos."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "chooseBar": {
+    "chosenModels": "Ausgewählte Modelle",
+    "tapToChoose": "Tippen Sie auf Modelle, um sie auszuwählen",
+    "chosen_one": "{{count}} ausgewählt",
+    "chosen_other": "{{count}} ausgewählt",
+    "selectAll": "Alle auswählen",
+    "all": "Alle",
+    "assemble": "Zusammenbauen",
+    "assembleTip": "Zu einem Objekt verbinden, jedes Teil bleibt an seinem Platz",
+    "menuTip": "Was mit allen geschehen soll (oder Rechtsklick / langes Drücken auf ein ausgewähltes Modell)",
+    "menu": "Was mit ihnen geschehen soll",
+    "doneTip": "Tippen wählt wieder ein einzelnes Modell",
+    "clearTip": "Nichts ausgewählt (Esc)",
+    "done": "Fertig",
+    "clear": "Leeren"
+  }
+}

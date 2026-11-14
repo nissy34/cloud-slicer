@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Öblítési mennyiségek",
+    "ownAmounts": "saját mennyiségek",
+    "fromColours": "a színekből",
+    "leftNozzle": "Bal fúvóka",
+    "rightNozzle": "Jobb fúvóka",
+    "nozzleN": "{{n}}. fúvóka",
+    "filamentN": "{{n}}. filament",
+    "recalculate": "Újraszámítás",
+    "done": "Kész",
+    "explain": "Mennyit nyom ki a nyomtató mm³-ben, amikor a bal oldali filamentről a felül lévőre vált. A színekből számolva: sötétről világosra többre van szükség.",
+    "nozzle": "Fúvóka",
+    "tableLabel": "Öblítési mennyiségek mm³-ben",
+    "from": "ebből",
+    "to": "erre",
+    "toFilament": "Erre: {{name}}",
+    "fromFilament": "Erről: {{name}}",
+    "purgeLabel": "Öblítés {{from}} és {{to}} között, mm³",
+    "suggested": "Javasolt: {{min}} és {{max}} mm³ között (azon kívül pirosan látszik).",
+    "multiplier": "Szorzó",
+    "scales": "Minden mennyiséget skáláz ({{min}} és {{max}} között).",
+    "towerOff": "Az „Öblítés a törlőtoronyba” ki van kapcsolva a nyomtató beállításaiban (Több anyag oldal), ezért minden filamentcserénél az alapozó mennyiség ({{volume}} mm³) öblítődik ezek helyett. Ezek továbbra is meghatározzák az öblítési hosszt, amelyet a nyomtató cserekódja kap."
+  }
+}

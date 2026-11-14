@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "”{{variable}}” är ingen inställning som den här slicern känner till (den kan komma från en annan slicer eller en nyare version).",
+    "unknownName": "den använder ett namn som den här slicern inte känner till.",
+    "negativeIndex": "”{{variable}}” läses innan det första filamentet laddats (dess index är -1 där); kontrollera det indexet med {if ...} först.",
+    "negativeIndexList": "en lista läses innan det första filamentet laddats (dess index är -1 där); kontrollera det indexet med {if ...} först.",
+    "reasonAt": "{{reason}} vid ”{{variable}}”.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, rad {{line}}: {{why}}",
+    "filamentSettings": "filamentinställningar",
+    "printerSettings": "skrivarinställningar",
+    "or": " eller ",
+    "stoppedOne": "Beredningen stoppade: en anpassad G-code kan inte fyllas i.",
+    "stoppedSome": "Beredningen stoppade: en del anpassad G-code kan inte fyllas i.",
+    "fix": "Rätta den i {{where}}, eller återställ den till förinställningens G-code."
+  }
+}

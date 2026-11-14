@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Máy in của tôi",
+    "otherPrinters": "Khác",
+    "printer": "Máy in",
+    "manage": "Quản lý",
+    "printerPreset": "Cài đặt sẵn máy in",
+    "addRemovePrinters": "Thêm hoặc xóa máy in…",
+    "sendsFromDevice": "Gửi bản in tới nó từ tab Thiết bị.",
+    "noDirectPrint": "Máy in này không in trực tiếp được (không phải Klipper, Prusa hay Centauri Carbon): hãy tải G-code xuống để in, hoặc gửi từ tab Thiết bị nếu OctoPrint điều khiển máy in.",
+    "plateType": "Loại plate",
+    "filament": "Filament",
+    "addFilament": "Thêm filament",
+    "add": "+ Thêm",
+    "filamentColour": "Màu filament",
+    "filamentNColour": "Màu filament {{n}}",
+    "filamentNPreset": "Cài đặt sẵn filament {{n}}",
+    "addRemoveFilaments": "Thêm hoặc xóa filament…",
+    "removeFilament": "Xóa filament này",
+    "removeFilamentN": "Xóa filament {{n}}",
+    "process": "Process",
+    "processPreset": "Cài đặt sẵn process",
+    "readingFilaments": "Đang đọc filament của máy in…",
+    "myPresets": "Cài đặt sẵn của tôi",
+    "systemPresets": "Cài đặt sẵn hệ thống",
+    "show": "Hiện thanh bên (Shift+Tab)",
+    "hide": "Ẩn thanh bên (Shift+Tab)",
+    "width": "Độ rộng thanh bên"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Den här koden har gått ut. Be din AI-app att logga in igen för en ny.",
+    "invalid": "Den här koden är inte giltig. Jämför den med den din AI-app visar, eller be den logga in igen.",
+    "siteAnswered": "Webbplatsen svarade {{status}}",
+    "checkingAccount": "Kontrollerar ditt konto…",
+    "signInFirst": "Logga in på Cloud Slicer först. Sedan ber det här fönstret dig ansluta din AI-app.",
+    "noSignIn": "Inloggning är inte konfigurerad på den här webbplatsen.",
+    "codeLabel": "Koden som din AI-app visar",
+    "checkingCode": "Kontrollerar koden…",
+    "connected": "Ansluten. Gå tillbaka till din AI-app: den är inloggad som {{name}}.",
+    "turnedDown": "Avvisad. Din AI-app är inte inloggad.",
+    "asks": "En AI-app på din dator (Cloud Slicer-tillägget) ber om att få använda ditt konto, <b>{{email}}</b>. Kontrollera att den visar den här koden:",
+    "willSee": "Den ser dina sparade förinställningar och skrivare och kan kontrollera dina skrivare och ladda upp till dem. Den frågar dig varje gång innan den startar en utskrift. Du kan logga ut den från AI-appen.",
+    "continueGoogle": "Fortsätt med Google",
+    "dontConnect": "Anslut inte",
+    "connect": "Anslut",
+    "title": "Anslut en AI-app"
+  }
+}

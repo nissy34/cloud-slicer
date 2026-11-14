@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Kitos pokalbių programos",
+    "title": "Naudoti su DI programa",
+    "more": "Daugiau apie tai",
+    "intro": "Paprašykite savo DI programos sluoksniuoti už jus: „Išsluoksniuok šį Benchy mano U1 su PETG ir 4 sienelėmis ir pasakyk laiką.“ Įdiekite ją Claude Desktop kaip plėtinį arba kitose pokalbių programose savo kompiuteryje, pavyzdžiui, LM Studio ir Msty. Ji sluoksniuoja jūsų kompiuteryje su tais pačiais varikliais ir profiliais kaip ši svetainė, o jūsų modeliai lieka ten.",
+    "whichApp": "Kuri programa",
+    "step1": "Atsisiųskite Cloud Slicer plėtinį.",
+    "download": "Atsisiųsti, skirtą Claude Desktop",
+    "size": "apie 11 MB. Jau įdiegta? Atsisiųskite dar kartą, kad atnaujintumėte.",
+    "step2": "Atidarykite failą. Claude Desktop paprašys jį įdiegti: spustelėkite <b>Install</b>.",
+    "step3": "Paprašykite Claude išsluoksniuoti failą jūsų kompiuteryje.",
+    "otherStep1": "Savo pokalbių programos nustatymuose pridėkite MCP serverį su tuo (dauguma programų priima tai taip, kaip yra):",
+    "otherStep2": "Jūsų kompiuteryje reikia Node 20 ar naujesnės versijos (<a>nodejs.org</a>).",
+    "canDo": "Ji gali atidaryti modelius ir projektus, pasirinkti spausdintuvą, procesą ir gijas, nustatyti spalvas ir kuri gija spausdina kiekvieną objektą, keisti parametrus, išdėstyti plokštes ir sluoksniuoti. Kol jūsų kompiuteris įjungtas, ja gali naudotis ir Claude telefone. Prisijungus, ji taip pat naudoja jūsų profilius ir spausdintuvus ir paklausia jūsų prieš pradėdama spausdinti.",
+    "version": "Versija {{version}}"
+  }
+}

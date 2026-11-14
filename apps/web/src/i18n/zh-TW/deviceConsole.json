@@ -1,0 +1,25 @@
+{
+  "deviceConsole": {
+    "filterTemps": "溫度",
+    "filterTimelapse": "縮時攝影",
+    "filterTimelapseExample": "縮時攝影畫格訊息",
+    "filterProgress": "列印進度",
+    "filterOk": "單純的「ok」",
+    "done": "完成",
+    "filtersN": "篩選 ({{n}})",
+    "filters": "篩選",
+    "hideThese": "隱藏這些行",
+    "hideLike": "隱藏類似的行：{{example}}",
+    "hideContaining": "隱藏包含「{{text}}」的行",
+    "removeFilter": "移除「{{text}}」篩選",
+    "remove": "移除",
+    "hideContainingPlaceholder": "隱藏包含…的行",
+    "hideContainingLabel": "隱藏包含以下內容的行",
+    "add": "新增",
+    "filtersHelp": "點選標籤即可切換。您傳送的內容和錯誤一律會顯示。",
+    "linesHidden_other": "有 {{count}} 行被篩選隱藏",
+    "sendPlaceholder": "傳送 G-code，例如 M115",
+    "commandLabel": "G-code 指令",
+    "send": "傳送"
+  }
+}

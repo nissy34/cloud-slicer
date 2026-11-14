@@ -1,0 +1,20 @@
+{
+  "chooseBar": {
+    "chosenModels": "Pasirinkti modeliai",
+    "tapToChoose": "Bakstelėkite modelius, kad juos pasirinktumėte",
+    "chosen_one": "{{count}} pasirinktas",
+    "chosen_few": "{{count}} pasirinkti",
+    "chosen_many": "{{count}} pasirinkto",
+    "chosen_other": "{{count}} pasirinktų",
+    "selectAll": "Pasirinkti viską",
+    "all": "Visi",
+    "assemble": "Surinkti",
+    "assembleTip": "Sujungti į vieną objektą, kiekviena dalis lieka savo vietoje",
+    "menuTip": "Ką daryti su visais (arba spustelėkite dešiniuoju klavišu / ilgai palaikykite pasirinktą modelį)",
+    "menu": "Ką daryti su jais",
+    "doneTip": "Bakstelėjimai vėl pasirenka vieną modelį",
+    "clearTip": "Nieko nepasirinkta (Esc)",
+    "done": "Atlikta",
+    "clear": "Išvalyti"
+  }
+}

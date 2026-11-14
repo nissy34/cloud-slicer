@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "un filamento compatible",
+    "noSlot": "Ningún {{noun}} tiene {{material}}. Cárguelo o cambie el filamento en el laminador y lamine de nuevo.",
+    "noSlotNozzle": "Ningún {{noun}} tiene {{material}} con una boquilla de {{nozzle}} mm. Cárguelo o cambie el filamento en el laminador y lamine de nuevo.",
+    "noType": "{{slot}} no tiene tipo de filamento definido. {{unset}}",
+    "otherMaterial": "{{slot}} tiene {{has}}, pero este filamento se laminó como {{material}}.",
+    "otherNozzle": "{{slot}} tiene una boquilla de {{has}} mm, pero el archivo se laminó para {{nozzle}} mm.",
+    "highFlow": "El archivo se laminó para una boquilla de alto flujo, pero {{slot}} tiene una estándar."
+  }
+}

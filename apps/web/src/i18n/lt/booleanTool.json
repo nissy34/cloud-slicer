@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Sąjunga",
+    "difference": "Skirtumas",
+    "intersection": "Susikirtimas",
+    "subtractFrom": "Atimti iš",
+    "subtractWith": "Atimti su",
+    "part": "Dalis {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Tinklo loginė operacija",
+    "done": "Atlikta",
+    "operation": "Operacija",
+    "needTwo": "Tai veikia su dviem vieno objekto dalimis. Pridėkite dalį, neigiamą dalį arba modifikatorių objekto meniu (spustelėkite jį dešiniuoju pelės klavišu arba mygtuku ⋯ objektų sąraše), padėkite ir grįžkite čia.",
+    "unionHint": "Sujungia abi į vieną dalį.",
+    "differenceHint": "Iškerpa antrąją iš pirmosios.",
+    "intersectionHint": "Palieka tik ten, kur abi persidengia.",
+    "resultHint": "Rezultatas užima pirmosios vietą, tipą ir parametrus. Atšaukus grįžta abi.",
+    "pickDifferent": "Pasirinkite dvi skirtingas dalis.",
+    "deleteInput": "Ištrinti įvestį (taip pat pašalinti antrąją)",
+    "working": "Dirbama…"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "Iso",
+    "top": "Trên",
+    "bottom": "Dưới",
+    "front": "Trước",
+    "back": "Sau",
+    "left": "Trái",
+    "right": "Phải",
+    "views": "Chế độ xem",
+    "viewsTip": "Chế độ xem: trên, trước, bên...",
+    "viewTip": "Xem {{view}} ({{key}})",
+    "fitAll": "Vừa tất cả",
+    "fitAllTip": "Vừa tất cả: hiện mọi thứ (Z)"
+  }
+}

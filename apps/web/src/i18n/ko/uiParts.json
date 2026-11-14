@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "창 닫기",
+    "moreAboutThis": "자세히 알아보기",
+    "plannedForPhase": "{{phase}}단계에서 제공 예정입니다.",
+    "saving": "저장 중",
+    "loadedOf": "{{total}}개 중 {{loaded}}개"
+  }
+}

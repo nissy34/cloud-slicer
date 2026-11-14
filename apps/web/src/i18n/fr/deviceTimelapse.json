@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} sur {{size}} Mo",
+    "arrivingRelay": "{{got}} sur {{size}} Mo via le relais",
+    "cannotFetch": "Cette connexion à l’imprimante ne peut pas récupérer de vidéos.",
+    "fetchFailed": "La vidéo n’a pas pu être récupérée.",
+    "delete": "Supprimer",
+    "download": "Télécharger",
+    "cantPlay": "Ce type de vidéo ne se lit pas dans le navigateur. Téléchargez-la pour la regarder.",
+    "none": "Aucun timelapse pour l’instant. Activez Timelapse au lancement d’une impression.",
+    "watch": "Regarder",
+    "pages": "Pages de timelapses",
+    "refresh": "Actualiser",
+    "deleteTitle": "Supprimer le timelapse"
+  }
+}

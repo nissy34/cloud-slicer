@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Werkruimte",
+    "prepare": "Voorbereiden",
+    "preview": "Voorbeeld",
+    "device": "Apparaat",
+    "calibration": "Kalibratie",
+    "slicingWith": "Slicen met {{name}} {{version}}"
+  }
+}

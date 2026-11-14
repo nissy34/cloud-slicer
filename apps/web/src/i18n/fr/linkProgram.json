@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Ce code a expiré. Demandez à votre appli d’IA de se reconnecter pour en obtenir un nouveau.",
+    "invalid": "Ce code n’est pas valide. Comparez-le à celui que montre votre appli d’IA, ou demandez-lui de se reconnecter.",
+    "siteAnswered": "Le site a répondu {{status}}",
+    "checkingAccount": "Vérification de votre compte…",
+    "signInFirst": "Connectez-vous d’abord à Cloud Slicer. Cette fenêtre vous demandera ensuite de connecter votre appli d’IA.",
+    "noSignIn": "La connexion n’est pas activée sur ce site.",
+    "codeLabel": "Le code que montre votre appli d’IA",
+    "checkingCode": "Vérification du code…",
+    "connected": "Connecté. Retournez dans votre appli d’IA : elle est connectée en tant que {{name}}.",
+    "turnedDown": "Refusé. Votre appli d’IA n’est pas connectée.",
+    "asks": "Une appli d’IA sur votre ordinateur (le module Cloud Slicer) demande à utiliser votre compte, <b>{{email}}</b>. Vérifiez qu’elle affiche ce code :",
+    "willSee": "Elle verra vos préréglages et imprimantes enregistrés, et pourra vérifier vos imprimantes et leur envoyer des fichiers. Elle vous demande à chaque fois avant de lancer une impression. Vous pouvez la déconnecter depuis l’appli d’IA.",
+    "continueGoogle": "Continuer avec Google",
+    "dontConnect": "Ne pas connecter",
+    "connect": "Connecter",
+    "title": "Connecter une appli d’IA"
+  }
+}

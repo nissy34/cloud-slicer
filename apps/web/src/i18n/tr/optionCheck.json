@@ -1,0 +1,12 @@
+{
+  "optionCheck": {
+    "allowed": "İzin verilen aralık: {{min}} - {{max}}",
+    "lowest": "İzin verilen en düşük değer: {{min}}",
+    "highest": "İzin verilen en yüksek değer: {{max}}",
+    "setTo": "{{allowed}}, {{value}} olarak ayarlandı.",
+    "needed": "Bir değer gerekli.",
+    "noPercent": "Bu ayar yüzde olamaz.",
+    "notWhole": "“{{text}}” tam sayı değil.",
+    "notNumber": "“{{text}}” bir sayı değil."
+  }
+}

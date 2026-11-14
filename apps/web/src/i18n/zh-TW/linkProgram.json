@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "此代碼已過期。請讓您的 AI 應用程式重新登入以取得新代碼。",
+    "invalid": "此代碼無效。請與您的 AI 應用程式顯示的代碼核對，或讓它重新登入。",
+    "siteAnswered": "網站回應 {{status}}",
+    "checkingAccount": "正在檢查您的帳號…",
+    "signInFirst": "請先登入 Cloud Slicer。之後此視窗會請您連接 AI 應用程式。",
+    "noSignIn": "此網站尚未設定登入功能。",
+    "codeLabel": "您的 AI 應用程式顯示的代碼",
+    "checkingCode": "正在檢查代碼…",
+    "connected": "已連接。請回到您的 AI 應用程式：它已以 {{name}} 登入。",
+    "turnedDown": "已拒絕。您的 AI 應用程式未登入。",
+    "asks": "您電腦上的 AI 應用程式（Cloud Slicer 附加元件）要求使用您的帳號 <b>{{email}}</b>。請確認它顯示的是此代碼：",
+    "willSee": "它將能看到您儲存的預設和列印裝置，並可檢查及上傳檔案到您的列印裝置。每次開始列印前都會先詢問您。您可以在 AI 應用程式中登出。",
+    "continueGoogle": "使用 Google 繼續",
+    "dontConnect": "不連接",
+    "connect": "連接",
+    "title": "連接 AI 應用程式"
+  }
+}

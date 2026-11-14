@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "No ha respost a temps",
+    "noAccounts": "Els comptes no estan disponibles en aquest servidor",
+    "siteNoAnswer": "Cloud Slicer no ha respost. Comproveu la connexió i torneu-ho a provar.",
+    "driveReconnect": "Cal tornar a connectar Google Drive. Obriu el menú del compte (a dalt a la dreta) i premeu Connecta Google Drive.",
+    "driveNoAnswer": "Google Drive no ha respost. Comproveu la connexió i torneu a desar.",
+    "driveFull": "El vostre Google Drive és ple. Allibereu espai a Drive i torneu a desar.",
+    "driveGone": "Aquest projecte ja no és al vostre Google Drive",
+    "driveNoUpload": "Google Drive no ha iniciat la pujada",
+    "pickerBlocked": "El navegador ha bloquejat la finestra de Google Drive. Permeteu les finestres emergents d'aquest lloc i torneu-ho a provar.",
+    "driveSignIn": "Inicieu la sessió amb Google per obrir fitxers del vostre Google Drive.",
+    "driveConnectFirst": "Primer connecteu Google Drive al menú del compte.",
+    "pickerNotSetUp": "Obrir des de Google Drive encara no està configurat en aquest lloc."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Температуры",
+    "filterTimelapse": "Таймлапс",
+    "filterTimelapseExample": "сообщения о кадрах таймлапса",
+    "filterProgress": "Ход печати",
+    "filterOk": "Простое «ok»",
+    "done": "Готово",
+    "filtersN": "Фильтры ({{n}})",
+    "filters": "Фильтры",
+    "hideThese": "Скрыть эти строки",
+    "hideLike": "Скрыть строки вроде: {{example}}",
+    "hideContaining": "Скрыть строки, содержащие «{{text}}»",
+    "removeFilter": "Убрать фильтр «{{text}}»",
+    "remove": "Убрать",
+    "hideContainingPlaceholder": "Скрыть строки, содержащие…",
+    "hideContainingLabel": "Скрыть строки, содержащие",
+    "add": "Добавить",
+    "filtersHelp": "Коснитесь плашки, чтобы переключить её. То, что вы отправляете, и ошибки показываются всегда.",
+    "linesHidden_one": "1 строка скрыта фильтрами",
+    "linesHidden_few": "{{count}} строки скрыты фильтрами",
+    "linesHidden_many": "{{count}} строк скрыто фильтрами",
+    "linesHidden_other": "{{count}} строки скрыто фильтрами",
+    "sendPlaceholder": "Отправить G-code, например M115",
+    "commandLabel": "Команда G-code",
+    "send": "Отправить"
+  }
+}

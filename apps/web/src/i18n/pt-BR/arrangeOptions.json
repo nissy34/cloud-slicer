@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Espaçamento",
+    "spacingMm": "Espaçamento em mm",
+    "autoNote": "0 significa espaçamento automático.",
+    "rotate": "Girar automaticamente ao organizar",
+    "multiMaterial": "Permitir vários materiais na mesma placa",
+    "alignYOff": "Desative o giro automático para usar isto",
+    "alignYTip": "Gira cada objeto para que o lado maior fique da frente para trás",
+    "alignY": "Alinhar ao eixo Y",
+    "arrange": "Organizar",
+    "reset": "Redefinir"
+  }
+}

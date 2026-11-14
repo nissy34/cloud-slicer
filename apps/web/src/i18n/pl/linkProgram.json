@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Ten kod wygasł. Poproś aplikację AI o ponowne zalogowanie, aby dostać nowy.",
+    "invalid": "Ten kod jest nieprawidłowy. Porównaj go z kodem pokazanym przez aplikację AI albo poproś ją o ponowne zalogowanie.",
+    "siteAnswered": "Witryna odpowiedziała {{status}}",
+    "checkingAccount": "Sprawdzanie konta…",
+    "signInFirst": "Najpierw zaloguj się do Cloud Slicer. Potem to okno poprosi o połączenie aplikacji AI.",
+    "noSignIn": "Logowanie nie jest skonfigurowane na tej witrynie.",
+    "codeLabel": "Kod pokazany przez aplikację AI",
+    "checkingCode": "Sprawdzanie kodu…",
+    "connected": "Połączono. Wróć do aplikacji AI: jest zalogowana jako {{name}}.",
+    "turnedDown": "Odrzucono. Aplikacja AI nie jest zalogowana.",
+    "asks": "Aplikacja AI na Twoim komputerze (dodatek Cloud Slicer) prosi o użycie Twojego konta, <b>{{email}}</b>. Sprawdź, czy pokazuje ten kod:",
+    "willSee": "Zobaczy Twoje zapisane profile i drukarki oraz może sprawdzać drukarki i wysyłać do nich pliki. Za każdym razem pyta Cię, zanim rozpocznie druk. Możesz ją wylogować w aplikacji AI.",
+    "continueGoogle": "Kontynuuj z Google",
+    "dontConnect": "Nie łącz",
+    "connect": "Połącz",
+    "title": "Połącz aplikację AI"
+  }
+}

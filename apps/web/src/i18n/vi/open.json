@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Thả tệp STL, 3MF, OBJ, STEP hoặc SVG vào đây",
+    "openModel": "Mở mô hình",
+    "fromDrive": "Mở từ Google Drive",
+    "deletePlateTip": "Xóa plate này và những gì trên nó",
+    "deletePlate": "Xóa plate",
+    "clearAsk": "Xóa sạch plate?",
+    "unsavedChanges": "“{{name}}” có các thay đổi chưa được lưu.",
+    "clearAll": "Xóa tất cả",
+    "dropToAdd": "Thả để thêm"
+  }
+}

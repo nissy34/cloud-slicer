@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "清理體積",
+    "ownAmounts": "自訂數值",
+    "fromColours": "依顏色計算",
+    "leftNozzle": "左噴嘴",
+    "rightNozzle": "右噴嘴",
+    "nozzleN": "噴嘴 {{n}}",
+    "filamentN": "線材 {{n}}",
+    "recalculate": "重新計算",
+    "done": "完成",
+    "explain": "從左側的線材換成上方的線材時，列印裝置擠出的量，單位為 mm³。依顏色算出：由深色換成淺色需要更多。",
+    "nozzle": "噴嘴",
+    "tableLabel": "清理體積 (mm³)",
+    "from": "從",
+    "to": "到",
+    "toFilament": "換成 {{name}}",
+    "fromFilament": "從 {{name}}",
+    "purgeLabel": "從 {{from}} 換成 {{to}} 的清理量 (mm³)",
+    "suggested": "建議：{{min}} 至 {{max}} mm³（超出範圍會顯示紅色）。",
+    "multiplier": "倍率",
+    "scales": "縮放所有數值（{{min}} 至 {{max}}）。",
+    "towerOff": "此列印裝置的設定（多材料頁面）中已關閉「在換料塔中清理」，因此每次換料都會清理換料體積（{{volume}} mm³），而不是這些數值。它們仍會決定列印裝置換料 G-code 取得的清理長度。"
+  }
+}

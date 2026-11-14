@@ -12,5 +12,7 @@ describe('language', () => {
     expect(isLanguageChoice('xx')).toBe(false);
     expect(isRtl('he')).toBe(true);
     expect(isRtl('en')).toBe(false);
+    expect(isLanguageChoice('pt-BR')).toBe(true);
+    expect(isRtl('de')).toBe(false);
   });
 });

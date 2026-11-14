@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "“{{variable}}” não é uma configuração que este fatiador conhece (pode vir de outro fatiador ou de uma versão mais nova).",
+    "unknownName": "usa um nome que este fatiador não conhece.",
+    "negativeIndex": "“{{variable}}” é lido antes de o primeiro filamento ser carregado (o índice dele ali é -1); verifique esse índice antes com {if ...}.",
+    "negativeIndexList": "uma lista é lida antes de o primeiro filamento ser carregado (o índice dela ali é -1); verifique esse índice antes com {if ...}.",
+    "reasonAt": "{{reason}} em “{{variable}}”.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, linha {{line}}: {{why}}",
+    "filamentSettings": "configurações do filamento",
+    "printerSettings": "configurações da impressora",
+    "or": " ou ",
+    "stoppedOne": "O fatiamento parou: um G-code personalizado não pôde ser preenchido.",
+    "stoppedSome": "O fatiamento parou: algum G-code personalizado não pôde ser preenchido.",
+    "fix": "Corrija nas {{where}} ou redefina para o G-code da predefinição."
+  }
+}

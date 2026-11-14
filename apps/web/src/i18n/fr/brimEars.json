@@ -1,0 +1,31 @@
+{
+  "brimEars": {
+    "title": "Bordure à oreilles",
+    "done": "Terminé",
+    "intro": "De petits disques de bordure sous les coins les empêchent de se soulever, avec bien moins de bordure à retirer qu’une bordure complète.",
+    "howTouch": "Touchez le modèle ou le plateau à côté pour ajouter une oreille. Touchez une oreille pour la choisir, puis Retirer la sélection.",
+    "howMouse": "Cliquez sur le modèle ou sur le plateau à côté pour ajouter une oreille. Cliquez sur une oreille pour la choisir (Shift en ajoute d’autres), ou faites un clic droit dessus pour la retirer.",
+    "reading": "Lecture des oreilles…",
+    "notPainted": "Les oreilles ne s’impriment que si le type de bordure de cet objet est Peint (bordure à oreilles).",
+    "usePainted": "Utiliser des oreilles de bordure pour cet objet",
+    "ears": "Oreilles",
+    "count_one": "{{count}} oreille",
+    "count_many": "{{count}} oreilles",
+    "count_other": "{{count}} oreilles",
+    "loose_one": "{{count}} ne touche pas l’objet",
+    "loose_many": "{{count}} ne touchent pas l’objet",
+    "loose_other": "{{count}} ne touchent pas l’objet",
+    "picked_one": "{{count}} sélectionnée",
+    "picked_many": "{{count}} sélectionnées",
+    "picked_other": "{{count}} sélectionnées",
+    "size": "Taille des oreilles",
+    "auto": "Ajouter des oreilles sur les coins",
+    "maxAngle": "Angle max",
+    "maxAngleTip": "Les coins plus aigus que cet angle reçoivent une oreille",
+    "detection": "Longueur de détection",
+    "detectionTip": "Les petites bosses plus courtes que cela sont d’abord lissées, elles ne reçoivent donc pas d’oreilles",
+    "resize": "Redimensionner la sélection",
+    "remove": "Retirer la sélection",
+    "removeAll": "Tout retirer"
+  }
+}

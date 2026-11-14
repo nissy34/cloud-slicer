@@ -1,0 +1,21 @@
+{
+  "deviceFiles": {
+    "print": "印刷…",
+    "deleteName": "{{name}}を削除",
+    "delete": "削除",
+    "title": "プリンター内のファイル",
+    "upload": "G-code をアップロード…",
+    "timelapses": "タイムラプス",
+    "none": "G-code ファイルはまだありません。",
+    "searchN_other": "{{count}} 件のファイルを検索",
+    "search": "ファイルを検索",
+    "noMatch": "「{{query}}」に一致するファイルはありません。",
+    "deleteFile": "ファイルを削除",
+    "deleteText": "{{name}}をプリンターから削除しますか？",
+    "deleted": "削除しました",
+    "pages": "ファイルのページ",
+    "newer": "新しい",
+    "older": "古い",
+    "range": "{{from}}〜{{to}} / {{total}}"
+  }
+}

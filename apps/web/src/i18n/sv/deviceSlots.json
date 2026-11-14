@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "ett matchande filament",
+    "noSlot": "Ingen {{noun}} har {{material}}. Ladda det, eller byt filament i slicern och bered igen.",
+    "noSlotNozzle": "Ingen {{noun}} har {{material}} med en {{nozzle}} mm nozzel. Ladda det, eller byt filament i slicern och bered igen.",
+    "noType": "{{slot}} har ingen filamenttyp inställd. {{unset}}",
+    "otherMaterial": "{{slot}} har {{has}}, men det här filamentet beretts som {{material}}.",
+    "otherNozzle": "{{slot}} har en {{has}} mm nozzel, men filen beretts för {{nozzle}} mm.",
+    "highFlow": "Filen beretts för en nozzel med högt flöde, men {{slot}} har en standardnozzel."
+  }
+}

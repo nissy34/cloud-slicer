@@ -1,0 +1,18 @@
+{
+  "chooseBar": {
+    "chosenModels": "Hautatutako ereduak",
+    "tapToChoose": "Ukitu ereduak hautatzeko",
+    "chosen_one": "{{count}} hautatuta",
+    "chosen_other": "{{count}} hautatuta",
+    "selectAll": "Hautatu denak",
+    "all": "Denak",
+    "assemble": "Muntatu",
+    "assembleTip": "Elkartu objektu bakar batean, pieza bakoitza dagoen lekuan",
+    "menuTip": "Zer egin guztiekin (edo egin klik eskuinez / luze sakatu hautatutako eredu bat)",
+    "menu": "Zer egin haiekin",
+    "doneTip": "Ukitzeak eredu bakarra hautatzen du berriro",
+    "clearTip": "Ez dago ezer hautatuta (Esc)",
+    "done": "Eginda",
+    "clear": "Garbitu"
+  }
+}

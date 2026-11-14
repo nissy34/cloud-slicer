@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · Slicování · {{title}}",
+    "doneTitle": "Slicování dokončeno",
+    "plateSliced": "Deska {{plate}} je naslicována. Klepnutím ji zobrazíte.",
+    "tapToSee": "Klepnutím ji zobrazíte.",
+    "questionTitle": "Slicování vás potřebuje",
+    "questionBody": "Než skončí, má otázku. Klepnutím odpovíte.",
+    "failedTitle": "Slicování selhalo",
+    "tapToSeeWhy": "Klepnutím zjistíte proč."
+  }
+}

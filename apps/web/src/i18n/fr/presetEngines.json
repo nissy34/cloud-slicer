@@ -1,0 +1,10 @@
+{
+  "presetEngines": {
+    "split_one": "{{count}} réglage n’est plus identique dans les deux moteurs ; « {{name}} » garde ses valeurs dans chacun.",
+    "split_many": "{{count}} réglages ne sont plus identiques dans les deux moteurs ; « {{name}} » garde ses valeurs dans chacun.",
+    "split_other": "{{count}} réglages ne sont plus identiques dans les deux moteurs ; « {{name}} » garde ses valeurs dans chacun.",
+    "separate_one": "{{count}} réglage de « {{name}} » pourrait maintenant être identique dans les deux moteurs mais diffère ; « Utiliser les mêmes valeurs dans les deux moteurs » dans son menu les fait correspondre.",
+    "separate_many": "{{count}} réglages de « {{name}} » pourraient maintenant être identiques dans les deux moteurs mais diffèrent ; « Utiliser les mêmes valeurs dans les deux moteurs » dans son menu les fait correspondre.",
+    "separate_other": "{{count}} réglages de « {{name}} » pourraient maintenant être identiques dans les deux moteurs mais diffèrent ; « Utiliser les mêmes valeurs dans les deux moteurs » dans son menu les fait correspondre."
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Xerratze-motorra deskargatzen",
+    "setup": "Xerratze-motorra abiarazten",
+    "printers": "Zure inprimagailuak eta aurrezarpenak kargatzen",
+    "downloadingProject": "“{{name}}” deskargatzen",
+    "opening": "{{name}} irekitzen"
+  }
+}

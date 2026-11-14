@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Bu dosya",
+    "title": "Proje olarak açılsın mı?",
+    "geometryOnly": "Yalnızca geometriyi içe aktar",
+    "open": "Projeyi aç",
+    "body": "<b>{{name}}</b>, kendi plakaları ve ayarları olan bir proje. Açarsanız şu an plakalarınızda olanların yerine geçer. Geometrisini içe aktarırsanız nesneleri plakanıza eklenir ve ayarlarınız korunur."
+  }
+}

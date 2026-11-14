@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "일치하는 필라멘트",
+    "noSlot": "{{material}}이(가) 들어 있는 {{noun}}이(가) 없습니다. 넣거나, 슬라이서에서 필라멘트를 바꾼 뒤 다시 슬라이스하세요.",
+    "noSlotNozzle": "{{nozzle}} mm 노즐용 {{material}}이(가) 들어 있는 {{noun}}이(가) 없습니다. 넣거나, 슬라이서에서 필라멘트를 바꾼 뒤 다시 슬라이스하세요.",
+    "noType": "{{slot}}에 필라멘트 종류가 설정되어 있지 않습니다. {{unset}}",
+    "otherMaterial": "{{slot}}에는 {{has}}이(가) 있지만, 이 필라멘트는 {{material}}(으)로 슬라이스되었습니다.",
+    "otherNozzle": "{{slot}}에는 {{has}} mm 노즐이 있지만, 파일은 {{nozzle}} mm용으로 슬라이스되었습니다.",
+    "highFlow": "파일은 고유량 노즐용으로 슬라이스되었지만, {{slot}}에는 표준 노즐이 있습니다."
+  }
+}

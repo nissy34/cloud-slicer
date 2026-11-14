@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Punt",
+    "edge": "Rand",
+    "circle": "Cirkel",
+    "plane": "Vlak",
+    "position": "Positie",
+    "length": "Lengte",
+    "from": "Van",
+    "to": "Naar",
+    "diameter": "Diameter",
+    "radius": "Straal",
+    "centre": "Midden",
+    "normal": "Normaal",
+    "angle": "Hoek",
+    "distance": "Afstand",
+    "perpendicular": "Loodrechte afstand",
+    "along": "Langs {{axis}}"
+  }
+}

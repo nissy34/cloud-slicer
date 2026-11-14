@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "간격",
+    "spacingMm": "간격(mm)",
+    "autoNote": "0은 자동 간격을 뜻합니다.",
+    "rotate": "정렬 시 자동 회전",
+    "multiMaterial": "같은 플레이트에 여러 재료 허용",
+    "alignYOff": "사용하려면 자동 회전을 끄세요",
+    "alignYTip": "각 객체의 긴 쪽이 앞뒤 방향이 되도록 돌립니다",
+    "alignY": "Y축에 맞춤",
+    "arrange": "정렬",
+    "reset": "초기화"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "simplifyTool": {
+    "title": "簡化",
+    "done": "完成",
+    "hint": "三角面越少，大型模型開啟、切片和預覽就越快。精細細節可能會變柔和；復原可找回原本的網格。",
+    "trianglesLabel": "三角面",
+    "triangles_other": "{{n}} 個三角面",
+    "trianglesUnknown": "… 個三角面",
+    "workingOut": "（計算中…）",
+    "by": "簡化依據",
+    "detailLevel": "細節等級",
+    "ratio": "簡化比例",
+    "detail": "細節",
+    "removeTip": "要移除的三角面比例",
+    "remove": "移除",
+    "paintKept": "此物件的繪製內容（顏色、支撐、接縫、絨毛表面）會保留在簡化後的網格上。",
+    "apply": "套用",
+    "extraHigh": "極高",
+    "high": "高",
+    "medium": "中",
+    "low": "低",
+    "extraLow": "極低",
+    "million": "{{n}} 百萬",
+    "heavyPlates": "有 {{n}} 個列印板的三角面超過 {{limit}} 個（最多 {{most}} 個），可能超出此裝置的負荷。將每個簡化到約 {{light}} 個，仍能保留足夠的列印細節。",
+    "heavyPlate": "列印板 {{n}} 有 {{triangles}} 個三角面，可能超出此裝置的負荷。將它簡化到約 {{light}} 個，仍能保留足夠的列印細節。",
+    "heavyModel": "此模型有 {{triangles}} 個三角面，可能超出此裝置的負荷。將它簡化到約 {{light}} 個，仍能保留足夠的列印細節。"
+  }
+}

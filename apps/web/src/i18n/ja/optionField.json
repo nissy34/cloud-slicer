@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "プリセットの値にリセット",
+    "keptOld": "元の値を維持しました。",
+    "kept": "{{value}} を維持しました。",
+    "plateUses": "プレート {{n}} は次のとおりです:",
+    "on": "オン",
+    "off": "オフ",
+    "itsOwn": "（独自の設定）。",
+    "plateSettings": "プレート設定",
+    "default": "デフォルト",
+    "percentOrMm": "パーセントですか、mm ですか？",
+    "isItPercent": "{{label}}: {{number}}% ですか、{{number}} {{unit}} ですか？",
+    "filamentN": "フィラメント {{n}}",
+    "mix": "ミックス",
+    "mixes": "ミックス"
+  }
+}

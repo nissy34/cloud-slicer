@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} filamenti su {{heads}} testine: scegli tu quale testina stampa ciascuno quando invii la stampa.",
+    "warn": "{{n}} filamenti su una stampante con {{heads}} testine."
+  }
+}

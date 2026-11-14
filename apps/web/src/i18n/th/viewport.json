@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "ย้าย",
+    "rotate": "หมุน",
+    "scale": "ปรับขนาด",
+    "rotateText": "หมุนข้อความ",
+    "moveSvgSurface": "ย้าย SVG บนพื้นผิว",
+    "moveTextSurface": "ย้ายข้อความบนพื้นผิว",
+    "movePart": "ย้ายชิ้นส่วน",
+    "rotatePart": "หมุนชิ้นส่วน",
+    "scalePart": "ปรับขนาดชิ้นส่วน",
+    "plates": "เพลต",
+    "ownSettingsTip": "เพลตนี้มีการตั้งค่าของตัวเอง",
+    "ownSettings": "มีการตั้งค่าของตัวเอง",
+    "plateSettings": "การตั้งค่าเพลต",
+    "plateNSettings": "การตั้งค่าเพลต {{n}}"
+  }
+}

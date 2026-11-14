@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "結合",
+    "difference": "差分",
+    "intersection": "交差",
+    "subtractFrom": "引かれる側",
+    "subtractWith": "引く側",
+    "part": "パーツ {{n}}",
+    "partOption": "{{name}}（{{kind}}）",
+    "title": "メッシュブーリアン",
+    "done": "完了",
+    "operation": "演算",
+    "needTwo": "1 つのオブジェクト内の 2 つのパーツが対象です。オブジェクトのメニュー（右クリック、またはオブジェクト一覧の ⋯ ボタン）からパーツ、ネガティブパーツ、モディファイアのいずれかを追加して配置してから、ここに戻ってください。",
+    "unionHint": "2 つを 1 つのパーツに結合します。",
+    "differenceHint": "1 つ目から 2 つ目を切り抜きます。",
+    "intersectionHint": "2 つが重なる部分だけを残します。",
+    "resultHint": "結果は 1 つ目の位置、種類、設定を引き継ぎます。元に戻すと両方が戻ります。",
+    "pickDifferent": "異なる 2 つのパーツを選んでください。",
+    "deleteInput": "元のパーツを削除（2 つ目も取り除く）",
+    "working": "処理中…"
+  }
+}

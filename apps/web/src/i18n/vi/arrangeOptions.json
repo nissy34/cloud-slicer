@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Khoảng cách",
+    "spacingMm": "Khoảng cách tính bằng mm",
+    "autoNote": "0 nghĩa là khoảng cách tự động.",
+    "rotate": "Tự động xoay khi sắp xếp",
+    "multiMaterial": "Cho phép nhiều vật liệu trên cùng plate",
+    "alignYOff": "Tắt Tự động xoay để dùng tùy chọn này",
+    "alignYTip": "Xoay mỗi vật thể để cạnh dài chạy từ trước ra sau",
+    "alignY": "Căn theo trục Y",
+    "arrange": "Sắp xếp",
+    "reset": "Đặt lại"
+  }
+}

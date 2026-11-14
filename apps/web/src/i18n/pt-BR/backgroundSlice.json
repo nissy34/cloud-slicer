@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · Fatiando · {{title}}",
+    "doneTitle": "Fatiamento concluído",
+    "plateSliced": "A placa {{plate}} foi fatiada. Toque para ver.",
+    "tapToSee": "Toque para ver.",
+    "questionTitle": "O fatiamento precisa de você",
+    "questionBody": "Há uma pergunta antes de terminar. Toque para responder.",
+    "failedTitle": "O fatiamento falhou",
+    "tapToSeeWhy": "Toque para ver o motivo."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "brimEars": {
+    "title": "Brim-öron",
+    "done": "Klar",
+    "intro": "Runda brim-plattor under hörnen hindrar dem från att lyfta, med mycket mindre brim att rensa bort än en hel brim.",
+    "howTouch": "Tryck på modellen eller byggplattan bredvid den för att lägga till ett öra. Tryck på ett öra för att välja det och sedan på Ta bort valda.",
+    "howMouse": "Klicka på modellen eller byggplattan bredvid den för att lägga till ett öra. Klicka på ett öra för att välja det (Shift lägger till fler), eller högerklicka på det för att ta bort det.",
+    "reading": "Läser öronen…",
+    "notPainted": "Öronen skrivs bara ut när det här objektets brim-typ är Målad (brim-öron).",
+    "usePainted": "Använd brim-öron för det här objektet",
+    "ears": "Öron",
+    "count_one": "{{count}} öra",
+    "count_other": "{{count}} öron",
+    "loose_one": "{{count}} rör inte objektet",
+    "loose_other": "{{count}} rör inte objektet",
+    "picked_one": "{{count}} vald",
+    "picked_other": "{{count}} valda",
+    "size": "Örats storlek",
+    "auto": "Lägg till öron på hörnen",
+    "maxAngle": "Maxvinkel",
+    "maxAngleTip": "Hörn skarpare än så här får ett öra",
+    "detection": "Detekteringslängd",
+    "detectionTip": "Små utsprång kortare än så här jämnas ut först, så de får inga öron",
+    "resize": "Ändra storlek på valda",
+    "remove": "Ta bort valda",
+    "removeAll": "Ta bort alla"
+  }
+}

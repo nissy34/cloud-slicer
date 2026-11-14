@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "冲刷体积",
+    "ownAmounts": "你自己设定的数值",
+    "fromColours": "根据颜色",
+    "leftNozzle": "左喷嘴",
+    "rightNozzle": "右喷嘴",
+    "nozzleN": "喷嘴 {{n}}",
+    "filamentN": "耗材 {{n}}",
+    "recalculate": "重新计算",
+    "done": "完成",
+    "explain": "从左侧耗材换到顶部耗材时，打印机挤出的量，单位为 mm³。根据颜色计算：由深到浅需要更多。",
+    "nozzle": "喷嘴",
+    "tableLabel": "冲刷体积（mm³）",
+    "from": "从",
+    "to": "到",
+    "toFilament": "到 {{name}}",
+    "fromFilament": "从 {{name}}",
+    "purgeLabel": "从 {{from}} 到 {{to}} 的冲刷量，mm³",
+    "suggested": "建议：{{min}} 到 {{max}} mm³（超出范围会显示为红色）。",
+    "multiplier": "倍数",
+    "scales": "缩放每个数值（{{min}} 到 {{max}}）。",
+    "towerOff": "此打印机设置（多材料页面）中的“在擦拭塔中冲刷”已关闭，因此每次换耗材都会冲刷擦拭体积（{{volume}} mm³），而不是这些数值。它们仍会决定打印机换料 G-code 获得的冲刷长度。"
+  }
+}

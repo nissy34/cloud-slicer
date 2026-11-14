@@ -1,0 +1,31 @@
+{
+  "brimEars": {
+    "title": "Orejas de adherencia",
+    "done": "Hecho",
+    "intro": "Pequeños discos redondos de borde bajo las esquinas evitan que se levanten, con mucho menos borde que limpiar que con un borde completo.",
+    "howTouch": "Toque el modelo o la cama junto a él para añadir una oreja. Toque una oreja para elegirla y luego Quitar elegidas.",
+    "howMouse": "Haga clic en el modelo o en la cama junto a él para añadir una oreja. Haga clic en una oreja para elegirla (Shift añade más), o clic derecho para quitarla.",
+    "reading": "Leyendo las orejas…",
+    "notPainted": "Las orejas solo se imprimen cuando el tipo de borde de este objeto es Pintado (orejas de adherencia).",
+    "usePainted": "Usar orejas de adherencia en este objeto",
+    "ears": "Orejas",
+    "count_one": "{{count}} oreja",
+    "count_many": "{{count}} orejas",
+    "count_other": "{{count}} orejas",
+    "loose_one": "{{count}} sin tocar el objeto",
+    "loose_many": "{{count}} sin tocar el objeto",
+    "loose_other": "{{count}} sin tocar el objeto",
+    "picked_one": "{{count}} elegida",
+    "picked_many": "{{count}} elegidas",
+    "picked_other": "{{count}} elegidas",
+    "size": "Tamaño de la oreja",
+    "auto": "Añadir orejas en las esquinas",
+    "maxAngle": "Ángulo máximo",
+    "maxAngleTip": "Las esquinas más agudas que esto reciben una oreja",
+    "detection": "Longitud de detección",
+    "detectionTip": "Los bultos pequeños más cortos que esto se suavizan antes, para que no reciban orejas",
+    "resize": "Cambiar tamaño de elegidas",
+    "remove": "Quitar elegidas",
+    "removeAll": "Quitar todas"
+  }
+}

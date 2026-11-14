@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "Gaia",
+    "current": "Gaia: {{choice}}",
+    "system": "Sistema",
+    "systemHint": "Gailu honen berdina",
+    "light": "Argia",
+    "dark": "Iluna"
+  }
+}

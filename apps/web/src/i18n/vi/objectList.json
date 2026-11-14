@@ -1,0 +1,31 @@
+{
+  "objectList": {
+    "notPrinted": "Không in",
+    "someNotPrinted": "Một số bản sao không in",
+    "object": "Vật thể",
+    "sameAsObject": "Giống vật thể",
+    "objects": "Vật thể",
+    "skippedTip": "{{name}}: {{why}}. Slice sẽ bỏ qua nó; hãy đánh dấu In được trong menu ⋯ của nó để in.",
+    "objectN": "Vật thể {{n}}",
+    "filamentFor": "Filament cho {{name}}",
+    "more": "Thêm",
+    "moreFor": "Thêm cho {{name}}",
+    "moreTip": "Thêm: nhân bản, đổi tên, đối xứng, xuất… (hoặc nhấp chuột phải vào vật thể)",
+    "painted": "(đã tô màu)",
+    "moreForPart": "Thêm cho phần {{name}}",
+    "partMoreTip": "Đổi tên, đổi loại, cài đặt, xóa",
+    "chosen_other": "Đã chọn {{count}} vật thể",
+    "groupHint": "Di chuyển, xoay và tỷ lệ áp dụng cho tất cả. Nhấp chuột phải vào mô hình đã chọn, hoặc nhấn giữ trên điện thoại, để xem phần còn lại.",
+    "deleteAllTip": "Xóa tất cả (Del)",
+    "delete": "Xóa",
+    "blockerHint": "{{kind}}: support không mọc ở chỗ nó chồng lên vật thể, khi support được bật. Di chuyển nó bằng công cụ Di chuyển.",
+    "enforcerHint": "{{kind}}: support mọc ở chỗ nó chồng lên vật thể, khi support được bật. Di chuyển nó bằng công cụ Di chuyển.",
+    "addInstance": "Thêm bản sao",
+    "addInstanceTip": "Thêm một bản sao nữa, bên cạnh (+). Ctrl+C và Ctrl+V dán nó thành vật thể mới.",
+    "removeInstance": "Xóa bản sao",
+    "removeInstanceTip": "Xóa bản sao này, giữ các bản khác (-)",
+    "simplify": "Đơn giản hóa",
+    "simplifyTip": "Ít tam giác hơn, như Simplify model trên máy tính",
+    "deleteTip": "Vật thể cùng mọi bản sao của nó (Del chỉ xóa bản sao đã chọn)"
+  }
+}

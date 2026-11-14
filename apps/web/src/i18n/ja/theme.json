@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "テーマ",
+    "current": "テーマ: {{choice}}",
+    "system": "システム",
+    "systemHint": "このデバイスに合わせる",
+    "light": "ライト",
+    "dark": "ダーク"
+  }
+}

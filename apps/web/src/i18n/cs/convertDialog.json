@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Převést tento projekt?",
+    "convert": "Převést",
+    "setUpFor": "Byl nastaven pro <b>{{printer}}</b>. Vyberte jednu ze svých tiskáren, na které ho vytisknete.",
+    "printer": "Tiskárna",
+    "convertTo": "Převést na tiskárnu",
+    "keep": "Zachovat nastavení modelu, která projekt změnil: vrstvy, stěny, výplň, podpory, švy, límec",
+    "remember": "Příště to udělat automaticky",
+    "note": "Nastavení, která projekt nechal na výchozích hodnotách své staré tiskárny, a také rychlosti, zrychlení, jerk, šířky čar, kalibrace průtoku a základní věž pocházejí z {{printer}}. Filamenty se přiřazují podle materiálu a druhu (matný, hedvábný, vysoký průtok...) a zachovávají barvy projektu.",
+    "yourPrinter": "vaše tiskárna"
+  }
+}

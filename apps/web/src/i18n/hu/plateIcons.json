@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Névtelen",
+    "nothingYet": "Még nincs semmi ezen a tálcán",
+    "locked": "Ez a tálca zárolva van",
+    "deleteTip": "Ennek a tálcának és tartalmának eltávolítása (az utolsóé nem)",
+    "orientTip": "A tálcán lévő objektumok automatikus tájolása",
+    "arrangeTip": "A tálcán lévő objektumok elrendezése (Shift+A)",
+    "unlockTip": "A tálca feloldása",
+    "lockTip": "A tálca zárolása: az Elrendezés és az Automatikus tájolás békén hagyja",
+    "settingsOwnTip": "Tálcabeállítások: ennek a tálcának saját beállításai vannak",
+    "settingsTip": "Tálcabeállítások: tálcatípus, nyomtatási sorrend, spirálváza, filamentsorrend",
+    "renameTip": "A tálca átnevezése"
+  }
+}

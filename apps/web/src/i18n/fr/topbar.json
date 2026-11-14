@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Espace de travail",
+    "prepare": "Préparer",
+    "preview": "Aperçu",
+    "device": "Appareil",
+    "calibration": "Calibration",
+    "slicingWith": "Découpe avec {{name}} {{version}}"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Téléchargement du moteur de découpe",
+    "setup": "Démarrage du moteur de découpe",
+    "printers": "Chargement de vos imprimantes et préréglages",
+    "downloadingProject": "Téléchargement de « {{name}} »",
+    "opening": "Ouverture de {{name}}"
+  }
+}

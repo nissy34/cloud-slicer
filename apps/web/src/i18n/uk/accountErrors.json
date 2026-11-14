@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "Відповідь не надійшла вчасно",
+    "noAccounts": "Облікові записи недоступні на цьому сервері",
+    "siteNoAnswer": "Cloud Slicer не відповів. Перевірте з'єднання й спробуйте ще раз.",
+    "driveReconnect": "Потрібно знову підключити Google Drive. Відкрийте меню облікового запису (угорі праворуч) і натисніть «Підключити Google Drive».",
+    "driveNoAnswer": "Google Drive не відповів. Перевірте з'єднання й збережіть ще раз.",
+    "driveFull": "Ваш Google Drive заповнено. Звільніть місце на Drive і збережіть ще раз.",
+    "driveGone": "Цього проєкту більше немає на вашому Google Drive",
+    "driveNoUpload": "Google Drive не розпочав завантаження",
+    "pickerBlocked": "Браузер заблокував вікно Google Drive. Дозвольте спливаючі вікна для цього сайту й спробуйте ще раз.",
+    "driveSignIn": "Увійдіть через Google, щоб відкривати файли зі свого Google Drive.",
+    "driveConnectFirst": "Спершу підключіть Google Drive у меню облікового запису.",
+    "pickerNotSetUp": "Відкриття з Google Drive на цьому сайті ще не налаштовано."
+  }
+}

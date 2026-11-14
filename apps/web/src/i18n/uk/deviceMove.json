@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Вимкнено під час друку",
+    "disabledPaused": "Вимкнено під час паузи",
+    "position": "Позиція",
+    "speed": "Швидкість",
+    "flow": "Потік",
+    "head": "Голівка",
+    "moveHead": "Перемістити голівку",
+    "headBack": "Голівка назад",
+    "headLeft": "Голівка вліво",
+    "homeHead": "Homing голівки",
+    "headRight": "Голівка вправо",
+    "headToward": "Голівка до вас",
+    "bed": "Стіл",
+    "headHeight": "Висота голівки",
+    "moveBed": "Перемістити стіл",
+    "moveHeadZ": "Перемістити голівку вгору й вниз",
+    "bedUp": "Стіл угору",
+    "headUp": "Голівка вгору",
+    "homeBed": "Homing столу",
+    "homeHeight": "Homing висоти",
+    "bedDown": "Стіл униз",
+    "headDown": "Голівка вниз",
+    "step": "Крок",
+    "homeAll": "Homing усіх осей",
+    "motorsOff": "Вимкнути двигуни",
+    "heatFirst": "Спершу нагрійте сопло",
+    "extrude10": "Видавити 10 мм",
+    "retract": "Втягнути",
+    "homeFirst": "Виконайте homing принтера, перш ніж його рухати."
+  }
+}

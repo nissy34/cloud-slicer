@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Mover",
+    "rotate": "Rotar",
+    "scale": "Escalar",
+    "rotateText": "Rotar texto",
+    "moveSvgSurface": "Mover SVG sobre la superficie",
+    "moveTextSurface": "Mover texto sobre la superficie",
+    "movePart": "Mover pieza",
+    "rotatePart": "Rotar pieza",
+    "scalePart": "Escalar pieza",
+    "plates": "Placas",
+    "ownSettingsTip": "Esta placa tiene ajustes propios",
+    "ownSettings": "tiene ajustes propios",
+    "plateSettings": "Ajustes de la placa",
+    "plateNSettings": "Ajustes de la placa {{n}}"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}}は {{size}} です。プリセットファイルは最大 {{max}} までです。",
+    "notJson": "{{label}}はプリセットファイルではありません（JSON ではありません）。",
+    "tooMany": "一度にインポートできるプリセットは {{max}} 個までです。{{label}}は除外されました。",
+    "bundleTooBig": "{{name}}は {{size}} です。バンドルは最大 {{max}} までです。",
+    "badZip": "{{name}}を zip として開けませんでした。",
+    "unpacksTooBig": "{{name}}は展開すると {{max}} を超えるか、{{fileMax}} を超えるファイルを含んでいます。何もインポートされませんでした。",
+    "empty": "{{name}}にはプリセットファイルがありません。",
+    "tooManyKeys": "{{max}} 個を超える設定を変更しています。",
+    "tooLarge": "設定が {{max}} を超えています。",
+    "fileN": "ファイル {{n}}",
+    "unreadable": "Orca が読み取れるプリセットではありません: {{error}}。",
+    "noName": "使える名前がありません。",
+    "anotherPrinter": "別のプリンター",
+    "otherPrinter": "{{made}}用ですが、このアプリにはありません。プリンター設定は機種固有なので、別のプリンターには移せません。",
+    "noPrinterBase": "このアプリにあるプリンターがベースではありません。",
+    "noFilamentBase": "適用先のフィラメントプリセットがありません。",
+    "noProcessBase": "適用先のプロセスプリセットがありません。"
+  }
+}

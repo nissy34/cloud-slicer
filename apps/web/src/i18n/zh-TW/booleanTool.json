@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "聯集",
+    "difference": "差集",
+    "intersection": "交集",
+    "subtractFrom": "被減去者",
+    "subtractWith": "減去者",
+    "part": "零件 {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "網格布林運算",
+    "done": "完成",
+    "operation": "運算",
+    "needTwo": "這需要同一個物件的兩個零件。請從物件選單（對它按右鍵，或點物件清單中的 ⋯ 按鈕）新增零件、負零件或修改器，擺好位置後再回到這裡。",
+    "unionHint": "將兩者合併為一個零件。",
+    "differenceHint": "從第一個零件中切除第二個。",
+    "intersectionHint": "只保留兩者重疊的部分。",
+    "resultHint": "結果會取代第一個零件的位置、類型和設定。復原可還原兩者。",
+    "pickDifferent": "請選擇兩個不同的零件。",
+    "deleteInput": "刪除輸入（同時移除第二個）",
+    "working": "處理中…"
+  }
+}

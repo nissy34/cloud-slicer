@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Chưa đặt tên",
+    "nothingYet": "Plate này chưa có gì",
+    "locked": "Plate này đã bị khóa",
+    "deleteTip": "Xóa plate này và những gì trên nó (không xóa được plate cuối)",
+    "orientTip": "Tự động định hướng các vật thể trên plate này",
+    "arrangeTip": "Sắp xếp các vật thể trên plate này (Shift+A)",
+    "unlockTip": "Mở khóa plate này",
+    "lockTip": "Khóa plate này: Sắp xếp và Tự động định hướng sẽ giữ nguyên nó",
+    "settingsOwnTip": "Cài đặt plate: plate này có cài đặt riêng",
+    "settingsTip": "Cài đặt plate: loại plate, thứ tự in, spiral vase, thứ tự filament",
+    "renameTip": "Đổi tên plate này"
+  }
+}

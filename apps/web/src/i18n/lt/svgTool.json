@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "SVG forma",
+    "done": "Atlikta",
+    "pickHint": "Pasirinkite SVG formą objektų sąraše arba 3D vaizde, kad ją pakeistumėte, arba pridėkite iš .svg failo: ant pasirinkto objekto arba kaip atskirą objektą, kai nieko nepasirinkta. Atidarius ar numetus .svg failą taip pat pridedama forma.",
+    "addSvg": "Pridėti SVG…",
+    "depth": "Gylis",
+    "depthCutTip": "Kaip giliai forma įpjauna",
+    "depthTip": "Kiek forma išsikiša",
+    "width": "Plotis",
+    "widthTip": "Formos dydis skersai",
+    "height": "Aukštis",
+    "heightTip": "Formos dydis aukštyn",
+    "keepProportions": "Išlaikyti proporcijas",
+    "useSurfaceTip": "Forma lenkiasi kartu su objekto paviršiumi, o ne stovi ant jo plokščia",
+    "useSurface": "Naudoti paviršių",
+    "svgType": "SVG tipas",
+    "changeType": "Keisti tipą",
+    "engraved": "Įgraviruota",
+    "making": "Kuriama forma…",
+    "undoHint": "Atšaukti grąžina paskutinę formą."
+  }
+}

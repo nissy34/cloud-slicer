@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Moje tiskárny",
+    "otherPrinters": "Ostatní",
+    "printer": "Tiskárna",
+    "manage": "Spravovat",
+    "printerPreset": "Předvolba tiskárny",
+    "addRemovePrinters": "Přidat nebo odebrat tiskárny…",
+    "sendsFromDevice": "Posílejte na ni tisky z karty Zařízení.",
+    "noDirectPrint": "Pro tuto tiskárnu není přímý tisk (není to Klipper, Prusa ani Centauri Carbon): stáhněte G-code a vytiskněte ho, nebo ho pošlete z karty Zařízení, pokud tiskárnu řídí OctoPrint.",
+    "plateType": "Typ desky",
+    "filament": "Filament",
+    "addFilament": "Přidat filament",
+    "add": "+ Přidat",
+    "filamentColour": "Barva filamentu",
+    "filamentNColour": "Barva filamentu {{n}}",
+    "filamentNPreset": "Předvolba filamentu {{n}}",
+    "addRemoveFilaments": "Přidat nebo odebrat filamenty…",
+    "removeFilament": "Odebrat tento filament",
+    "removeFilamentN": "Odebrat filament {{n}}",
+    "process": "Proces",
+    "processPreset": "Předvolba procesu",
+    "readingFilaments": "Čtení filamentů tiskárny…",
+    "myPresets": "Moje předvolby",
+    "systemPresets": "Systémové předvolby",
+    "show": "Zobrazit postranní panel (Shift+Tab)",
+    "hide": "Skrýt postranní panel (Shift+Tab)",
+    "width": "Šířka postranního panelu"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "fontList": {
+    "hebrew": "hebreera",
+    "pickScriptFont": "Aukeratu {{script}} letra-tipo bat, adibidez {{fonts}}.",
+    "pickAnyFont": "Aukeratu letrak dituen letra-tipo bat: letra-tipoen fitxategi bat edo ordenagailu honetako letra-tipo bat.",
+    "noLetters": "Letra-tipo honek ez dauka {{letters}} karaktererako letrarik, beraz kanpoan geratzen dira."
+  }
+}

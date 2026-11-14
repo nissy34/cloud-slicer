@@ -20,7 +20,7 @@
 //     layer filament changes keep printing with it. OrcaSlicer has no Cycle
 //     mode: a Cycle mix goes there as a Ratio mix of the same shares.
 import type { OptionDef, OrcaConfig, ProjectInfo, Selection } from '../engine/protocol';
-import { i18n } from '../i18n';
+import { i18n, settingText } from '../i18n';
 import { engineName, type EngineFlavor } from './engines';
 import { splitValues, valueAt, withValueAt } from './flow-variants';
 import { encodeIds, LAYER_CYCLE, MODES, mixLabel, normalizeWeights, patternIds, ratioFor, SIMPLE, type MixRecipe, type MixRow } from './mixing';
@@ -213,7 +213,7 @@ export interface PlanInput {
 /** What switching the open project to engine `to` keeps, changes and drops. */
 export function switchPlan(p: PlanInput, t: SharedTable = SHARED): SwitchPlan {
   const { from, to, options } = p;
-  const label = (key: string) => options[key]?.label || key;
+  const label = (key: string) => settingText(options[key]?.label ?? '') || key;
   const mine = (type: PresetType, name: string) => p.userPresets.some((u) => u.type === type && u.name === name);
   const move = (type: PresetType, name: string) => (mine(type, name) ? name : standIn(type, name, from, to, t));
   const presets: PresetMove[] = [];

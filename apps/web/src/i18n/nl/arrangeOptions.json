@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Tussenruimte",
+    "spacingMm": "Tussenruimte in mm",
+    "autoNote": "0 betekent automatische tussenruimte.",
+    "rotate": "Automatisch draaien bij rangschikken",
+    "multiMaterial": "Meerdere materialen op hetzelfde printbed toestaan",
+    "alignYOff": "Zet Automatisch draaien uit om dit te gebruiken",
+    "alignYTip": "Draait elk voorwerp zodat de lange zijde van voor naar achter loopt",
+    "alignY": "Uitlijnen op Y-as",
+    "arrange": "Rangschikken",
+    "reset": "Terugzetten"
+  }
+}

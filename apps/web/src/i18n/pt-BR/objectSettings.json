@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Configurações do objeto",
+    "modifierSettings": "Configurações do modificador",
+    "partSettings": "Configurações da peça",
+    "addToObject": "Adicionar uma configuração a este objeto",
+    "addToModifier": "Adicionar uma configuração a este modificador",
+    "addToPart": "Adicionar uma configuração a esta peça",
+    "addSetting": "+ Adicionar configuração",
+    "modifierEmpty": "Adicione uma configuração para alterá-la onde o modificador se sobrepõe ao objeto, como mais preenchimento em um ponto.",
+    "partEmpty": "Usa as configurações do objeto. Adicione uma para alterar só esta peça.",
+    "objectEmpty": "Usa as configurações do processo. Adicione uma para alterar só este objeto.",
+    "others": "Outras",
+    "removeFromObject": "Remover deste objeto",
+    "removeFromModifier": "Remover deste modificador",
+    "removeFromPart": "Remover desta peça"
+  }
+}

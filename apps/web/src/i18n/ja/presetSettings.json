@@ -1,0 +1,32 @@
+{
+  "presetSettings": {
+    "editPrinter": "プリンター設定を編集",
+    "editFilament": "フィラメント {{n}} の設定を編集",
+    "savedInProject": "プロジェクト{{name}}に保存しました。",
+    "savedIn3mf": "ダウンロードしたプロジェクトの 3MF に保存しました。",
+    "nameTaken": "この名前のプリセットはすでにあります。",
+    "savedAs": "{{name}}として保存しました。",
+    "whereAccount": "アカウントに保存しました。",
+    "whereBrowser": "サインインするまで、このブラウザーに保存されます。",
+    "printerTitle": "プリンター設定",
+    "filamentNTitle": "フィラメント {{n}} の設定",
+    "filamentTitle": "フィラメント設定",
+    "newPrinterName": "新しいプリンタープリセットの名前",
+    "newFilamentName": "新しいフィラメントプリセットの名前",
+    "back": "戻る",
+    "saving": "保存中…",
+    "save": "保存",
+    "unsaved_other": "未保存の変更 {{count}} 件",
+    "noChanges": "変更なし",
+    "discard": "変更を破棄",
+    "saveAsNew": "新しいプリセットとして保存…",
+    "savedName": "{{name}}を保存しました。",
+    "saveToPreset": "プリセットに保存",
+    "saveToProjectTip": "この変更をこのプロジェクトだけに保持し、プロジェクトを保存します",
+    "saveToProject": "プロジェクトに保存",
+    "modified": "（変更済み）",
+    "yours": "{{parent}}をベースにした、あなたのプリセットです。",
+    "system": "システムプリセットです。変更を残すには「名前を付けて保存」を使ってください。",
+    "footHint": "「プロジェクトに保存」は、この変更をこのプロジェクトだけに保持し、開いたときに復元されます。プリセットに保存すると、すべてのプロジェクトで保持されます。{{where}}書き出し、インポート、名前の変更、削除は ⋯ メニューにあります。"
+  }
+}

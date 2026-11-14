@@ -1,0 +1,32 @@
+{
+  "objectList": {
+    "notPrinted": "Nem nyomtatódik",
+    "someNotPrinted": "Néhány másolat nem nyomtatódik",
+    "object": "Objektum",
+    "sameAsObject": "Ugyanaz, mint az objektum",
+    "objects": "Objektumok",
+    "skippedTip": "{{name}}: {{why}}. A szeletelés kihagyja; a nyomtatásához jelölje be a Nyomtatható opciót a ⋯ menüjében.",
+    "objectN": "{{n}}. objektum",
+    "filamentFor": "Filament ehhez: {{name}}",
+    "more": "Továbbiak",
+    "moreFor": "Továbbiak ehhez: {{name}}",
+    "moreTip": "Továbbiak: klónozás, átnevezés, tükrözés, exportálás… (vagy kattintson jobb gombbal az objektumra)",
+    "painted": "(festett)",
+    "moreForPart": "Továbbiak a(z) {{name}} tárgyhoz",
+    "partMoreTip": "Átnevezés, típusváltás, beállítások, törlés",
+    "chosen_one": "{{count}} objektum kiválasztva",
+    "chosen_other": "{{count}} objektum kiválasztva",
+    "groupHint": "A mozgatás, forgatás és átméretezés mindegyiken működik. A többihez kattintson jobb gombbal egy kiválasztott modellre, vagy telefonon nyomja hosszan.",
+    "deleteAllTip": "Mindet törli (Del)",
+    "delete": "Törlés",
+    "blockerHint": "{{kind}}: ahol átfedi az objektumot, nem nőnek támaszok, ha a támaszok be vannak kapcsolva. Mozgassa a Mozgatás eszközzel.",
+    "enforcerHint": "{{kind}}: ahol átfedi az objektumot, nőnek támaszok, ha a támaszok be vannak kapcsolva. Mozgassa a Mozgatás eszközzel.",
+    "addInstance": "Példány hozzáadása",
+    "addInstanceTip": "Még egy másolat belőle, mellette (+). A Ctrl+C és Ctrl+V új objektumként illeszti be.",
+    "removeInstance": "Példány eltávolítása",
+    "removeInstanceTip": "Ennek a másolatnak az eltávolítása, a többi megtartásával (-)",
+    "simplify": "Egyszerűsítés",
+    "simplifyTip": "Kevesebb háromszög, mint az asztali gép Modell egyszerűsítése funkciója",
+    "deleteTip": "Az objektum az összes másolatával (a Del csak a kijelölt másolatot törli)"
+  }
+}

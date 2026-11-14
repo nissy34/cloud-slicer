@@ -1,0 +1,8 @@
+{
+  "fontList": {
+    "hebrew": "希伯來文",
+    "pickScriptFont": "請選擇{{script}}字型，例如 {{fonts}}。",
+    "pickAnyFont": "請選擇含有這些字元的字型：字型檔，或此電腦上的字型。",
+    "noLetters": "此字型沒有「{{letters}}」的字元，因此已略過。"
+  }
+}

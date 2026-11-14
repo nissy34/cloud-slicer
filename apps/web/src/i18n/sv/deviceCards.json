@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Kameror",
+    "climate": "Byggplatta och kammare",
+    "move": "Flytta",
+    "console": "Konsol",
+    "print": "Utskrift",
+    "toolHeads": "Verktygshuvuden",
+    "alerts": "Aviseringar",
+    "files": "Filer",
+    "unfold": "Fäll ut det här kortet",
+    "fold": "Fäll ihop det här kortet",
+    "targetOf": "Målvärde för {{label}}",
+    "turnOff": "Stäng av {{label}}",
+    "off": "Av",
+    "keepGoing": "Fortsätt",
+    "chamberLight": "Kammarbelysning",
+    "purifierExhaust": "Luftrenarens utlopp",
+    "purifierFilter": "Luftrenarens filter",
+    "fanAuto": "Skrivaren styr den här fläkten själv"
+  }
+}

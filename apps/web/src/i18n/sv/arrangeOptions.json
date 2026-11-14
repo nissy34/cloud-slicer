@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Avstånd",
+    "spacingMm": "Avstånd i mm",
+    "autoNote": "0 betyder automatiskt avstånd.",
+    "rotate": "Automatisk rotation vid arrangering",
+    "multiMaterial": "Tillåt flera material på samma platta",
+    "alignYOff": "Stäng av Automatisk rotation för att använda det här",
+    "alignYTip": "Vrider varje objekt så att dess långa sida går framifrån och bakåt",
+    "alignY": "Justera mot Y-axeln",
+    "arrange": "Arrangera",
+    "reset": "Återställ"
+  }
+}

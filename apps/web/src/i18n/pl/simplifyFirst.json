@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "Najpierw uprościć ten model?",
+    "openAsIs": "Otwórz bez zmian",
+    "simplify": "Uprość",
+    "paintKept": "Jego malowanie zostanie zachowane na uproszczonej siatce.",
+    "dontAsk": "Nie pytaj ponownie na tym urządzeniu"
+  }
+}

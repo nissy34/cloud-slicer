@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Descarregant el motor de laminat",
+    "setup": "Iniciant el motor de laminat",
+    "printers": "Carregant les vostres impressores i perfils",
+    "downloadingProject": "Descarregant «{{name}}»",
+    "opening": "Obrint {{name}}"
+  }
+}

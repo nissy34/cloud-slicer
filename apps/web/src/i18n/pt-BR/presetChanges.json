@@ -1,0 +1,24 @@
+{
+  "presetChanges": {
+    "filamentN": "Filamento {{n}}",
+    "process": "Processo",
+    "printer": "Impressora",
+    "changes_one": "{{count}} alteração",
+    "changes_many": "{{count}} alterações",
+    "changes_other": "{{count}} alterações",
+    "saveTitle": "Salvar as configurações alteradas",
+    "back": "Voltar",
+    "saving": "Salvando…",
+    "save": "Salvar",
+    "namesText": "Suas próprias predefinições mantêm o nome e recebem as alterações. Dê um novo nome para salvar uma cópia.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Manter as configurações alteradas?",
+    "discard": "Descartar",
+    "saveMenu": "Salvar…",
+    "keep": "Manter",
+    "text": "Algumas predefinições têm configurações alteradas. Mantenha-as no novo projeto, descarte-as ou salve-as em predefinições.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Lembrar minha escolha (Manter ou Descartar)"
+  }
+}

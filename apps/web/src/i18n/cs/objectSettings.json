@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Nastavení objektu",
+    "modifierSettings": "Nastavení modifikátoru",
+    "partSettings": "Nastavení dílu",
+    "addToObject": "Přidat nastavení k tomuto objektu",
+    "addToModifier": "Přidat nastavení k tomuto modifikátoru",
+    "addToPart": "Přidat nastavení k tomuto dílu",
+    "addSetting": "+ Přidat nastavení",
+    "modifierEmpty": "Přidejte nastavení, abyste ho změnili tam, kde se modifikátor překrývá s objektem, například víc výplně na jednom místě.",
+    "partEmpty": "Používá nastavení objektu. Přidejte jedno, abyste ho změnili jen pro tento díl.",
+    "objectEmpty": "Používá nastavení procesu. Přidejte jedno, abyste ho změnili jen pro tento objekt.",
+    "others": "Ostatní",
+    "removeFromObject": "Odebrat z tohoto objektu",
+    "removeFromModifier": "Odebrat z tohoto modifikátoru",
+    "removeFromPart": "Odebrat z tohoto dílu"
+  }
+}

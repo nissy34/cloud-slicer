@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Rozestup",
+    "spacingMm": "Rozestup v mm",
+    "autoNote": "0 znamená automatický rozestup.",
+    "rotate": "Automatické otáčení při rozložení",
+    "multiMaterial": "Povolit více materiálů na jedné desce",
+    "alignYOff": "Pro použití vypněte automatické otáčení",
+    "alignYTip": "Otočí každý objekt tak, aby jeho delší strana směřovala zepředu dozadu",
+    "alignY": "Zarovnat s osou Y",
+    "arrange": "Rozložit",
+    "reset": "Obnovit"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Continuar de onde parou?",
+    "local": "{{name}}, alterado {{when}}. Guardado neste navegador, não salvo.",
+    "discard": "Descartar",
+    "continue": "Continuar",
+    "projectAsk": "Continuar {{name}}?",
+    "project": "Continuar {{name}}",
+    "openHere": "Você o deixou aberto aqui, editado {{when}}",
+    "editedOn": "Editado {{when}} em {{device}}",
+    "notNow": "Agora não",
+    "editedElsewhere": "{{name}} está sendo editado em {{device}}",
+    "viewOnly": "Esta aba é somente para visualização.",
+    "viewOnlyUnsaved": "Esta aba é somente para visualização. As alterações que você fez aqui não estão nela.",
+    "saveMineAsCopy": "Salvar o meu como cópia",
+    "editHere": "Editar aqui",
+    "gone": "“{{name}}” foi excluído em {{device}}. Ainda está aberto aqui, mas não salvo."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} nặng {{size}}; một tệp cài đặt sẵn tối đa {{max}}.",
+    "notJson": "{{label}} không phải tệp cài đặt sẵn (không phải JSON).",
+    "tooMany": "Chỉ nhập được tối đa {{max}} cài đặt sẵn cùng lúc; {{label}} đã bị bỏ qua.",
+    "bundleTooBig": "{{name}} nặng {{size}}; một gói tối đa {{max}}.",
+    "badZip": "Không thể mở {{name}} như một tệp zip.",
+    "unpacksTooBig": "{{name}} giải nén ra hơn {{max}}, hoặc chứa một tệp trên {{fileMax}}; không nhập gì từ nó.",
+    "empty": "{{name}} không chứa tệp cài đặt sẵn nào.",
+    "tooManyKeys": "Nó thay đổi hơn {{max}} cài đặt.",
+    "tooLarge": "Cài đặt của nó vượt quá {{max}}.",
+    "fileN": "tệp {{n}}",
+    "unreadable": "Không phải cài đặt sẵn mà Orca đọc được: {{error}}.",
+    "noName": "Nó không có tên dùng được.",
+    "anotherPrinter": "máy in khác",
+    "otherPrinter": "Nó dành cho {{made}}, mà ứng dụng này không có. Cài đặt máy in là riêng cho từng máy, nên không thể chuyển sang máy in khác.",
+    "noPrinterBase": "Nó không dựa trên máy in nào mà ứng dụng này có.",
+    "noFilamentBase": "Không có cài đặt sẵn filament nào để đặt nó lên.",
+    "noProcessBase": "Không có cài đặt sẵn process nào để đặt nó lên."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "重置为预设值",
+    "keptOld": "保留了原来的值。",
+    "kept": "保留了 {{value}}。",
+    "plateUses": "第 {{n}} 盘使用",
+    "on": "开",
+    "off": "关",
+    "itsOwn": "（其自身的设置）。",
+    "plateSettings": "盘设置",
+    "default": "默认",
+    "percentOrMm": "百分比还是毫米？",
+    "isItPercent": "{{label}}：是 {{number}}% 还是 {{number}} {{unit}}？",
+    "filamentN": "耗材 {{n}}",
+    "mix": "混色",
+    "mixes": "混色"
+  }
+}

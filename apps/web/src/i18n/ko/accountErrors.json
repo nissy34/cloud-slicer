@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "시간 내에 응답하지 않았습니다",
+    "noAccounts": "이 서버에서는 계정을 사용할 수 없습니다",
+    "siteNoAnswer": "Cloud Slicer가 응답하지 않았습니다. 연결을 확인한 뒤 다시 시도하세요.",
+    "driveReconnect": "Google Drive를 다시 연결해야 합니다. 오른쪽 위의 계정 메뉴를 열고 Google Drive 연결을 누르세요.",
+    "driveNoAnswer": "Google Drive가 응답하지 않았습니다. 연결을 확인한 뒤 다시 저장하세요.",
+    "driveFull": "Google Drive가 가득 찼습니다. Drive에서 공간을 확보한 뒤 다시 저장하세요.",
+    "driveGone": "이 프로젝트는 더 이상 Google Drive에 없습니다",
+    "driveNoUpload": "Google Drive에서 업로드를 시작하지 않았습니다",
+    "pickerBlocked": "브라우저가 Google Drive 창을 차단했습니다. 이 사이트의 팝업을 허용한 뒤 다시 시도하세요.",
+    "driveSignIn": "Google Drive의 파일을 열려면 Google로 로그인하세요.",
+    "driveConnectFirst": "먼저 계정 메뉴에서 Google Drive를 연결하세요.",
+    "pickerNotSetUp": "이 사이트에는 아직 Google Drive에서 열기가 설정되어 있지 않습니다."
+  }
+}

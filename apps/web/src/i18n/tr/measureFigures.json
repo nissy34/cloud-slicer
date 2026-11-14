@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Nokta",
+    "edge": "Kenar",
+    "circle": "Daire",
+    "plane": "Düzlem",
+    "position": "Konum",
+    "length": "Uzunluk",
+    "from": "Başlangıç",
+    "to": "Bitiş",
+    "diameter": "Çap",
+    "radius": "Yarıçap",
+    "centre": "Merkez",
+    "normal": "Normal",
+    "angle": "Açı",
+    "distance": "Mesafe",
+    "perpendicular": "Dik mesafe",
+    "along": "{{axis}} boyunca"
+  }
+}

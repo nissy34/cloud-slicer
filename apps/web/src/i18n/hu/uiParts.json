@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "Ablak bezárása",
+    "moreAboutThis": "Továbbiak erről",
+    "plannedForPhase": "Tervezve a(z) {{phase}}. fázisra.",
+    "saving": "Mentés",
+    "loadedOf": "{{loaded}} / {{total}}"
+  }
+}

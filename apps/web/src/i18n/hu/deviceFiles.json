@@ -1,0 +1,22 @@
+{
+  "deviceFiles": {
+    "print": "Nyomtatás…",
+    "deleteName": "{{name}} törlése",
+    "delete": "Törlés",
+    "title": "Fájlok a nyomtatón",
+    "upload": "G-code feltöltése…",
+    "timelapses": "Timelapse-ek",
+    "none": "Még nincsenek G-code fájlok.",
+    "searchN_one": "Keresés {{count}} fájlban",
+    "searchN_other": "Keresés {{count}} fájlban",
+    "search": "Fájlok keresése",
+    "noMatch": "Egy fájl sem egyezik: „{{query}}”.",
+    "deleteFile": "Fájl törlése",
+    "deleteText": "Törli a(z) {{name}} fájlt a nyomtatóról?",
+    "deleted": "Törölve",
+    "pages": "Fájloldalak",
+    "newer": "Újabb",
+    "older": "Régebbi",
+    "range": "{{from}}–{{to}} / {{total}}"
+  }
+}

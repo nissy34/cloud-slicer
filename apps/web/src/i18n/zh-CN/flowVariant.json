@@ -1,0 +1,7 @@
+{
+  "flowVariant": {
+    "label": "流量类型",
+    "standard": "标准流量",
+    "high": "高流量"
+  }
+}

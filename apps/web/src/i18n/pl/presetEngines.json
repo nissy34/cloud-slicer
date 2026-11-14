@@ -1,0 +1,12 @@
+{
+  "presetEngines": {
+    "split_one": "{{count}} ustawienie nie jest już takie samo w obu silnikach; „{{name}}” zachowuje w każdym własne wartości.",
+    "split_few": "{{count}} ustawienia nie są już takie same w obu silnikach; „{{name}}” zachowuje w każdym własne wartości.",
+    "split_many": "{{count}} ustawień nie jest już takich samych w obu silnikach; „{{name}}” zachowuje w każdym własne wartości.",
+    "split_other": "{{count}} ustawienia nie jest już takich samych w obu silnikach; „{{name}}” zachowuje w każdym własne wartości.",
+    "separate_one": "{{count}} ustawienie profilu „{{name}}” może teraz być takie samo w obu silnikach, ale się różni; „Użyj tych samych wartości w obu silnikach” w jego menu je ujednolici.",
+    "separate_few": "{{count}} ustawienia profilu „{{name}}” mogą teraz być takie same w obu silnikach, ale się różnią; „Użyj tych samych wartości w obu silnikach” w jego menu je ujednolici.",
+    "separate_many": "{{count}} ustawień profilu „{{name}}” może teraz być takich samych w obu silnikach, ale się różni; „Użyj tych samych wartości w obu silnikach” w jego menu je ujednolici.",
+    "separate_other": "{{count}} ustawienia profilu „{{name}}” może teraz być takich samych w obu silnikach, ale się różni; „Użyj tych samych wartości w obu silnikach” w jego menu je ujednolici."
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "Afegeix una peça",
+    "addNegative": "Afegeix una peça negativa",
+    "addModifier": "Afegeix un modificador",
+    "addBlocker": "Afegeix un bloquejador de suports",
+    "addEnforcer": "Afegeix un reforçador de suports",
+    "part": "Peça",
+    "negative": "Peça negativa",
+    "modifier": "Modificador",
+    "enforcer": "Reforçador de suports",
+    "blocker": "Bloquejador de suports",
+    "other": "Altres"
+  }
+}

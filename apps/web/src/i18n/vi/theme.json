@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "Giao diện",
+    "current": "Giao diện: {{choice}}",
+    "system": "Hệ thống",
+    "systemHint": "Theo thiết bị này",
+    "light": "Sáng",
+    "dark": "Tối"
+  }
+}

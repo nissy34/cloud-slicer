@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Konvertuoti šį projektą?",
+    "convert": "Konvertuoti",
+    "setUpFor": "Jis buvo paruoštas <b>{{printer}}</b>. Pasirinkite vieną iš savo spausdintuvų, kuriuo jį spausdinti.",
+    "printer": "Spausdintuvas",
+    "convertTo": "Konvertuoti į spausdintuvą",
+    "keep": "Palikti projekto pakeistus modelio parametrus: sluoksnius, sienelės, užpildą, atramas, siūles, kraštą",
+    "remember": "Kitą kartą tai daryti automatiškai",
+    "note": "Parametrai, kuriuos projektas paliko senojo spausdintuvo numatytosios reikšmės, taip pat greičiai, pagreitis, jerk, linijų pločiai, srauto kalibravimas ir valymo bokštas imami iš {{printer}}. Gijos suderinamos pagal medžiagą ir rūšį (matinė, šilko, didelio srauto...) ir išlaiko projekto spalvas.",
+    "yourPrinter": "jūsų spausdintuvas"
+  }
+}

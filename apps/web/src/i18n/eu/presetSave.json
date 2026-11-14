@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Erabili 1-128 karaktere, / \\ : * ? \" < > | gabe",
+    "notAvailable": "{{name}} aurrezarpena ez dago erabilgarri.",
+    "onlyOwn": "Zure aurrezarpenak soilik gorde daitezke; erabili Gorde honela.",
+    "noneSelected": "Ez dago aurrezarpenik hautatuta.",
+    "sameName": "Bi aurrezarpenek ezin dute izen bera izan.",
+    "nameTaken": "“{{name}}” izeneko aurrezarpena badago jada.",
+    "notYours": "Aurrezarpen hau ez da zurea."
+  }
+}

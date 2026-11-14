@@ -1,0 +1,12 @@
+{
+  "presetEngines": {
+    "split_one": "{{count}} parametras abiejuose varikliuose nebėra vienodas; „{{name}}“ kiekviename išlaiko savo reikšmes.",
+    "split_few": "{{count}} parametrai abiejuose varikliuose nebėra vienodi; „{{name}}“ kiekviename išlaiko savo reikšmes.",
+    "split_many": "{{count}} parametro abiejuose varikliuose nebėra vienodo; „{{name}}“ kiekviename išlaiko savo reikšmes.",
+    "split_other": "{{count}} parametrų abiejuose varikliuose nebėra vienodi; „{{name}}“ kiekviename išlaiko savo reikšmes.",
+    "separate_one": "{{count}} „{{name}}“ parametras dabar gali būti vienodas abiejuose varikliuose, bet skiriasi; „Naudoti tas pačias reikšmes abiejuose varikliuose“ jo meniu juos suderina.",
+    "separate_few": "{{count}} „{{name}}“ parametrai dabar gali būti vienodi abiejuose varikliuose, bet skiriasi; „Naudoti tas pačias reikšmes abiejuose varikliuose“ jo meniu juos suderina.",
+    "separate_many": "{{count}} „{{name}}“ parametro dabar gali būti vienodo abiejuose varikliuose, bet skiriasi; „Naudoti tas pačias reikšmes abiejuose varikliuose“ jo meniu juos suderina.",
+    "separate_other": "{{count}} „{{name}}“ parametrų dabar gali būti vienodi abiejuose varikliuose, bet skiriasi; „Naudoti tas pačias reikšmes abiejuose varikliuose“ jo meniu juos suderina."
+  }
+}

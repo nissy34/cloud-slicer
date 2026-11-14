@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "ваш {{device}}",
+    "another": "інший пристрій",
+    "iPad": "iPad",
+    "phone": "телефон",
+    "tablet": "планшет",
+    "windows": "комп'ютер із Windows",
+    "mac": "Mac",
+    "chromebook": "Chromebook",
+    "linux": "комп'ютер із Linux",
+    "other": "інший пристрій"
+  }
+}

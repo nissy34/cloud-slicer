@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Abstand",
+    "spacingMm": "Abstand in mm",
+    "autoNote": "0 bedeutet automatischer Abstand.",
+    "rotate": "Zum Anordnen automatisch drehen",
+    "multiMaterial": "Mehrere Materialien auf derselben Platte erlauben",
+    "alignYOff": "Schalten Sie „Automatisch drehen“ aus, um dies zu nutzen",
+    "alignYTip": "Dreht jedes Objekt so, dass seine lange Seite von vorne nach hinten verläuft",
+    "alignY": "An Y-Achse ausrichten",
+    "arrange": "Anordnen",
+    "reset": "Zurücksetzen"
+  }
+}

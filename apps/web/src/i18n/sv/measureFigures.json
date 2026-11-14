@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Punkt",
+    "edge": "Kant",
+    "circle": "Cirkel",
+    "plane": "Plan",
+    "position": "Position",
+    "length": "Längd",
+    "from": "Från",
+    "to": "Till",
+    "diameter": "Diameter",
+    "radius": "Radie",
+    "centre": "Centrum",
+    "normal": "Normal",
+    "angle": "Vinkel",
+    "distance": "Avstånd",
+    "perpendicular": "Vinkelrätt avstånd",
+    "along": "Längs {{axis}}"
+  }
+}

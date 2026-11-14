@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Voleu continuar on ho vau deixar?",
+    "local": "{{name}}, canviat {{when}}. Es conserva en aquest navegador, sense desar.",
+    "discard": "Descarta",
+    "continue": "Continua",
+    "projectAsk": "Voleu continuar {{name}}?",
+    "project": "Continua {{name}}",
+    "openHere": "El teníeu obert aquí, editat {{when}}",
+    "editedOn": "Editat {{when}} a {{device}}",
+    "notNow": "Ara no",
+    "editedElsewhere": "{{name}} s'està editant a {{device}}",
+    "viewOnly": "Aquesta pestanya és només de lectura.",
+    "viewOnlyUnsaved": "Aquesta pestanya és només de lectura. Els canvis que hi heu fet no hi són.",
+    "saveMineAsCopy": "Desa el meu com a còpia",
+    "editHere": "Edita aquí",
+    "gone": "«{{name}}» s'ha suprimit a {{device}}. Encara és obert aquí, sense desar."
+  }
+}

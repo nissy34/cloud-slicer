@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "印刷中は使えません",
+    "disabledPaused": "一時停止中は使えません",
+    "position": "位置",
+    "speed": "速度",
+    "flow": "フロー",
+    "head": "ヘッド",
+    "moveHead": "ヘッドを移動",
+    "headBack": "ヘッドを奥へ",
+    "headLeft": "ヘッドを左へ",
+    "homeHead": "ヘッドをホームへ",
+    "headRight": "ヘッドを右へ",
+    "headToward": "ヘッドを手前へ",
+    "bed": "ベッド",
+    "headHeight": "ヘッドの高さ",
+    "moveBed": "ベッドを移動",
+    "moveHeadZ": "ヘッドを上下に移動",
+    "bedUp": "ベッドを上げる",
+    "headUp": "ヘッドを上げる",
+    "homeBed": "ベッドをホームへ",
+    "homeHeight": "高さをホームへ",
+    "bedDown": "ベッドを下げる",
+    "headDown": "ヘッドを下げる",
+    "step": "ステップ",
+    "homeAll": "すべてホームへ",
+    "motorsOff": "モーターをオフ",
+    "heatFirst": "先にノズルを加熱してください",
+    "extrude10": "10 mm 押し出す",
+    "retract": "リトラクト",
+    "homeFirst": "動かす前にプリンターをホームに戻してください。"
+  }
+}

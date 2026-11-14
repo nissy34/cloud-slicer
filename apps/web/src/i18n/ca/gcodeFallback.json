@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "Voleu usar el G-code d'inici i de canvi de filament de {{engine}}?",
+    "yes": "Sí, lamina",
+    "body": "El G-code d'inici i de canvi de filament d'aquest fitxer s'ha escrit per a {{app}}, i {{engine}} no el pot usar. {{engine}} en té un de propi per a <b>{{printer}}</b>, que funciona. Aquesta elecció es desa amb aquest projecte."
+  }
+}

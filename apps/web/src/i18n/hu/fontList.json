@@ -1,0 +1,8 @@
+{
+  "fontList": {
+    "hebrew": "héber",
+    "pickScriptFont": "Válasszon {{script}} betűtípust, például {{fonts}}.",
+    "pickAnyFont": "Válasszon olyan betűtípust, amelyben vannak ilyenek: egy betűtípusfájlt, vagy a számítógép egyik betűtípusát.",
+    "noLetters": "Ebben a betűtípusban nincsenek betűk ehhez: {{letters}}, ezért kimaradnak."
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "Parça ekle",
+    "addNegative": "Negatif parça ekle",
+    "addModifier": "Değiştirici ekle",
+    "addBlocker": "Destek engelleyici ekle",
+    "addEnforcer": "Destek uygulayıcı ekle",
+    "part": "Parça",
+    "negative": "Negatif parça",
+    "modifier": "Değiştirici",
+    "enforcer": "Destek uygulayıcı",
+    "blocker": "Destek engelleyici",
+    "other": "Diğer"
+  }
+}

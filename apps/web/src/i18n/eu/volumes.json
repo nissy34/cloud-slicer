@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "Gehitu pieza",
+    "addNegative": "Gehitu pieza negatiboa",
+    "addModifier": "Gehitu aldatzailea",
+    "addBlocker": "Gehitu euskarri-blokeatzailea",
+    "addEnforcer": "Gehitu euskarri-behartzailea",
+    "part": "Pieza",
+    "negative": "Pieza negatiboa",
+    "modifier": "Aldatzailea",
+    "enforcer": "Euskarri-behartzailea",
+    "blocker": "Euskarri-blokeatzailea",
+    "other": "Besteak"
+  }
+}

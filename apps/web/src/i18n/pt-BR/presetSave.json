@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Use de 1 a 128 caracteres, sem / \\ : * ? \" < > |",
+    "notAvailable": "A predefinição {{name}} não está disponível.",
+    "onlyOwn": "Só as suas próprias predefinições podem ser salvas; use Salvar como.",
+    "noneSelected": "Nenhuma predefinição selecionada.",
+    "sameName": "Duas predefinições não podem ter o mesmo nome.",
+    "nameTaken": "Já existe uma predefinição chamada “{{name}}”.",
+    "notYours": "Esta predefinição não é uma das suas."
+  }
+}

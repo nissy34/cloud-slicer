@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "เครื่องพิมพ์ของฉัน",
+    "otherPrinters": "อื่น ๆ",
+    "printer": "เครื่องพิมพ์",
+    "manage": "จัดการ",
+    "printerPreset": "พรีเซ็ตเครื่องพิมพ์",
+    "addRemovePrinters": "เพิ่มหรือลบเครื่องพิมพ์…",
+    "sendsFromDevice": "ส่งงานพิมพ์ไปที่เครื่องนี้ได้จากแท็บอุปกรณ์",
+    "noDirectPrint": "เครื่องพิมพ์นี้พิมพ์ตรงไม่ได้ (ไม่ใช่ Klipper, Prusa หรือ Centauri Carbon): ดาวน์โหลด G-code เพื่อพิมพ์ หรือส่งจากแท็บอุปกรณ์หาก OctoPrint ควบคุมเครื่องพิมพ์",
+    "plateType": "ชนิดเพลต",
+    "filament": "เส้นพลาสติก",
+    "addFilament": "เพิ่มเส้นพลาสติก",
+    "add": "+ เพิ่ม",
+    "filamentColour": "สีเส้นพลาสติก",
+    "filamentNColour": "สีเส้นพลาสติก {{n}}",
+    "filamentNPreset": "พรีเซ็ตเส้นพลาสติก {{n}}",
+    "addRemoveFilaments": "เพิ่มหรือลบเส้นพลาสติก…",
+    "removeFilament": "ลบเส้นพลาสติกนี้",
+    "removeFilamentN": "ลบเส้นพลาสติก {{n}}",
+    "process": "กระบวนการ",
+    "processPreset": "พรีเซ็ตกระบวนการ",
+    "readingFilaments": "กำลังอ่านเส้นพลาสติกของเครื่องพิมพ์…",
+    "myPresets": "พรีเซ็ตของฉัน",
+    "systemPresets": "พรีเซ็ตของระบบ",
+    "show": "แสดงแถบด้านข้าง (Shift+Tab)",
+    "hide": "ซ่อนแถบด้านข้าง (Shift+Tab)",
+    "width": "ความกว้างแถบด้านข้าง"
+  }
+}

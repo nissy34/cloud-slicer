@@ -1,0 +1,29 @@
+{
+  "simplifyTool": {
+    "title": "Vereenvoudigen",
+    "done": "Klaar",
+    "hint": "Minder driehoeken laten een groot model sneller openen, slicen en bekijken. Fijne details kunnen zachter worden; Ongedaan maken brengt het oude raster terug.",
+    "trianglesLabel": "Driehoeken",
+    "triangles_one": "{{n}} driehoeken",
+    "triangles_other": "{{n}} driehoeken",
+    "trianglesUnknown": "… driehoeken",
+    "workingOut": "(wordt berekend…)",
+    "by": "Vereenvoudigen met",
+    "detailLevel": "Detailniveau",
+    "ratio": "Reductieverhouding",
+    "detail": "Detail",
+    "removeTip": "Aandeel van de driehoeken dat wordt verwijderd",
+    "remove": "Verwijderen",
+    "paintKept": "De kleuren van dit voorwerp (kleuren, ondersteuning, naden, vage buitenkant) blijven behouden op het vereenvoudigde raster.",
+    "apply": "Toepassen",
+    "extraHigh": "Extra hoog",
+    "high": "Hoog",
+    "medium": "Middel",
+    "low": "Laag",
+    "extraLow": "Extra laag",
+    "million": "{{n}} miljoen",
+    "heavyPlates": "{{n}} printbedden hebben meer dan {{limit}} driehoeken (tot {{most}}), wat meer kan zijn dan dit apparaat aankan. Elk vereenvoudigen tot ongeveer {{light}} houdt ruim voldoende detail om te printen.",
+    "heavyPlate": "Printbed {{n}} heeft {{triangles}} driehoeken, wat meer kan zijn dan dit apparaat aankan. Het vereenvoudigen tot ongeveer {{light}} houdt ruim voldoende detail om te printen.",
+    "heavyModel": "Dit model heeft {{triangles}} driehoeken, wat meer kan zijn dan dit apparaat aankan. Het vereenvoudigen tot ongeveer {{light}} houdt ruim voldoende detail om te printen."
+  }
+}

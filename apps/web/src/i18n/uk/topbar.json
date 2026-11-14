@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Робочий простір",
+    "prepare": "Підготовка",
+    "preview": "Перегляд",
+    "device": "Пристрій",
+    "calibration": "Калібрування",
+    "slicingWith": "Нарізка через {{name}} {{version}}"
+  }
+}

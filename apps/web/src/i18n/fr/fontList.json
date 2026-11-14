@@ -1,0 +1,8 @@
+{
+  "fontList": {
+    "hebrew": "Hébreu",
+    "pickScriptFont": "Choisissez une police {{script}}, comme {{fonts}}.",
+    "pickAnyFont": "Choisissez une police qui les contient : un fichier de police, ou l’une des polices de cet ordinateur.",
+    "noLetters": "Cette police n’a pas de lettres pour {{letters}}, elles sont donc omises."
+  }
+}

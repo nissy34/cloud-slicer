@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "Design",
+    "current": "Design: {{choice}}",
+    "system": "System",
+    "systemHint": "Wie dieses Gerät",
+    "light": "Hell",
+    "dark": "Dunkel"
+  }
+}

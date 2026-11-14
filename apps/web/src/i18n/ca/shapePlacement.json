@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Gira el text",
+    "rotateSvg": "Gira l'SVG",
+    "moveText": "Mou el text des de la superfície",
+    "moveSvg": "Mou l'SVG des de la superfície",
+    "rotationTip": "Gira'l al voltant del seu propi eix, en sentit horari (l'anell a la vista 3D fa el mateix)",
+    "rotation": "Rotació",
+    "fromSurfaceTip": "Quant sobresurt de la superfície",
+    "fromSurface": "Des de la superfície",
+    "keepUpTip": "El manté dret mentre el feu lliscar per la superfície o l'orienteu cap a la càmera",
+    "keepUp": "Mantén dret",
+    "faceCameraTip": "Gira'l perquè us miri, des d'on el mireu",
+    "faceCamera": "Orienta cap a la càmera",
+    "moveToolsText": "Moveu o gireu el text amb aquestes eines.",
+    "moveToolsShape": "Moveu o gireu la forma amb aquestes eines.",
+    "dragText": "Arrossegueu el text o el seu marc blau per fer-lo lliscar per l'objecte. L'anell el gira.",
+    "dragShape": "Arrossegueu la forma o el seu marc blau per fer-la lliscar per l'objecte. L'anell la gira."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "common": {
+    "cancel": "Annulla",
+    "copied": "Copiato",
+    "copyError": "Copia errore",
+    "hide": "Nascondi",
+    "show": "Mostra",
+    "close": "Chiudi",
+    "closeMessage": "Chiudi messaggio",
+    "done": "Fatto",
+    "notNow": "Non ora",
+    "next": "Avanti"
+  }
+}

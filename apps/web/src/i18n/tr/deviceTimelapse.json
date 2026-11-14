@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} / {{size}} MB",
+    "arrivingRelay": "Aktarıcı üzerinden {{got}} / {{size}} MB",
+    "cannotFetch": "Bu yazıcı bağlantısı videoları getiremiyor.",
+    "fetchFailed": "Video getirilemedi.",
+    "delete": "Sil",
+    "download": "İndir",
+    "cantPlay": "Bu tür video tarayıcıda oynatılamaz. İzlemek için indirin.",
+    "none": "Henüz timelapse yok. Baskıyı başlatırken Timelapse'i açın.",
+    "watch": "İzle",
+    "pages": "Timelapse sayfaları",
+    "refresh": "Yenile",
+    "deleteTitle": "Timelapse'i sil"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Bị vô hiệu khi đang in",
+    "disabledPaused": "Bị vô hiệu khi tạm dừng",
+    "position": "Vị trí",
+    "speed": "Tốc độ",
+    "flow": "Lưu lượng",
+    "head": "Đầu in",
+    "moveHead": "Di chuyển đầu in",
+    "headBack": "Đầu in ra sau",
+    "headLeft": "Đầu in sang trái",
+    "homeHead": "Đưa đầu in về gốc",
+    "headRight": "Đầu in sang phải",
+    "headToward": "Đầu in về phía bạn",
+    "bed": "Bàn in",
+    "headHeight": "Độ cao đầu in",
+    "moveBed": "Di chuyển bàn in",
+    "moveHeadZ": "Di chuyển đầu in lên xuống",
+    "bedUp": "Bàn in lên",
+    "headUp": "Đầu in lên",
+    "homeBed": "Đưa bàn in về gốc",
+    "homeHeight": "Đưa độ cao về gốc",
+    "bedDown": "Bàn in xuống",
+    "headDown": "Đầu in xuống",
+    "step": "Bước",
+    "homeAll": "Về gốc tất cả",
+    "motorsOff": "Tắt động cơ",
+    "heatFirst": "Hãy làm nóng đầu phun trước",
+    "extrude10": "Đùn 10 mm",
+    "retract": "Rút",
+    "homeFirst": "Hãy đưa máy in về gốc trước khi di chuyển."
+  }
+}
