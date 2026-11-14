@@ -11,8 +11,8 @@ Nobody, person or AI, needs to read all of them.
 | 3 | The part's own README | longer | Commands and protocol detail: [engine](../engine/README.md), [web app](../apps/web/README.md), [bridge](../apps/device-bridge/README.md), [relay](../apps/device-relay/README.md) |
 | 4 | The code | | Comments at the top of each file say what it is for |
 
-Also at hand, read only when the task is about them: [features.md](features.md) (everything
-the site does, in user words), [decisions.md](decisions.md) (what was
+Also at hand, read only when the task is about them: [features.md](features.md) (a short tour of what the site does)
+and [features-in-detail.md](features-in-detail.md) (everything, in user words), [decisions.md](decisions.md) (what was
 chosen and turned down, and why), [CI.md](CI.md) (workflows, caches, secrets),
 [relay SECURITY.md](../apps/device-relay/SECURITY.md) (who can see what),
 [pr-screenshots.md](pr-screenshots.md).

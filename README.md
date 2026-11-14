@@ -86,7 +86,7 @@ bridge app, which can live on the printer itself.
 - **Background slicing** with a fast WebAssembly SIMD engine.
 - **Light and dark theme**, and the app in more than one language.
 
-Every feature in detail: [docs/features.md](docs/features.md).
+A short tour of every feature: [docs/features.md](docs/features.md).
 
 ## How it works
 

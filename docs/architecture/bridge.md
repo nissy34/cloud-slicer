@@ -89,7 +89,7 @@ printers with their API keys.
   - tests: a pretend printer (a Node mock in `apps/web/test/device/` or a Go fake in
     `internal/`), a browser test `test/device-<brand>.mjs` and its step in `device.yml`;
   - docs: the bridge README, [device tab](device-tab.md), [testing](testing.md),
-    [features.md](../features.md), and [decisions.md](../decisions.md).
+    [features-in-detail.md](../features-in-detail.md), and [decisions.md](../decisions.md).
 - API keys are typed only in the Device tab, never at install.
 - On a printer it runs as a root service with its files in `printer_data` and never
   restarts Moonraker.
