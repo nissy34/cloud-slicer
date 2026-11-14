@@ -292,8 +292,8 @@ function Legal() {
               lang={l.id}
               onClick={() => pick(l.id)}
             >
+              <Check size={14} aria-hidden style={{ visibility: language === l.id ? 'visible' : 'hidden' }} />
               {l.name}
-              {language === l.id && <Check size={14} aria-hidden />}
             </button>
           ))}
         </div>

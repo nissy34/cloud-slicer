@@ -225,7 +225,6 @@
 .account-language-list button {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--s-2);
   min-height: 32px;
   padding: var(--s-2) var(--s-3);
