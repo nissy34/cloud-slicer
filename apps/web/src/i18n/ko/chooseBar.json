@@ -1,0 +1,17 @@
+{
+  "chooseBar": {
+    "chosenModels": "선택한 모델",
+    "tapToChoose": "모델을 눌러 선택하세요",
+    "chosen_other": "{{count}}개 선택됨",
+    "selectAll": "모두 선택",
+    "all": "전체",
+    "assemble": "조립",
+    "assembleTip": "각 부품을 그 자리에 둔 채 하나의 객체로 합칩니다",
+    "menuTip": "선택한 모델 전체에 할 작업 (또는 선택한 모델을 우클릭 / 길게 누르기)",
+    "menu": "할 작업",
+    "doneTip": "다시 눌러서 모델을 하나씩 선택합니다",
+    "clearTip": "선택 없음 (Esc)",
+    "done": "완료",
+    "clear": "선택 해제"
+  }
+}

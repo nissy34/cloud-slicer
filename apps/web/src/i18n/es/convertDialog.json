@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "¿Convertir este proyecto?",
+    "convert": "Convertir",
+    "setUpFor": "Estaba configurado para <b>{{printer}}</b>. Elija una de sus impresoras para imprimirlo.",
+    "printer": "Impresora",
+    "convertTo": "Convertir a la impresora",
+    "keep": "Conservar los ajustes del modelo que cambió el proyecto: capas, perímetros, relleno, soportes, costuras, borde de adherencia",
+    "remember": "Hacerlo automáticamente la próxima vez",
+    "note": "Los ajustes que el proyecto dejó en los valores predeterminados de su impresora anterior, y las velocidades, la aceleración, el jerk, los anchos de línea, la calibración de flujo y la torre de purga, vienen de {{printer}}. Los filamentos se emparejan por material y tipo (mate, seda, alto flujo...) y conservan los colores del proyecto.",
+    "yourPrinter": "su impresora"
+  }
+}

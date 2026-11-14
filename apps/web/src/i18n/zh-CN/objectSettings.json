@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "对象设置",
+    "modifierSettings": "修改器设置",
+    "partSettings": "零件设置",
+    "addToObject": "为此对象添加设置",
+    "addToModifier": "为此修改器添加设置",
+    "addToPart": "为此零件添加设置",
+    "addSetting": "+ 添加设置",
+    "modifierEmpty": "添加设置，可在修改器与对象重叠处进行更改，例如在某处增加填充。",
+    "partEmpty": "使用对象的设置。添加设置可仅对此零件进行更改。",
+    "objectEmpty": "使用工艺设置。添加设置可仅对此对象进行更改。",
+    "others": "其他",
+    "removeFromObject": "从此对象移除",
+    "removeFromModifier": "从此修改器移除",
+    "removeFromPart": "从此零件移除"
+  }
+}

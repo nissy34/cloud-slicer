@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Nie udało się zapisać układu kart. Zostanie zachowany do przeładowania strony.",
+    "pageCard": "Karta strony {{n}}",
+    "cameraCard": "Karta kamery {{n}}",
+    "arrangingFor": "Układanie kart dla {{name}}.",
+    "helpPhone": "Przytrzymaj kartę za uchwyt i przeciągnij ją w górę lub w dół.",
+    "helpDesktop": "Przeciągnij kartę za uchwyt do kolumny albo na górę lub na dół, na całą szerokość.",
+    "helpRest": "Ukryte karty zostają tutaj, wyszarzone. Inne drukarki zachowują własny układ.",
+    "columns": "Kolumny",
+    "addCameraCard": "Dodaj kartę kamery",
+    "addPageCard": "Dodaj kartę strony",
+    "backToDefault": "Przywróć domyślny",
+    "acrossTop": "Na górze, na całą szerokość",
+    "column": "Kolumna {{n}}",
+    "acrossBottom": "Na dole, na całą szerokość",
+    "small": "Mała",
+    "medium": "Średnia",
+    "large": "Duża",
+    "moveCard": "Przesuń {{name}}",
+    "halfWidthTip": "Pół szerokości: dwie połówkowe karty leżą obok siebie",
+    "halfWidth": "Pół szerokości",
+    "cameraSize": "Rozmiar kamery",
+    "remove": "Usuń"
+  }
+}

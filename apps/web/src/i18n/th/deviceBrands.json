@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "API key",
+    "klipperHint": "Mainsail และ Fluidd แสดงไว้ในการตั้งค่าของตน",
+    "klipperLocked": "เครื่องพิมพ์นี้ถูกล็อก: พิมพ์ API key ของมัน",
+    "prusaKey": "รหัสผ่าน PrusaLink",
+    "prusaHint": "เครื่องพิมพ์แสดงไว้ที่ Settings, Network, PrusaLink (ชื่อผู้ใช้ที่นั่นคือ maker)",
+    "prusaLocked": "พิมพ์รหัสผ่าน PrusaLink จากหน้าจอเครื่องพิมพ์",
+    "octoprintKey": "API key ของ OctoPrint",
+    "octoprintHint": "ใน OctoPrint: Settings, Application Keys แล้วสร้างคีย์สำหรับ Cloud Slicer (หรือคัดลอก API key ของผู้ใช้ของคุณที่ Settings, API)",
+    "octoprintLocked": "OctoPrint นี้ถูกล็อก: พิมพ์ API key จากการตั้งค่าของมัน",
+    "bambuKey": "รหัสเข้าถึง LAN",
+    "bambuHint": "เครื่องพิมพ์แสดงไว้บนหน้าจอ ในการตั้งค่าเครือข่ายข้างโหมด LAN Only หากต้องการส่งงานพิมพ์และควบคุมจากที่นี่ ให้เปิดโหมด LAN Only และโหมดนักพัฒนาที่นั่นด้วย (คลาวด์ของ Bambu และแอป Bambu Handy จะใช้ไม่ได้ขณะที่เปิดอยู่)",
+    "bambuLocked": "พิมพ์รหัสเข้าถึงจากหน้าจอเครื่องพิมพ์",
+    "featStatus": "สถานะ",
+    "featSend": "ส่งและพิมพ์",
+    "featCamera": "กล้อง",
+    "featMove": "ย้ายและอุณหภูมิ",
+    "featMoveShort": "ย้ายและอุณหภูมิ",
+    "featConsole": "คอนโซล",
+    "klipperName": "เครื่องพิมพ์ Klipper",
+    "klipperExamples": "Snapmaker U1, Voron, Qidi, Sovol",
+    "prusaName": "Prusa พร้อม PrusaLink",
+    "prusaExamples": "MK4, Core One, XL, Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "เครื่องพิมพ์ใดก็ได้ที่ OctoPrint ใช้งานได้",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "ยังไม่รองรับ Carbon 2",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1, P1, P2S, A1, H2; กล้องบน P1 และ A1; ต้องใช้โหมดนักพัฒนา"
+  }
+}

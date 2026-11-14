@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Puntua",
+    "edge": "Ertza",
+    "circle": "Zirkulua",
+    "plane": "Planoa",
+    "position": "Posizioa",
+    "length": "Luzera",
+    "from": "Hemendik",
+    "to": "Honaino",
+    "diameter": "Diametroa",
+    "radius": "Erradioa",
+    "centre": "Zentroa",
+    "normal": "Normala",
+    "angle": "Angelua",
+    "distance": "Distantzia",
+    "perpendicular": "Distantzia perpendikularra",
+    "along": "{{axis}} ardatzean zehar"
+  }
+}

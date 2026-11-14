@@ -1,0 +1,26 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Temperaturer",
+    "filterTimelapse": "Timelapse",
+    "filterTimelapseExample": "meddelanden om timelapse-bilder",
+    "filterProgress": "Utskriftsförlopp",
+    "filterOk": "Enbart ”ok”",
+    "done": "Klar",
+    "filtersN": "Filter ({{n}})",
+    "filters": "Filter",
+    "hideThese": "Dölj de här raderna",
+    "hideLike": "Dölj rader som: {{example}}",
+    "hideContaining": "Dölj rader som innehåller ”{{text}}”",
+    "removeFilter": "Ta bort filtret ”{{text}}”",
+    "remove": "Ta bort",
+    "hideContainingPlaceholder": "Dölj rader som innehåller…",
+    "hideContainingLabel": "Dölj rader som innehåller",
+    "add": "Lägg till",
+    "filtersHelp": "Tryck på en bricka för att växla den. Det du skickar och fel visas alltid.",
+    "linesHidden_one": "1 rad dold av filter",
+    "linesHidden_other": "{{count}} rader dolda av filter",
+    "sendPlaceholder": "Skicka G-code, t.ex. M115",
+    "commandLabel": "G-code-kommando",
+    "send": "Skicka"
+  }
+}

@@ -288,7 +288,6 @@ function Legal() {
               type="button"
               role="radio"
               aria-checked={language === l.id}
-              className={`menu-item${language === l.id ? ' active' : ''}`}
               data-testid={`language-${l.id}`}
               lang={l.id}
               onClick={() => pick(l.id)}

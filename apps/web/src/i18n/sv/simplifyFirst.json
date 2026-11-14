@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "Förenkla den här modellen först?",
+    "openAsIs": "Öppna som den är",
+    "simplify": "Förenkla",
+    "paintKept": "Dess målning behålls på den förenklade meshen.",
+    "dontAsk": "Fråga inte igen på den här enheten"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Questo file",
+    "title": "Aprire come progetto?",
+    "geometryOnly": "Importa solo la geometria",
+    "open": "Apri progetto",
+    "body": "<b>{{name}}</b> è un progetto con piatti e impostazioni propri. Aprirlo sostituisce ciò che c'è ora sui tuoi piatti. Importare la sua geometria aggiunge i suoi oggetti al tuo piatto e mantiene le tue impostazioni."
+  }
+}

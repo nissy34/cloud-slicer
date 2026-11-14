@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "uygun bir filament",
+    "noSlot": "Hiçbir {{noun}} içinde {{material}} yok. Yükleyin veya dilimleyicide filamenti değiştirip yeniden dilimleyin.",
+    "noSlotNozzle": "Hiçbir {{noun}} içinde {{nozzle}} mm nozul için {{material}} yok. Yükleyin veya dilimleyicide filamenti değiştirip yeniden dilimleyin.",
+    "noType": "{{slot}} için filament türü ayarlanmamış. {{unset}}",
+    "otherMaterial": "{{slot}} içinde {{has}} var, ama bu filament {{material}} olarak dilimlendi.",
+    "otherNozzle": "{{slot}} için nozul {{has}} mm, ama dosya {{nozzle}} mm için dilimlendi.",
+    "highFlow": "Dosya yüksek akışlı bir nozul için dilimlendi, ama {{slot}} standart nozula sahip."
+  }
+}

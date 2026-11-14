@@ -1,0 +1,31 @@
+{
+  "layersPanel": {
+    "addDetail": "디테일 추가",
+    "addDetailTip": "더 얇은 레이어 (데스크톱: 마우스 왼쪽 버튼)",
+    "removeDetail": "디테일 제거",
+    "removeDetailTip": "더 두꺼운 레이어 (데스크톱: 마우스 오른쪽 버튼)",
+    "backToBase": "기본으로 되돌리기",
+    "backToBaseTip": "기본 레이어 높이로 되돌리기 (데스크톱: Shift + 왼쪽 버튼)",
+    "smooth": "부드럽게",
+    "smoothTip": "단차를 부드럽게 (데스크톱: Shift + 오른쪽 버튼)",
+    "profile": "레이어 높이 프로필",
+    "title": "레이어 높이 가변",
+    "done": "완료",
+    "intro": "형태에 디테일이 필요한 곳은 얇은 레이어로, 필요 없는 곳은 두꺼운 레이어로 출력합니다. 적응형은 경사를 기준으로 자동 설정하며, 차트를 길게 눌러 해당 높이 주변의 디테일을 추가하거나 제거할 수도 있습니다.",
+    "heights": "레이어 높이",
+    "variable": "가변",
+    "plain": "일정",
+    "layers_other": "레이어 {{count}}개",
+    "chartEdits": "차트 편집",
+    "band": "구간 편집",
+    "adaptive": "적응형",
+    "quality": "품질",
+    "qualityOrSpeed": "품질 또는 속도",
+    "speed": "속도",
+    "radius": "반경",
+    "smoothRadius": "부드럽게 할 반경",
+    "keepMin": "가장 얇은 레이어 유지",
+    "reset": "초기화",
+    "reading": "레이어를 읽는 중…"
+  }
+}

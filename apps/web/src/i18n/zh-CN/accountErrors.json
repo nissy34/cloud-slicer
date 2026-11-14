@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "它没有及时响应",
+    "noAccounts": "此服务器不支持账户",
+    "siteNoAnswer": "Cloud Slicer 没有响应。请检查网络连接，然后重试。",
+    "driveReconnect": "需要重新连接 Google Drive。打开账户菜单（右上角），然后点按“连接 Google Drive”。",
+    "driveNoAnswer": "Google Drive 没有响应。请检查网络连接，然后再次保存。",
+    "driveFull": "你的 Google Drive 已满。请在 Drive 中释放一些空间，然后再次保存。",
+    "driveGone": "此项目已不在你的 Google Drive 中",
+    "driveNoUpload": "Google Drive 没有开始上传",
+    "pickerBlocked": "你的浏览器拦截了 Google Drive 窗口。请允许此网站的弹出窗口，然后重试。",
+    "driveSignIn": "请使用 Google 登录，以打开 Google Drive 中的文件。",
+    "driveConnectFirst": "请先在账户菜单中连接 Google Drive。",
+    "pickerNotSetUp": "此网站尚未设置从 Google Drive 打开。"
+  }
+}

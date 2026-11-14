@@ -1,0 +1,29 @@
+{
+  "simplifyTool": {
+    "title": "Vereinfachen",
+    "done": "Fertig",
+    "hint": "Weniger Dreiecke lassen ein großes Modell schneller öffnen, slicen und in der Vorschau anzeigen. Feine Details können weicher werden; Rückgängig bringt das alte Netz zurück.",
+    "trianglesLabel": "Dreiecke",
+    "triangles_one": "{{n}} Dreiecke",
+    "triangles_other": "{{n}} Dreiecke",
+    "trianglesUnknown": "… Dreiecke",
+    "workingOut": "(wird berechnet…)",
+    "by": "Vereinfachen nach",
+    "detailLevel": "Detailstufe",
+    "ratio": "Reduktionsverhältnis",
+    "detail": "Detail",
+    "removeTip": "Anteil der zu entfernenden Dreiecke",
+    "remove": "Entfernen",
+    "paintKept": "Die Bemalung dieses Objekts (Farben, Stützen, Nähte, Fuzzy Skin) bleibt auf dem vereinfachten Netz erhalten.",
+    "apply": "Anwenden",
+    "extraHigh": "Sehr hoch",
+    "high": "Hoch",
+    "medium": "Mittel",
+    "low": "Niedrig",
+    "extraLow": "Sehr niedrig",
+    "million": "{{n}} Mio.",
+    "heavyPlates": "{{n}} Platten haben mehr als {{limit}} Dreiecke (bis zu {{most}}), was mehr sein kann, als dieses Gerät verarbeiten kann. Eine Vereinfachung jeder auf etwa {{light}} behält reichlich Details für den Druck.",
+    "heavyPlate": "Platte {{n}} hat {{triangles}} Dreiecke, was mehr sein kann, als dieses Gerät verarbeiten kann. Eine Vereinfachung auf etwa {{light}} behält reichlich Details für den Druck.",
+    "heavyModel": "Dieses Modell hat {{triangles}} Dreiecke, was mehr sein kann, als dieses Gerät verarbeiten kann. Eine Vereinfachung auf etwa {{light}} behält reichlich Details für den Druck."
+  }
+}

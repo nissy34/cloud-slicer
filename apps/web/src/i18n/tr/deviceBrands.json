@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "API anahtarı",
+    "klipperHint": "Mainsail ve Fluidd bunu ayarlarında gösterir.",
+    "klipperLocked": "Bu yazıcı kilitli: API anahtarını yazın",
+    "prusaKey": "PrusaLink parolası",
+    "prusaHint": "Yazıcı bunu Settings, Network, PrusaLink altında gösterir (oradaki kullanıcı adı maker).",
+    "prusaLocked": "Yazıcının ekranındaki PrusaLink parolasını yazın",
+    "octoprintKey": "OctoPrint API anahtarı",
+    "octoprintHint": "OctoPrint'te: Settings, Application Keys, sonra Cloud Slicer için bir anahtar oluşturun (veya Settings, API altındaki kullanıcınızın API anahtarını kopyalayın).",
+    "octoprintLocked": "Bu OctoPrint kilitli: ayarlarından bir API anahtarı yazın",
+    "bambuKey": "LAN erişim kodu",
+    "bambuHint": "Yazıcı bunu ekranında, ağ ayarlarında LAN Only modunun yanında gösterir. Buradan baskı göndermek ve yazıcıyı denetlemek için orada ayrıca LAN Only modunu ve Developer Mode'u açın (açıkken Bambu'nun bulutu ve Bambu Handy uygulaması çalışmaz).",
+    "bambuLocked": "Yazıcının ekranındaki erişim kodunu yazın",
+    "featStatus": "Durum",
+    "featSend": "Gönder ve yazdır",
+    "featCamera": "Kamera",
+    "featMove": "Hareket ve sıcaklıklar",
+    "featMoveShort": "Hareket ve sıcaklık",
+    "featConsole": "Konsol",
+    "klipperName": "Klipper yazıcılar",
+    "klipperExamples": "Snapmaker U1, Voron, Qidi, Sovol",
+    "prusaName": "PrusaLink'li Prusa",
+    "prusaExamples": "MK4, Core One, XL, Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "OctoPrint'in çalıştırdığı herhangi bir yazıcı",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "Carbon 2 henüz değil",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1, P1, P2S, A1, H2; kamera P1 ve A1'de; Developer Mode gerekir"
+  }
+}

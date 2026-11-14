@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "一致するフィラメント",
+    "noSlot": "{{material}}が入っている{{noun}}がありません。装填するか、スライサーでフィラメントを変更してもう一度スライスしてください。",
+    "noSlotNozzle": "{{nozzle}} mm ノズルで{{material}}が入っている{{noun}}がありません。装填するか、スライサーでフィラメントを変更してもう一度スライスしてください。",
+    "noType": "{{slot}}にはフィラメントの種類が設定されていません。{{unset}}",
+    "otherMaterial": "{{slot}}には{{has}}が入っていますが、このフィラメントは{{material}}としてスライスされました。",
+    "otherNozzle": "{{slot}}には {{has}} mm ノズルがありますが、ファイルは {{nozzle}} mm 用にスライスされました。",
+    "highFlow": "ファイルはハイフローノズル用にスライスされましたが、{{slot}}は標準ノズルです。"
+  }
+}

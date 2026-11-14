@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "關閉視窗",
+    "moreAboutThis": "瞭解更多",
+    "plannedForPhase": "預計於第 {{phase}} 階段推出。",
+    "saving": "儲存中",
+    "loadedOf": "{{loaded}} / {{total}}"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "objectList": {
+    "notPrinted": "No se imprime",
+    "someNotPrinted": "Algunas copias no se imprimen",
+    "object": "Objeto",
+    "sameAsObject": "Igual que el objeto",
+    "objects": "Objetos",
+    "skippedTip": "{{name}}: {{why}}. El laminado lo deja fuera; marque Imprimible en su menú ⋯ para imprimirlo.",
+    "objectN": "Objeto {{n}}",
+    "filamentFor": "Filamento para {{name}}",
+    "more": "Más",
+    "moreFor": "Más para {{name}}",
+    "moreTip": "Más: clonar, renombrar, reflejar, exportar… (o clic derecho en el objeto)",
+    "painted": "(pintado)",
+    "moreForPart": "Más para la pieza {{name}}",
+    "partMoreTip": "Renombrar, cambiar tipo, ajustes, eliminar",
+    "chosen_one": "{{count}} objeto elegido",
+    "chosen_many": "{{count}} objetos elegidos",
+    "chosen_other": "{{count}} objetos elegidos",
+    "groupHint": "Mover, rotar y escalar funcionan con todos. Clic derecho en un modelo elegido, o pulsación larga en un teléfono, para el resto.",
+    "deleteAllTip": "Eliminarlos todos (Supr)",
+    "delete": "Eliminar",
+    "blockerHint": "{{kind}}: los soportes no crecen donde se solapa con el objeto, cuando los soportes están activados. Muévalo con la herramienta Mover.",
+    "enforcerHint": "{{kind}}: los soportes crecen donde se solapa con el objeto, cuando los soportes están activados. Muévalo con la herramienta Mover.",
+    "addInstance": "Añadir instancia",
+    "addInstanceTip": "Una copia más, a su lado (+). Ctrl+C y Ctrl+V la pegan como un objeto nuevo.",
+    "removeInstance": "Quitar instancia",
+    "removeInstanceTip": "Quita esta copia y conserva las demás (-)",
+    "simplify": "Simplificar",
+    "simplifyTip": "Menos triángulos, como Simplificar modelo del escritorio",
+    "deleteTip": "El objeto con todas sus copias (Supr quita solo la copia elegida)"
+  }
+}

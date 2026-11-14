@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "1-128 karakter kullanın, / \\ : * ? \" < > | olmadan",
+    "notAvailable": "{{name}} ön ayarı kullanılamıyor.",
+    "onlyOwn": "Yalnızca kendi ön ayarlarınız kaydedilebilir; Farklı kaydet'i kullanın.",
+    "noneSelected": "Hiçbir ön ayar seçilmedi.",
+    "sameName": "İki ön ayar aynı ada sahip olamaz.",
+    "nameTaken": "“{{name}}” adında bir ön ayar zaten var.",
+    "notYours": "Bu ön ayar size ait değil."
+  }
+}

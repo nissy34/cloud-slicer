@@ -1,0 +1,33 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} z {{total}}",
+    "engineNoStart": "{{engine}} se nepodařilo spustit",
+    "openedWith": "Otevřeno pomocí {{engine}}, jádra, se kterým byl tento projekt vytvořen.",
+    "somethingWrong": "Něco se pokazilo",
+    "files_one": "{{count}} soubor",
+    "files_few": "{{count}} soubory",
+    "files_many": "{{count}} souboru",
+    "files_other": "{{count}} souborů",
+    "saving": "Ukládání…",
+    "savingAfterSlice": "Ukládání… po slicování",
+    "savingMaking": "Ukládání… vytváření 3MF",
+    "savingSent": "Ukládání… {{progress}}",
+    "savingFinishing": "Ukládání… dokončování",
+    "saved": "„{{name}}“ uloženo do vašich projektů",
+    "notSaved": "Neuloženo: {{error}}",
+    "preparing": "Příprava 3MF…",
+    "makeFailed": "3MF se nepodařilo vytvořit: {{error}}",
+    "opening": "Otevírání „{{name}}“…",
+    "openFailed": "„{{name}}“ se nepodařilo otevřít: {{error}}",
+    "saveCancelled": "Ukládání zrušeno",
+    "viewOnly": "Tento projekt je tady jen pro čtení. Použijte „Místo toho upravovat tady“, abyste ho změnili.",
+    "openDriveFailed": "„{{name}}“ se nepodařilo otevřít z Google Drive: {{error}}",
+    "quoted": "„{{name}}“",
+    "cantOpen": "Cloud Slicer nemůže otevřít {{names}}.",
+    "cantOpenShared": "Cloud Slicer nemůže otevřít {{names}}",
+    "openedDriveFile": "„{{name}}“ otevřeno z vašeho Google Drive. Uložit uchová kopii ve vaší složce Cloud Slicer. Soubor na Disku zůstane, jak je.",
+    "openedDriveFiles": "{{name}} otevřeno z vašeho Google Drive. Uložit uchová kopii ve vaší složce Cloud Slicer. Soubory na Disku zůstanou, jak jsou.",
+    "myProject": "Můj projekt",
+    "removed": "„{{name}}“ odebráno z vašich projektů"
+  }
+}

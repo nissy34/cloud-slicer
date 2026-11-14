@@ -1,0 +1,24 @@
+{
+  "deviceFiles": {
+    "print": "Spausdinti…",
+    "deleteName": "Ištrinti {{name}}",
+    "delete": "Ištrinti",
+    "title": "Failai spausdintuve",
+    "upload": "Įkelti G-code…",
+    "timelapses": "Timelapse",
+    "none": "G-code failų dar nėra.",
+    "searchN_one": "Ieškoti {{count}} faile",
+    "searchN_few": "Ieškoti {{count}} failuose",
+    "searchN_many": "Ieškoti {{count}} failo",
+    "searchN_other": "Ieškoti {{count}} failų",
+    "search": "Ieškoti failų",
+    "noMatch": "Joks failas neatitinka „{{query}}“.",
+    "deleteFile": "Ištrinti failą",
+    "deleteText": "Ištrinti {{name}} iš spausdintuvo?",
+    "deleted": "Ištrinta",
+    "pages": "Failų puslapiai",
+    "newer": "Naujesni",
+    "older": "Senesni",
+    "range": "{{from}}–{{to}} iš {{total}}"
+  }
+}

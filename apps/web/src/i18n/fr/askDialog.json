@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "Enregistrer « {{name}} » ?",
+    "saveText": "Il n’est pas encore dans vos projets en ligne. Si vous n’enregistrez pas, il sera perdu.",
+    "save": "Enregistrer",
+    "dontSave": "Ne pas enregistrer",
+    "discardTitle": "Ignorer les modifications non enregistrées ?",
+    "discard": "Ignorer les modifications",
+    "openTitle": "Ouvrir {{what}}",
+    "addToText": "Vous travailliez sur « {{project}} ». L’ajouter à ce projet, ou commencer un nouveau projet avec ?",
+    "newProject": "Nouveau projet",
+    "addTo": "Ajouter à {{project}}"
+  }
+}

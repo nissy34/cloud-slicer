@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "el vostre {{device}}",
+    "another": "un altre dispositiu",
+    "iPad": "iPad",
+    "phone": "mòbil",
+    "tablet": "tauleta",
+    "windows": "ordinador amb Windows",
+    "mac": "Mac",
+    "chromebook": "Chromebook",
+    "linux": "ordinador amb Linux",
+    "other": "un altre dispositiu"
+  }
+}

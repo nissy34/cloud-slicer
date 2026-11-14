@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "출력 중에는 사용할 수 없습니다",
+    "disabledPaused": "일시 정지 중에는 사용할 수 없습니다",
+    "position": "위치",
+    "speed": "속도",
+    "flow": "압출량",
+    "head": "헤드",
+    "moveHead": "헤드 이동",
+    "headBack": "헤드를 뒤로",
+    "headLeft": "헤드를 왼쪽으로",
+    "homeHead": "헤드 홈",
+    "headRight": "헤드를 오른쪽으로",
+    "headToward": "헤드를 앞으로",
+    "bed": "베드",
+    "headHeight": "헤드 높이",
+    "moveBed": "베드 이동",
+    "moveHeadZ": "헤드를 위아래로 이동",
+    "bedUp": "베드 올리기",
+    "headUp": "헤드 올리기",
+    "homeBed": "베드 홈",
+    "homeHeight": "높이 홈",
+    "bedDown": "베드 내리기",
+    "headDown": "헤드 내리기",
+    "step": "이동 단위",
+    "homeAll": "전체 홈",
+    "motorsOff": "모터 끄기",
+    "heatFirst": "먼저 노즐을 가열하세요",
+    "extrude10": "10 mm 압출",
+    "retract": "후퇴",
+    "homeFirst": "이동하기 전에 프린터를 홈으로 보내세요."
+  }
+}

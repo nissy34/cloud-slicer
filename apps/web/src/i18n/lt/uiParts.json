@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "Uždaryti langą",
+    "moreAboutThis": "Daugiau apie tai",
+    "plannedForPhase": "Planuojama {{phase}} etapui.",
+    "saving": "Išsaugoma",
+    "loadedOf": "{{loaded}} iš {{total}}"
+  }
+}

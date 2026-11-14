@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "Stäng fönstret",
+    "moreAboutThis": "Mer om detta",
+    "plannedForPhase": "Planerad för fas {{phase}}.",
+    "saving": "Sparar",
+    "loadedOf": "{{loaded}} av {{total}}"
+  }
+}

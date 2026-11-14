@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Vereinigen",
+    "difference": "Differenz",
+    "intersection": "Schnittmenge",
+    "subtractFrom": "Abziehen von",
+    "subtractWith": "Abziehen mit",
+    "part": "Teil {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Mesh-Boolean",
+    "done": "Fertig",
+    "operation": "Operation",
+    "needTwo": "Das funktioniert mit zwei Teilen eines Objekts. Fügen Sie über das Menü des Objekts ein Teil, ein negatives Teil oder einen Modifizierer hinzu (Rechtsklick darauf oder die Schaltfläche ⋯ in der Objektliste), platzieren Sie es und kommen Sie dann hierher zurück.",
+    "unionHint": "Verbindet die beiden zu einem Teil.",
+    "differenceHint": "Schneidet das zweite aus dem ersten heraus.",
+    "intersectionHint": "Behält nur den Bereich, in dem sich beide überlappen.",
+    "resultHint": "Das Ergebnis übernimmt Platz, Typ und Einstellungen des ersten. Rückgängig bringt beide zurück.",
+    "pickDifferent": "Wählen Sie zwei verschiedene Teile.",
+    "deleteInput": "Eingabe löschen (auch das zweite entfernen)",
+    "working": "Wird bearbeitet…"
+  }
+}

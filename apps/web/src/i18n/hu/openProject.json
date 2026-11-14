@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Ez a fájl",
+    "title": "Megnyitja projektként?",
+    "geometryOnly": "Csak a geometria importálása",
+    "open": "Projekt megnyitása",
+    "body": "A(z) <b>{{name}}</b> egy saját tálcákkal és beállításokkal rendelkező projekt. A megnyitása lecseréli azt, ami most a tálcáin van. A geometriájának importálása hozzáadja az objektumait a tálcájához, és megtartja a beállításait."
+  }
+}

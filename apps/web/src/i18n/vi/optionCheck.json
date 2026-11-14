@@ -1,0 +1,12 @@
+{
+  "optionCheck": {
+    "allowed": "Cho phép từ {{min}} đến {{max}}",
+    "lowest": "Thấp nhất được phép là {{min}}",
+    "highest": "Cao nhất được phép là {{max}}",
+    "setTo": "{{allowed}}, đã đặt thành {{value}}.",
+    "needed": "Cần nhập một giá trị.",
+    "noPercent": "Cài đặt này không thể là phần trăm.",
+    "notWhole": "“{{text}}” không phải số nguyên.",
+    "notNumber": "“{{text}}” không phải là số."
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "flowVariant": {
+    "label": "유량 유형",
+    "standard": "표준 유량",
+    "high": "고유량"
+  }
+}

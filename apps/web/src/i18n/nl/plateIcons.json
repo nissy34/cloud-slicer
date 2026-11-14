@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Naamloos",
+    "nothingYet": "Nog niets op dit printbed",
+    "locked": "Dit printbed is vergrendeld",
+    "deleteTip": "Dit printbed en wat erop staat verwijderen (niet het laatste)",
+    "orientTip": "De voorwerpen op dit printbed automatisch oriënteren",
+    "arrangeTip": "De voorwerpen op dit printbed rangschikken (Shift+A)",
+    "unlockTip": "Dit printbed ontgrendelen",
+    "lockTip": "Dit printbed vergrendelen: Rangschikken en Automatisch oriënteren laten het ongemoeid",
+    "settingsOwnTip": "Printbedinstellingen: dit printbed heeft eigen instellingen",
+    "settingsTip": "Printbedinstellingen: printbedtype, afdrukvolgorde, spiraalvaas, filamentvolgorde",
+    "renameTip": "Dit printbed hernoemen"
+  }
+}

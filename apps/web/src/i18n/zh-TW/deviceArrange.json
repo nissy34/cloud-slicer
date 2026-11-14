@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "無法儲存卡片版面。重新載入頁面前會先保留。",
+    "pageCard": "頁面卡片 {{n}}",
+    "cameraCard": "攝影機卡片 {{n}}",
+    "arrangingFor": "正在排列 {{name}} 的卡片。",
+    "helpPhone": "按住卡片的握把，向上或向下拖曳。",
+    "helpDesktop": "按住卡片的握把，拖曳到某一欄，或拖到最上方或最下方。",
+    "helpRest": "隱藏的卡片會淡化顯示在這裡。其他列印裝置有各自的版面。",
+    "columns": "欄數",
+    "addCameraCard": "新增攝影機卡片",
+    "addPageCard": "新增頁面卡片",
+    "backToDefault": "恢復預設",
+    "acrossTop": "橫跨最上方",
+    "column": "第 {{n}} 欄",
+    "acrossBottom": "橫跨最下方",
+    "small": "小",
+    "medium": "中",
+    "large": "大",
+    "moveCard": "移動 {{name}}",
+    "halfWidthTip": "半寬：兩張半寬卡片並排",
+    "halfWidth": "半寬",
+    "cameraSize": "攝影機大小",
+    "remove": "移除"
+  }
+}

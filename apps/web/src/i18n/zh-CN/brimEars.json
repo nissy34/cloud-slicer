@@ -1,0 +1,25 @@
+{
+  "brimEars": {
+    "title": "Brim 耳",
+    "done": "完成",
+    "intro": "角落下方的圆形 Brim 垫片可防止其翘起，比完整 Brim 少得多，清理也更省事。",
+    "howTouch": "点按模型或其旁边的热床以添加耳。点按耳可选取，然后点“移除所选”。",
+    "howMouse": "点击模型或其旁边的热床以添加耳。点击耳可选取（按住 Shift 可多选），或右键点击以移除。",
+    "reading": "正在读取耳…",
+    "notPainted": "只有当此对象的 Brim 类型为“绘制”（Brim 耳）时，耳才会被打印。",
+    "usePainted": "为此对象使用 Brim 耳",
+    "ears": "耳",
+    "count_other": "{{count}} 个耳",
+    "loose_other": "{{count}} 个未接触对象",
+    "picked_other": "已选 {{count}} 个",
+    "size": "耳大小",
+    "auto": "在角落添加耳",
+    "maxAngle": "最大角度",
+    "maxAngleTip": "比此角度更尖的角落会添加耳",
+    "detection": "检测长度",
+    "detectionTip": "比此更短的小凸起会先被平滑掉，因此不会生成耳",
+    "resize": "调整所选大小",
+    "remove": "移除所选",
+    "removeAll": "全部移除"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Folytatja ott, ahol abbahagyta?",
+    "local": "{{name}}, módosítva: {{when}}. Ebben a böngészőben tárolva, nincs mentve.",
+    "discard": "Elvetés",
+    "continue": "Folytatás",
+    "projectAsk": "Folytatja: {{name}}?",
+    "project": "Folytatás: {{name}}",
+    "openHere": "Itt volt megnyitva, szerkesztve: {{when}}",
+    "editedOn": "Szerkesztve: {{when}}, ezen: {{device}}",
+    "notNow": "Most nem",
+    "editedElsewhere": "A(z) {{name}} projektet épp szerkesztik ezen: {{device}}",
+    "viewOnly": "Ez a lap csak megtekintésre szolgál.",
+    "viewOnlyUnsaved": "Ez a lap csak megtekintésre szolgál. Az itt végzett módosítások nincsenek benne.",
+    "saveMineAsCopy": "Az enyém mentése másolatként",
+    "editHere": "Inkább szerkesztés itt",
+    "gone": "A(z) „{{name}}” törölve lett ezen: {{device}}. Itt még nyitva van, nincs mentve."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "Forma SVG",
+    "done": "Fatto",
+    "pickHint": "Scegli una forma SVG nell'elenco oggetti o nella vista 3D per modificarla, oppure aggiungine una da un file .svg: sull'oggetto selezionato, o come oggetto a sé quando non è selezionato nulla. Anche aprire o trascinare un file .svg ne aggiunge una.",
+    "addSvg": "Aggiungi SVG…",
+    "depth": "Profondità",
+    "depthCutTip": "Quanto in profondità taglia la forma",
+    "depthTip": "Quanto sporge la forma",
+    "width": "Larghezza",
+    "widthTip": "Dimensione in larghezza della forma",
+    "height": "Altezza",
+    "heightTip": "Dimensione in altezza della forma",
+    "keepProportions": "Mantieni proporzioni",
+    "useSurfaceTip": "La forma si piega con la superficie dell'oggetto invece di stare piatta sopra",
+    "useSurface": "Usa superficie",
+    "svgType": "Tipo di SVG",
+    "changeType": "Cambia tipo",
+    "engraved": "Incisa",
+    "making": "Creazione della forma…",
+    "undoHint": "Annulla riporta l'ultima forma."
+  }
+}

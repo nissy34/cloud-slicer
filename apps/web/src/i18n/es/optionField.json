@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Restablecer al valor del perfil",
+    "keptOld": "Se conservó el valor anterior.",
+    "kept": "Se conservó {{value}}.",
+    "plateUses": "La placa {{n}} usa",
+    "on": "activado",
+    "off": "desactivado",
+    "itsOwn": "(su propio ajuste).",
+    "plateSettings": "Ajustes de la placa",
+    "default": "Predeterminado",
+    "percentOrMm": "¿Porcentaje o mm?",
+    "isItPercent": "{{label}}: ¿es {{number}}% o {{number}} {{unit}}?",
+    "filamentN": "Filamento {{n}}",
+    "mix": "Mezcla",
+    "mixes": "Mezclas"
+  }
+}

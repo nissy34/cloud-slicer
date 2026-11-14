@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Descargando el motor de laminado",
+    "setup": "Iniciando el motor de laminado",
+    "printers": "Cargando sus impresoras y perfiles",
+    "downloadingProject": "Descargando “{{name}}”",
+    "opening": "Abriendo {{name}}"
+  }
+}

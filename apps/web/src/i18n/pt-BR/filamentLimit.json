@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} filamentos em {{heads}} cabeçotes: você escolhe qual cabeçote imprime cada um ao enviar a impressão.",
+    "warn": "{{n}} filamentos em uma impressora com {{heads}} cabeçotes."
+  }
+}

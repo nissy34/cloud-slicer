@@ -1,0 +1,33 @@
+{
+  "settingsPanel": {
+    "simple": "简单",
+    "advanced": "高级",
+    "expert": "专家",
+    "levelsShown": "显示的设置",
+    "expertTip": "还包括桌面版为其开发者模式保留的调校设置",
+    "greyedTip": "在浏览器中不可用",
+    "searchProcess": "搜索工艺设置",
+    "searchFilament": "搜索耗材设置",
+    "searchPrinter": "搜索打印机设置",
+    "noProcessMatch": "没有与“{{query}}”匹配的工艺设置。",
+    "noFilamentMatch": "没有与“{{query}}”匹配的耗材设置。",
+    "noPrinterMatch": "没有与“{{query}}”匹配的打印机设置。",
+    "pages": "设置页面",
+    "normalMode": "{{label}}（普通）",
+    "silentMode": "{{label}}（静音）",
+    "overridesHint": "勾选设置即可使用此耗材自己的值。未勾选的使用打印机的值，以灰色显示。",
+    "flushLater": "当项目有多种耗材时，冲刷选项（冲刷到填充、对象或支撑中）会显示在这里。",
+    "noFlush": "没有冲刷选项：此打印机每种耗材都有一个喷嘴，因此换耗材时从不冲刷。多种耗材共用一个喷嘴的打印机（AMS、MMU 或 CFS）会在这里显示这些选项，并在“耗材”部分提供“冲刷体积”窗口。",
+    "useOwnNamed": "使用此耗材自己的{{label}}",
+    "usePrinters": "使用打印机的值",
+    "useOwn": "使用此耗材自己的值",
+    "yes": "是",
+    "no": "否",
+    "title": "工艺设置",
+    "changed_other": "有 {{count}} 项设置与预设不同。可通过其 ⋯ 菜单或设置窗口将它们保存到预设中。",
+    "resetAll": "全部重置",
+    "newKeeps": "新建项目时无需询问，直接保留它们。",
+    "newDiscards": "新建项目时无需询问，直接放弃它们。",
+    "askAgain": "再次询问"
+  }
+}

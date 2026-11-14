@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "將 STL、3MF、OBJ、STEP 或 SVG 檔案拖放到這裡",
+    "openModel": "開啟模型",
+    "fromDrive": "從 Google Drive 開啟",
+    "deletePlateTip": "刪除此列印板及其上的內容",
+    "deletePlate": "刪除列印板",
+    "clearAsk": "要清空列印板嗎？",
+    "unsavedChanges": "「{{name}}」有尚未儲存的變更。",
+    "clearAll": "全部清空",
+    "dropToAdd": "放開即可加入"
+  }
+}

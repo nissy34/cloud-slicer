@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "une autre imprimante",
+    "slicedFile": "{{name}} est un fichier découpé : il contient du G-code pour une autre imprimante mais aucun modèle. Ouvrez plutôt le projet d’origine (.3mf).",
+    "noObjects": "{{name}} n’a aucun objet à imprimer."
+  }
+}

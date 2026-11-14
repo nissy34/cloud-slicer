@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "Itxi leihoa",
+    "moreAboutThis": "Honi buruz gehiago",
+    "plannedForPhase": "{{phase}}. faserako planifikatuta.",
+    "saving": "Gordetzen",
+    "loadedOf": "{{loaded}} / {{total}}"
+  }
+}

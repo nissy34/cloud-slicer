@@ -1,0 +1,22 @@
+{
+  "presetChanges": {
+    "filamentN": "フィラメント {{n}}",
+    "process": "プロセス",
+    "printer": "プリンター",
+    "changes_other": "変更 {{count}} 件",
+    "saveTitle": "変更した設定を保存",
+    "back": "戻る",
+    "saving": "保存中…",
+    "save": "保存",
+    "namesText": "ご自身のプリセットは名前を保ったまま変更が反映されます。コピーとして保存するには新しい名前を付けてください。",
+    "row": "{{label}}: {{name}}（{{changes}}）",
+    "title": "変更した設定を保持しますか？",
+    "discard": "破棄",
+    "saveMenu": "保存…",
+    "keep": "保持",
+    "text": "一部のプリセットで設定が変更されています。新しいプロジェクトで保持するか、破棄するか、プリセットに保存してください。",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}}（{{changes}}）",
+    "remember": "選択を記憶する（保持または破棄）"
+  }
+}

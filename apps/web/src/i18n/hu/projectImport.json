@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "másik nyomtató",
+    "slicedFile": "A(z) {{name}} egy szeletelt fájl: G-code-ot tartalmaz egy másik nyomtatóhoz, de modelleket nem. Inkább az eredeti projektet (.3mf) nyissa meg.",
+    "noObjects": "A(z) {{name}} nem tartalmaz nyomtatandó objektumokat."
+  }
+}

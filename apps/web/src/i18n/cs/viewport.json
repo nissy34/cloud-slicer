@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Přesunout",
+    "rotate": "Otočit",
+    "scale": "Měřítko",
+    "rotateText": "Otočit text",
+    "moveSvgSurface": "Posunout SVG po povrchu",
+    "moveTextSurface": "Posunout text po povrchu",
+    "movePart": "Přesunout díl",
+    "rotatePart": "Otočit díl",
+    "scalePart": "Změnit měřítko dílu",
+    "plates": "Desky",
+    "ownSettingsTip": "Tato deska má vlastní nastavení",
+    "ownSettings": "má vlastní nastavení",
+    "plateSettings": "Nastavení desky",
+    "plateNSettings": "Nastavení desky {{n}}"
+  }
+}

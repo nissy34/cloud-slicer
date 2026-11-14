@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Wyłączone podczas druku",
+    "disabledPaused": "Wyłączone podczas wstrzymania",
+    "position": "Położenie",
+    "speed": "Prędkość",
+    "flow": "Przepływ",
+    "head": "Głowica",
+    "moveHead": "Przesuń głowicę",
+    "headBack": "Głowica do tyłu",
+    "headLeft": "Głowica w lewo",
+    "homeHead": "Bazuj głowicę",
+    "headRight": "Głowica w prawo",
+    "headToward": "Głowica do siebie",
+    "bed": "Stół",
+    "headHeight": "Wysokość głowicy",
+    "moveBed": "Przesuń stół",
+    "moveHeadZ": "Przesuń głowicę w górę i w dół",
+    "bedUp": "Stół w górę",
+    "headUp": "Głowica w górę",
+    "homeBed": "Bazuj stół",
+    "homeHeight": "Bazuj wysokość",
+    "bedDown": "Stół w dół",
+    "headDown": "Głowica w dół",
+    "step": "Krok",
+    "homeAll": "Bazuj wszystko",
+    "motorsOff": "Wyłącz silniki",
+    "heatFirst": "Najpierw rozgrzej dyszę",
+    "extrude10": "Wytłocz 10 mm",
+    "retract": "Retrakcja",
+    "homeFirst": "Przed przesuwaniem zbazuj drukarkę."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "jūsų {{device}}",
+    "another": "kitas įrenginys",
+    "iPad": "iPad",
+    "phone": "telefonas",
+    "tablet": "planšetinis kompiuteris",
+    "windows": "Windows kompiuteris",
+    "mac": "Mac",
+    "chromebook": "Chromebook",
+    "linux": "Linux kompiuteris",
+    "other": "kitas įrenginys"
+  }
+}

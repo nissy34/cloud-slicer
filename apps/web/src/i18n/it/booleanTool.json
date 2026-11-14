@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Unione",
+    "difference": "Differenza",
+    "intersection": "Intersezione",
+    "subtractFrom": "Sottrai da",
+    "subtractWith": "Sottrai con",
+    "part": "Parte {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Booleana mesh",
+    "done": "Fatto",
+    "operation": "Operazione",
+    "needTwo": "Funziona su due parti di un oggetto. Aggiungi una parte, una parte negativa o un modificatore dal menu dell'oggetto (clic destro, o il pulsante ⋯ nell'elenco oggetti), posizionala, poi torna qui.",
+    "unionHint": "Unisce le due in una sola parte.",
+    "differenceHint": "Taglia la seconda dalla prima.",
+    "intersectionHint": "Mantiene solo dove le due si sovrappongono.",
+    "resultHint": "Il risultato prende il posto, il tipo e le impostazioni della prima. Annulla le riporta entrambe.",
+    "pickDifferent": "Scegli due parti diverse.",
+    "deleteInput": "Elimina input (rimuove anche la seconda)",
+    "working": "Elaborazione…"
+  }
+}

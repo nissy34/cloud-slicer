@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "Ihr {{device}}",
+    "another": "ein anderes Gerät",
+    "iPad": "iPad",
+    "phone": "Smartphone",
+    "tablet": "Tablet",
+    "windows": "Windows-Computer",
+    "mac": "Mac",
+    "chromebook": "Chromebook",
+    "linux": "Linux-Computer",
+    "other": "anderes Gerät"
+  }
+}

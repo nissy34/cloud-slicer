@@ -1,0 +1,25 @@
+{
+  "presetChanges": {
+    "filamentN": "Gija {{n}}",
+    "process": "Procesas",
+    "printer": "Spausdintuvas",
+    "changes_one": "{{count}} pakeitimas",
+    "changes_few": "{{count}} pakeitimai",
+    "changes_many": "{{count}} pakeitimo",
+    "changes_other": "{{count}} pakeitimų",
+    "saveTitle": "Išsaugoti pakeistus parametrus",
+    "back": "Atgal",
+    "saving": "Išsaugoma…",
+    "save": "Išsaugoti",
+    "namesText": "Jūsų pačių profiliai išlaiko savo pavadinimą ir priima pakeitimus. Suteikite naują pavadinimą, kad vietoje to išsaugotumėte kopiją.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Išsaugoti pakeistus parametrus?",
+    "discard": "Atmesti",
+    "saveMenu": "Išsaugoti…",
+    "keep": "Palikti",
+    "text": "Kai kurių profilių parametrai pakeisti. Palikite juos naujame projekte, atmeskite arba išsaugokite į profilius.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Prisiminti mano pasirinkimą (Palikti arba Atmesti)"
+  }
+}

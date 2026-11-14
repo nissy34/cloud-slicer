@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "Problém pohybového systému",
+    "mainboardProblem": "Problém základní desky",
+    "amsProblem": "Problém AMS",
+    "toolheadProblem": "Problém nástrojové hlavy",
+    "cameraProblem": "Problém kamery",
+    "printerProblem": "Problém tiskárny",
+    "bambuUnknown": "Tiskárna ohlásila tento problém. Podrobnosti najdete na její obrazovce.",
+    "printerError": "Chyba tiskárny",
+    "u1Unknown": "Tiskárna ohlásila chybu. Podrobnosti najdete na její obrazovce."
+  }
+}

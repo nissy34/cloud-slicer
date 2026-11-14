@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint yazıcıya bağlı değil.",
+    "octoprintRestart": "Yeniden bağlan",
+    "octoprintRestarting": "OctoPrint yazıcıya bağlanıyor",
+    "bambuStopped": "Yazıcı yanıt vermeyi kesti: açık olduğunu ve ağda olduğunu kontrol edin.",
+    "bambuCameraMissing": "Burada yalnızca P1 ve A1 yazıcıların kamerası gösterilir: X1, H2 ve P2S yalnızca Bambu'nun kendi uygulamalarının oynatabildiği video gönderir.",
+    "bambuSlotNoun": "AMS yuvası",
+    "bambuSlotUnset": "Oraya filament yükleyin veya yazıcının ekranından ayarlayın.",
+    "bambuSlotNote": "Bambu Studio'da olduğu gibi, bir filament yalnızca aynı filament türüne sahip bir yuvaya gidebilir. Marka ve renk farklı olabilir.",
+    "outsideSpool": "Dış makara",
+    "u1Heads": "Takım kafaları",
+    "u1HeadNoun": "takım kafası",
+    "u1HeadUnset": "Filament yükleyin veya türünü Takım kafaları kartında ayarlayın.",
+    "u1HeadNote": "Snapmaker'ın kendi uygulamasında olduğu gibi, bir filament yalnızca aynı filament türüne ve nozul boyutuna sahip bir kafaya gidebilir. Marka ve renk farklı olabilir.",
+    "nozzleStandard": "Standart",
+    "nozzleHighFlow": "Yüksek akış",
+    "calibratingOffsets": "Takım ofsetleri kalibre ediliyor",
+    "levellingBed": "Yatak seviyeleniyor",
+    "calibratingFlow": "Akış kalibre ediliyor",
+    "calibratingShaper": "Giriş şekillendirme kalibre ediliyor",
+    "updatingFirmware": "Ürün yazılımı güncelleniyor",
+    "needsAttention": "Yazıcı ekranında ilgi gerekiyor",
+    "adjustingScrews": "Yatak vidaları ayarlanıyor",
+    "loadingFilament": "Filament yükleniyor",
+    "unloadingFilament": "Filament çıkarılıyor",
+    "calibratingPark": "Park konumu kalibre ediliyor",
+    "calibratingHome": "Başlangıç konumu kalibre ediliyor",
+    "hotendFan": "Hotend fanı T{{n}}"
+  }
+}

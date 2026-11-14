@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Tệp này",
+    "title": "Mở như một dự án?",
+    "geometryOnly": "Chỉ nhập hình học",
+    "open": "Mở dự án",
+    "body": "<b>{{name}}</b> là một dự án có plate và cài đặt riêng. Mở nó sẽ thay thế những gì đang có trên các plate của bạn. Nhập hình học sẽ thêm các vật thể của nó vào plate của bạn và giữ nguyên cài đặt của bạn."
+  }
+}

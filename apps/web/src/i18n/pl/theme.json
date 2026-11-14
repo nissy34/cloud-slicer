@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "Motyw",
+    "current": "Motyw: {{choice}}",
+    "system": "Systemowy",
+    "systemHint": "Dopasuj do tego urządzenia",
+    "light": "Jasny",
+    "dark": "Ciemny"
+  }
+}

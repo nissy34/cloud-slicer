@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Más csevegőalkalmazások",
+    "title": "Használat MI-alkalmazással",
+    "more": "Továbbiak",
+    "intro": "Kérje meg MI-alkalmazását, hogy szeleteljen Ön helyett: „Szeleteld ezt a Benchyt a U1-emre PETG-ből, 4 fallal, és mondd meg az időt.” Telepítse bővítményként a Claude Desktopba, vagy a számítógépén lévő más csevegőalkalmazásokba, például LM Studio és Msty. A számítógépén szeletel, ugyanazokkal a motorokkal és előbeállításokkal, mint ez az oldal, és a modelljei ott maradnak.",
+    "whichApp": "Melyik alkalmazás",
+    "step1": "Töltse le a Cloud Slicer bővítményt.",
+    "download": "Letöltés Claude Desktophoz",
+    "size": "körülbelül 11 MB. Már telepítette? Töltse le újra a frissítéshez.",
+    "step2": "Nyissa meg a fájlt. A Claude Desktop telepítést kér: kattintson a <b>Telepítés</b> gombra.",
+    "step3": "Kérje meg Claude-ot, hogy szeleteljen egy fájlt a számítógépén.",
+    "otherStep1": "A csevegőalkalmazás beállításaiban adjon hozzá egy MCP-szervert ezzel (a legtöbb alkalmazás úgy fogadja el, ahogy van):",
+    "otherStep2": "A számítógépén Node 20 vagy újabb kell hozzá (<a>nodejs.org</a>).",
+    "canDo": "Meg tud nyitni modelleket és projekteket, kiválasztja a nyomtatót, a folyamatot és a filamenteket, beállítja a színeket és azt, hogy melyik filament nyomtatja az egyes objektumokat, módosít beállításokat, elrendezi a tálcákat és szeletel. Amíg a számítógépe be van kapcsolva, a telefonján lévő Claude is használhatja. Bejelentkezve az Ön előbeállításait és nyomtatóit is használja, és nyomtatás indítása előtt rákérdez.",
+    "version": "Verzió: {{version}}"
+  }
+}

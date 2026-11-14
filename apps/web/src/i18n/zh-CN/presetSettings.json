@@ -1,0 +1,32 @@
+{
+  "presetSettings": {
+    "editPrinter": "编辑打印机设置",
+    "editFilament": "编辑耗材 {{n}} 设置",
+    "savedInProject": "已保存在项目 {{name}} 中。",
+    "savedIn3mf": "已保存在下载的项目 3MF 中。",
+    "nameTaken": "已存在同名预设。",
+    "savedAs": "已另存为 {{name}}。",
+    "whereAccount": "已保存到你的账户。",
+    "whereBrowser": "在你登录之前，保存在此浏览器中。",
+    "printerTitle": "打印机设置",
+    "filamentNTitle": "耗材 {{n}} 设置",
+    "filamentTitle": "耗材设置",
+    "newPrinterName": "新打印机预设名称",
+    "newFilamentName": "新耗材预设名称",
+    "back": "返回",
+    "saving": "正在保存…",
+    "save": "保存",
+    "unsaved_other": "{{count}} 处未保存的更改",
+    "noChanges": "无更改",
+    "discard": "放弃更改",
+    "saveAsNew": "另存为新预设…",
+    "savedName": "已保存 {{name}}。",
+    "saveToPreset": "保存到预设",
+    "saveToProjectTip": "仅在此项目中保留这些更改并保存项目",
+    "saveToProject": "保存到项目",
+    "modified": "（已修改）",
+    "yours": "你的预设，基于 {{parent}}。",
+    "system": "系统预设：请使用“另存为”来保留你的更改。",
+    "footHint": "“保存到项目”仅在此项目中保留这些更改，打开项目时它们会恢复。预设则会让所有项目都保留这些更改。{{where}} 导出、导入、重命名和删除在 ⋯ 菜单中。"
+  }
+}

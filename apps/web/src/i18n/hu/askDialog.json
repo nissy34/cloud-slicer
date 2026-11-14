@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "Menti: „{{name}}”?",
+    "saveText": "Még nincs az online projektjei között. A Nem mentem gomb eldobja.",
+    "save": "Mentés",
+    "dontSave": "Nem mentem",
+    "discardTitle": "Elveti a nem mentett módosításokat?",
+    "discard": "Módosítások elvetése",
+    "openTitle": "Megnyitás: {{what}}",
+    "addToText": "Ezen dolgozott: „{{project}}”. Hozzáadja ahhoz, vagy új projektet indít vele?",
+    "newProject": "Új projekt",
+    "addTo": "Hozzáadás: {{project}}"
+  }
+}

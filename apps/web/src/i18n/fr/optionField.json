@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Revenir à la valeur du préréglage",
+    "keptOld": "Ancienne valeur conservée.",
+    "kept": "{{value}} conservé.",
+    "plateUses": "La plaque {{n}} utilise",
+    "on": "activé",
+    "off": "désactivé",
+    "itsOwn": "(son propre réglage).",
+    "plateSettings": "Réglages de la plaque",
+    "default": "Par défaut",
+    "percentOrMm": "Pourcentage ou mm ?",
+    "isItPercent": "{{label}} : est-ce {{number}} % ou {{number}} {{unit}} ?",
+    "filamentN": "Filament {{n}}",
+    "mix": "Mélange",
+    "mixes": "Mélanges"
+  }
+}

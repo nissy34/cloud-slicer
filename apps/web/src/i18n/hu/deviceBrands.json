@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "API-kulcs",
+    "klipperHint": "A Mainsail és a Fluidd a beállításaikban mutatják.",
+    "klipperLocked": "Ez a nyomtató zárolva van: írja be az API-kulcsát",
+    "prusaKey": "PrusaLink jelszó",
+    "prusaHint": "A nyomtató a Beállítások, Hálózat, PrusaLink alatt mutatja (a felhasználónév ott maker).",
+    "prusaLocked": "Írja be a PrusaLink jelszót a nyomtató képernyőjéről",
+    "octoprintKey": "OctoPrint API-kulcs",
+    "octoprintHint": "Az OctoPrintben: Settings, Application Keys, majd hozzon létre egy kulcsot a Cloud Slicernek (vagy másolja ki a felhasználója API-kulcsát a Settings, API alatt).",
+    "octoprintLocked": "Ez az OctoPrint zárolva van: írjon be egy API-kulcsot a beállításaiból",
+    "bambuKey": "LAN hozzáférési kód",
+    "bambuHint": "A nyomtató a képernyőjén mutatja, a hálózati beállításaiban a LAN Only mód mellett. A nyomtatások küldéséhez és innen való vezérléséhez kapcsolja be ott a LAN Only módot és a Developer Mode-ot is (a Bambu felhője és a Bambu Handy alkalmazás addig nem működik).",
+    "bambuLocked": "Írja be a hozzáférési kódot a nyomtató képernyőjéről",
+    "featStatus": "Állapot",
+    "featSend": "Küldés és nyomtatás",
+    "featCamera": "Kamera",
+    "featMove": "Mozgatás és hőmérsékletek",
+    "featMoveShort": "Mozgatás és hőm.",
+    "featConsole": "Konzol",
+    "klipperName": "Klipper nyomtatók",
+    "klipperExamples": "Snapmaker U1, Voron, Qidi, Sovol",
+    "prusaName": "Prusa PrusaLinkkel",
+    "prusaExamples": "MK4, Core One, XL, Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "bármelyik nyomtató, amelyen az OctoPrint fut",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "a Carbon 2 még nem",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1, P1, P2S, A1, H2; kamera a P1-en és A1-en; Developer Mode szükséges"
+  }
+}

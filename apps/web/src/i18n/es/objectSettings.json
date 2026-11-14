@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Ajustes del objeto",
+    "modifierSettings": "Ajustes del modificador",
+    "partSettings": "Ajustes de la pieza",
+    "addToObject": "Añadir un ajuste a este objeto",
+    "addToModifier": "Añadir un ajuste a este modificador",
+    "addToPart": "Añadir un ajuste a esta pieza",
+    "addSetting": "+ Añadir ajuste",
+    "modifierEmpty": "Añada un ajuste para cambiarlo donde el modificador se solapa con el objeto, por ejemplo más relleno en un punto.",
+    "partEmpty": "Usa los ajustes del objeto. Añada uno para cambiarlo solo en esta pieza.",
+    "objectEmpty": "Usa los ajustes del proceso. Añada uno para cambiarlo solo en este objeto.",
+    "others": "Otros",
+    "removeFromObject": "Quitar de este objeto",
+    "removeFromModifier": "Quitar de este modificador",
+    "removeFromPart": "Quitar de esta pieza"
+  }
+}

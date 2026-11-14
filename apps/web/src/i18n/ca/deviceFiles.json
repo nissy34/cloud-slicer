@@ -1,0 +1,23 @@
+{
+  "deviceFiles": {
+    "print": "Imprimeix…",
+    "deleteName": "Suprimeix {{name}}",
+    "delete": "Suprimeix",
+    "title": "Fitxers de la impressora",
+    "upload": "Puja G-code…",
+    "timelapses": "Timelapses",
+    "none": "Encara no hi ha cap fitxer de G-code.",
+    "searchN_one": "Cerca {{count}} fitxer",
+    "searchN_many": "Cerca {{count}} fitxers",
+    "searchN_other": "Cerca {{count}} fitxers",
+    "search": "Cerca fitxers",
+    "noMatch": "Cap fitxer coincideix amb «{{query}}».",
+    "deleteFile": "Suprimeix el fitxer",
+    "deleteText": "Voleu suprimir {{name}} de la impressora?",
+    "deleted": "Suprimit",
+    "pages": "Pàgines de fitxers",
+    "newer": "Més nous",
+    "older": "Més antics",
+    "range": "{{from}}–{{to}} de {{total}}"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "¿Continuar donde lo dejó?",
+    "local": "{{name}}, modificado {{when}}. Se conserva en este navegador, sin guardar.",
+    "discard": "Descartar",
+    "continue": "Continuar",
+    "projectAsk": "¿Continuar {{name}}?",
+    "project": "Continuar {{name}}",
+    "openHere": "Lo tenía abierto aquí, editado {{when}}",
+    "editedOn": "Editado {{when}} en {{device}}",
+    "notNow": "Ahora no",
+    "editedElsewhere": "{{name}} se está editando en {{device}}",
+    "viewOnly": "Esta pestaña es de solo lectura.",
+    "viewOnlyUnsaved": "Esta pestaña es de solo lectura. Los cambios que hizo aquí no están en él.",
+    "saveMineAsCopy": "Guardar el mío como copia",
+    "editHere": "Editar aquí en su lugar",
+    "gone": "“{{name}}” se eliminó en {{device}}. Sigue abierto aquí, sin guardar."
+  }
+}

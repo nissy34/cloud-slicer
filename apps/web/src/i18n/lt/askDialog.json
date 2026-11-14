@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "Išsaugoti „{{name}}“?",
+    "saveText": "Jo dar nėra jūsų internetiniuose projektuose. Pasirinkus Neišsaugoti, jis bus išmestas.",
+    "save": "Išsaugoti",
+    "dontSave": "Neišsaugoti",
+    "discardTitle": "Atsisakyti neišsaugotų pakeitimų?",
+    "discard": "Atsisakyti pakeitimų",
+    "openTitle": "Atidaryti {{what}}",
+    "addToText": "Dirbote su „{{project}}“. Pridėti tai ten ar pradėti naują projektą?",
+    "newProject": "Naujas projektas",
+    "addTo": "Pridėti prie {{project}}"
+  }
+}

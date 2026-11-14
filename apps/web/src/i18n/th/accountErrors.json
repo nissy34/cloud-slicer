@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "ไม่ตอบกลับภายในเวลาที่กำหนด",
+    "noAccounts": "เซิร์ฟเวอร์นี้ไม่มีบัญชีให้ใช้",
+    "siteNoAnswer": "Cloud Slicer ไม่ตอบกลับ ตรวจสอบการเชื่อมต่อของคุณ แล้วลองอีกครั้ง",
+    "driveReconnect": "ต้องเชื่อมต่อ Google Drive อีกครั้ง เปิดเมนูบัญชี (มุมขวาบน) แล้วกด เชื่อมต่อ Google Drive",
+    "driveNoAnswer": "Google Drive ไม่ตอบกลับ ตรวจสอบการเชื่อมต่อของคุณ แล้วบันทึกอีกครั้ง",
+    "driveFull": "Google Drive ของคุณเต็ม เพิ่มพื้นที่ว่างใน Drive แล้วบันทึกอีกครั้ง",
+    "driveGone": "โปรเจกต์นี้ไม่อยู่ใน Google Drive ของคุณแล้ว",
+    "driveNoUpload": "Google Drive ไม่เริ่มอัปโหลด",
+    "pickerBlocked": "เบราว์เซอร์ของคุณบล็อกหน้าต่าง Google Drive อนุญาตป๊อปอัปสำหรับไซต์นี้ แล้วลองอีกครั้ง",
+    "driveSignIn": "ลงชื่อเข้าใช้ด้วย Google เพื่อเปิดไฟล์จาก Google Drive ของคุณ",
+    "driveConnectFirst": "เชื่อมต่อ Google Drive ในเมนูบัญชีก่อน",
+    "pickerNotSetUp": "ไซต์นี้ยังไม่ได้ตั้งค่าการเปิดจาก Google Drive"
+  }
+}

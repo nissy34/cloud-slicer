@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Terugzetten naar de waarde van de voorinstelling",
+    "keptOld": "De oude waarde is behouden.",
+    "kept": "{{value}} is behouden.",
+    "plateUses": "Printbed {{n}} gebruikt",
+    "on": "aan",
+    "off": "uit",
+    "itsOwn": "(eigen instelling).",
+    "plateSettings": "Printbedinstellingen",
+    "default": "Standaard",
+    "percentOrMm": "Procent of mm?",
+    "isItPercent": "{{label}}: is het {{number}}% of {{number}} {{unit}}?",
+    "filamentN": "Filament {{n}}",
+    "mix": "Mix",
+    "mixes": "Mixen"
+  }
+}

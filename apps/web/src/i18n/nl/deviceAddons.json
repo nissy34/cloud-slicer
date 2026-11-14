@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint is niet verbonden met de printer.",
+    "octoprintRestart": "Opnieuw verbinden",
+    "octoprintRestarting": "OctoPrint wordt met de printer verbonden",
+    "bambuStopped": "De printer antwoordt niet meer: controleer of hij aanstaat en op het netwerk zit.",
+    "bambuCameraMissing": "Alleen P1- en A1-printers tonen hier hun camera: X1, H2 en P2S sturen video die alleen de eigen apps van Bambu afspelen.",
+    "bambuSlotNoun": "AMS-slot",
+    "bambuSlotUnset": "Laad daar filament, of stel het in op het scherm van de printer.",
+    "bambuSlotNote": "Net als in Bambu Studio kan een filament alleen naar een slot met hetzelfde filamenttype. Merk en kleur mogen verschillen.",
+    "outsideSpool": "Externe spoel",
+    "u1Heads": "Printkoppen",
+    "u1HeadNoun": "printkop",
+    "u1HeadUnset": "Laad filament, of stel het type in op de kaart Printkoppen.",
+    "u1HeadNote": "Net als in de eigen app van Snapmaker kan een filament alleen naar een kop met hetzelfde filamenttype en dezelfde mondstukgrootte. Merk en kleur mogen verschillen.",
+    "nozzleStandard": "Standaard",
+    "nozzleHighFlow": "Hoge flow",
+    "calibratingOffsets": "Printkopoffsets kalibreren",
+    "levellingBed": "Het printbed nivelleren",
+    "calibratingFlow": "Flow kalibreren",
+    "calibratingShaper": "Input shaping kalibreren",
+    "updatingFirmware": "Firmware bijwerken",
+    "needsAttention": "Heeft aandacht nodig op het scherm van de printer",
+    "adjustingScrews": "Printbedschroeven afstellen",
+    "loadingFilament": "Filament laden",
+    "unloadingFilament": "Filament uitladen",
+    "calibratingPark": "Parkeerpositie kalibreren",
+    "calibratingHome": "Thuispositie kalibreren",
+    "hotendFan": "Hotendventilator T{{n}}"
+  }
+}

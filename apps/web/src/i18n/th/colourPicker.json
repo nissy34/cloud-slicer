@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "ขาว",
+    "yellow": "เหลือง",
+    "lime": "เขียวมะนาว",
+    "green": "เขียว",
+    "darkGreen": "เขียวเข้ม",
+    "teal": "เขียวหัวเป็ด",
+    "mint": "เขียวมิ้นต์",
+    "skyBlue": "ฟ้า",
+    "lightBlue": "ฟ้าอ่อน",
+    "blue": "น้ำเงิน",
+    "indigo": "คราม",
+    "purple": "ม่วง",
+    "magenta": "มาเจนตา",
+    "lavender": "ลาเวนเดอร์",
+    "pink": "ชมพู",
+    "red": "แดง",
+    "brown": "น้ำตาล",
+    "orange": "ส้ม",
+    "cream": "ครีม",
+    "beige": "เบจ",
+    "tan": "น้ำตาลอ่อน",
+    "grey": "เทา",
+    "lightGrey": "เทาอ่อน",
+    "black": "ดำ",
+    "colours": "สี",
+    "recent": "ล่าสุด",
+    "recentColours": "สีล่าสุด",
+    "hex": "รหัสฐานสิบหก",
+    "custom": "กำหนดเอง"
+  }
+}

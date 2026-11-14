@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "Uložit „{{name}}“?",
+    "saveText": "Zatím není ve vašich online projektech. Možnost Neukládat ho zahodí.",
+    "save": "Uložit",
+    "dontSave": "Neukládat",
+    "discardTitle": "Zahodit neuložené změny?",
+    "discard": "Zahodit změny",
+    "openTitle": "Otevřít {{what}}",
+    "addToText": "Pracovali jste na „{{project}}“. Přidat to tam, nebo s tím začít nový projekt?",
+    "newProject": "Nový projekt",
+    "addTo": "Přidat do {{project}}"
+  }
+}

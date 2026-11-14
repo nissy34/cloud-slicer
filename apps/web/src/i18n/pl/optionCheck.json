@@ -1,0 +1,12 @@
+{
+  "optionCheck": {
+    "allowed": "Dozwolone od {{min}} do {{max}}",
+    "lowest": "Najmniejsza dozwolona wartość to {{min}}",
+    "highest": "Największa dozwolona wartość to {{max}}",
+    "setTo": "{{allowed}}, ustawiono {{value}}.",
+    "needed": "Wymagana jest wartość.",
+    "noPercent": "To ustawienie nie może być procentem.",
+    "notWhole": "„{{text}}” nie jest liczbą całkowitą.",
+    "notNumber": "„{{text}}” nie jest liczbą."
+  }
+}

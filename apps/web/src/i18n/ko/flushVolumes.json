@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "플러시 볼륨",
+    "ownAmounts": "직접 입력한 양",
+    "fromColours": "색상 기준",
+    "leftNozzle": "왼쪽 노즐",
+    "rightNozzle": "오른쪽 노즐",
+    "nozzleN": "노즐 {{n}}",
+    "filamentN": "필라멘트 {{n}}",
+    "recalculate": "다시 계산",
+    "done": "완료",
+    "explain": "왼쪽의 필라멘트에서 위쪽의 필라멘트로 바꿀 때 프린터가 밀어내는 양(mm³)입니다. 색상을 기준으로 계산하며, 어두운 색에서 밝은 색으로 바꿀 때 더 많이 필요합니다.",
+    "nozzle": "노즐",
+    "tableLabel": "플러시 볼륨(mm³)",
+    "from": "이전",
+    "to": "다음",
+    "toFilament": "{{name}}(으)로",
+    "fromFilament": "{{name}}에서",
+    "purgeLabel": "{{from}}에서 {{to}}(으)로 플러시, mm³",
+    "suggested": "권장: {{min}}~{{max}} mm³ (범위를 벗어나면 빨간색으로 표시됩니다).",
+    "multiplier": "배수",
+    "scales": "모든 양에 곱합니다 ({{min}}~{{max}}).",
+    "towerOff": "이 프린터 설정(다중 재료 페이지)에서 \"프라임 타워에서 플러시\"가 꺼져 있어, 필라멘트를 바꿀 때마다 이 양 대신 프라임 볼륨({{volume}} mm³)만큼 플러시합니다. 이 값은 프린터의 교체 G-code에 전달되는 플러시 길이에는 계속 쓰입니다."
+  }
+}

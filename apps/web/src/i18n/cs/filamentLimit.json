@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} filamentů na {{heads}} hlavách: při odeslání tisku vyberete, která hlava tiskne který z nich.",
+    "warn": "{{n}} filamentů na tiskárně s {{heads}} hlavami."
+  }
+}

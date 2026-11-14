@@ -1,0 +1,10 @@
+{
+  "shapes": {
+    "cube": "立方體",
+    "cylinder": "圓柱體",
+    "sphere": "球體",
+    "cone": "圓錐體",
+    "disc": "圓盤",
+    "torus": "圓環"
+  }
+}

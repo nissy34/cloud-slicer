@@ -1,0 +1,33 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} z {{total}}",
+    "engineNoStart": "Nie udało się uruchomić {{engine}}",
+    "openedWith": "Otwarto w {{engine}}, silniku, w którym ten projekt powstał.",
+    "somethingWrong": "Coś poszło nie tak",
+    "files_one": "{{count}} plik",
+    "files_few": "{{count}} pliki",
+    "files_many": "{{count}} plików",
+    "files_other": "{{count}} pliku",
+    "saving": "Zapisywanie…",
+    "savingAfterSlice": "Zapisywanie… po cięciu",
+    "savingMaking": "Zapisywanie… tworzenie 3MF",
+    "savingSent": "Zapisywanie… {{progress}}",
+    "savingFinishing": "Zapisywanie… kończenie",
+    "saved": "Zapisano „{{name}}” w Twoich projektach",
+    "notSaved": "Nie zapisano: {{error}}",
+    "preparing": "Przygotowywanie 3MF…",
+    "makeFailed": "Nie udało się utworzyć 3MF: {{error}}",
+    "opening": "Otwieranie „{{name}}”…",
+    "openFailed": "Nie udało się otworzyć „{{name}}”: {{error}}",
+    "saveCancelled": "Anulowano zapis",
+    "viewOnly": "Ten projekt jest tu tylko do podglądu. Użyj „Zamiast tego edytuj tutaj”, aby go zmienić.",
+    "openDriveFailed": "Nie udało się otworzyć „{{name}}” z Google Drive: {{error}}",
+    "quoted": "„{{name}}”",
+    "cantOpen": "Cloud Slicer nie może otworzyć: {{names}}.",
+    "cantOpenShared": "Cloud Slicer nie może otworzyć: {{names}}",
+    "openedDriveFile": "Otwarto „{{name}}” z Twojego Google Drive. Zapis zachowuje kopię w folderze Cloud Slicer. Plik w Drive zostaje bez zmian.",
+    "openedDriveFiles": "Otwarto {{name}} z Twojego Google Drive. Zapis zachowuje kopię w folderze Cloud Slicer. Pliki w Drive zostają bez zmian.",
+    "myProject": "Mój projekt",
+    "removed": "Usunięto „{{name}}” z Twoich projektów"
+  }
+}

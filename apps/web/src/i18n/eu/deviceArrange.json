@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Ezin izan da txartelen antolaketa gorde. Orria berriro kargatu arte mantentzen da.",
+    "pageCard": "{{n}}. orri-txartela",
+    "cameraCard": "{{n}}. kamera-txartela",
+    "arrangingFor": "{{name}} inprimagailurako txartelak antolatzen.",
+    "helpPhone": "Eutsi txartel bati bere heldulekutik eta arrastatu gora edo behera.",
+    "helpDesktop": "Arrastatu txartel bat bere heldulekutik zutabe batera, edo goiko edo beheko aldera.",
+    "helpRest": "Ezkutuko txartelak hemen geratzen dira, lausotuta. Beste inprimagailuek beren antolaketa propioa mantentzen dute.",
+    "columns": "Zutabeak",
+    "addCameraCard": "Gehitu kamera-txartela",
+    "addPageCard": "Gehitu orri-txartela",
+    "backToDefault": "Itzuli lehenespenera",
+    "acrossTop": "Goian zehar",
+    "column": "{{n}}. zutabea",
+    "acrossBottom": "Behean zehar",
+    "small": "Txikia",
+    "medium": "Ertaina",
+    "large": "Handia",
+    "moveCard": "Mugitu {{name}}",
+    "halfWidthTip": "Zabalera erdia: bi erdi-txartel alboz albo jartzen dira",
+    "halfWidth": "Zabalera erdia",
+    "cameraSize": "Kameraren tamaina",
+    "remove": "Kendu"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Dilimleme motoru indiriliyor",
+    "setup": "Dilimleme motoru başlatılıyor",
+    "printers": "Yazıcılarınız ve ön ayarlarınız yükleniyor",
+    "downloadingProject": "“{{name}}” indiriliyor",
+    "opening": "{{name}} açılıyor"
+  }
+}

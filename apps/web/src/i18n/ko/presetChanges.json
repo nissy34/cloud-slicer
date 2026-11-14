@@ -1,0 +1,22 @@
+{
+  "presetChanges": {
+    "filamentN": "필라멘트 {{n}}",
+    "process": "프로세스",
+    "printer": "프린터",
+    "changes_other": "변경 {{count}}개",
+    "saveTitle": "변경한 설정 저장",
+    "back": "뒤로",
+    "saving": "저장 중…",
+    "save": "저장",
+    "namesText": "내가 만든 사전 설정은 이름을 유지하고 변경 사항이 반영됩니다. 사본으로 저장하려면 새 이름을 입력하세요.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "변경한 설정을 유지할까요?",
+    "discard": "버리기",
+    "saveMenu": "저장…",
+    "keep": "유지",
+    "text": "일부 사전 설정의 설정이 변경되었습니다. 새 프로젝트에 유지하거나, 버리거나, 사전 설정에 저장하세요.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "내 선택 기억하기 (유지 또는 버리기)"
+  }
+}

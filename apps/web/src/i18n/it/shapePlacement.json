@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Ruota testo",
+    "rotateSvg": "Ruota SVG",
+    "moveText": "Sposta testo dalla superficie",
+    "moveSvg": "Sposta SVG dalla superficie",
+    "rotationTip": "Ruotalo attorno al proprio asse, in senso orario (l'anello nella vista 3D fa lo stesso)",
+    "rotation": "Rotazione",
+    "fromSurfaceTip": "Quanto sporge dalla superficie",
+    "fromSurface": "Dalla superficie",
+    "keepUpTip": "Lo mantiene in piedi mentre lo fai scorrere sulla superficie o lo rivolgi verso la telecamera",
+    "keepUp": "Mantieni dritto",
+    "faceCameraTip": "Giralo verso di te, da dove lo guardi",
+    "faceCamera": "Rivolgi alla telecamera",
+    "moveToolsText": "Sposta o ruota il testo con quegli strumenti.",
+    "moveToolsShape": "Sposta o ruota la forma con quegli strumenti.",
+    "dragText": "Trascina il testo o il suo riquadro blu per farlo scorrere sull'oggetto. L'anello lo ruota.",
+    "dragShape": "Trascina la forma o il suo riquadro blu per farla scorrere sull'oggetto. L'anello la ruota."
+  }
+}

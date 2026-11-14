@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Przekonwertować ten projekt?",
+    "convert": "Konwertuj",
+    "setUpFor": "Został przygotowany dla <b>{{printer}}</b>. Wybierz jedną ze swoich drukarek, na której chcesz go wydrukować.",
+    "printer": "Drukarka",
+    "convertTo": "Konwertuj na drukarkę",
+    "keep": "Zachowaj ustawienia modelu zmienione przez projekt: warstwy, ściany, wypełnienie, podpory, szwy, brim",
+    "remember": "Rób to automatycznie następnym razem",
+    "note": "Ustawienia, które projekt zostawił na domyślnych wartościach starej drukarki, oraz prędkości, przyspieszenia, jerk, szerokości linii, kalibracja przepływu i wieża czyszcząca pochodzą z {{printer}}. Filamenty są dobierane według materiału i rodzaju (matowy, jedwabisty, wysoki przepływ…) i zachowują kolory projektu.",
+    "yourPrinter": "Twoja drukarka"
+  }
+}

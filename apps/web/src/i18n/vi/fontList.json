@@ -1,0 +1,8 @@
+{
+  "fontList": {
+    "hebrew": "Do Thái",
+    "pickScriptFont": "Hãy chọn phông chữ {{script}}, như {{fonts}}.",
+    "pickAnyFont": "Hãy chọn phông chữ có chúng: một tệp phông chữ, hoặc một phông chữ của máy tính này.",
+    "noLetters": "Phông chữ này không có chữ cho {{letters}}, nên chúng bị bỏ qua."
+  }
+}

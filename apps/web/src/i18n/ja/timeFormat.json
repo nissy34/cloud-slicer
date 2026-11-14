@@ -1,0 +1,10 @@
+{
+  "timeFormat": {
+    "clockH": "{{n}}時間",
+    "clockM": "{{n}}分",
+    "clockS": "{{n}}秒",
+    "minutes": "{{m}} 分",
+    "hours": "{{h}} 時間",
+    "hoursMinutes": "{{h}} 時間 {{m}} 分"
+  }
+}

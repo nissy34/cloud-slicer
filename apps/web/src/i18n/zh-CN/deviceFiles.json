@@ -1,0 +1,21 @@
+{
+  "deviceFiles": {
+    "print": "打印…",
+    "deleteName": "删除 {{name}}",
+    "delete": "删除",
+    "title": "打印机上的文件",
+    "upload": "上传 G-code…",
+    "timelapses": "延时摄影",
+    "none": "还没有 G-code 文件。",
+    "searchN_other": "搜索 {{count}} 个文件",
+    "search": "搜索文件",
+    "noMatch": "没有与“{{query}}”匹配的文件。",
+    "deleteFile": "删除文件",
+    "deleteText": "从打印机删除 {{name}}？",
+    "deleted": "已删除",
+    "pages": "文件页码",
+    "newer": "较新",
+    "older": "较旧",
+    "range": "{{from}}–{{to}} / {{total}}"
+  }
+}

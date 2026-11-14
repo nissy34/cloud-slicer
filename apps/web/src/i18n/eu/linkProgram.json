@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Kode hau iraungi da. Eskatu zure AI aplikazioari berriro saioa hasteko kode berri baterako.",
+    "invalid": "Kode hau ez da baliozkoa. Egiaztatu zure AI aplikazioak erakusten duenarekin, edo eskatu berriro saioa hasteko.",
+    "siteAnswered": "Guneak {{status}} erantzun du",
+    "checkingAccount": "Zure kontua egiaztatzen…",
+    "signInFirst": "Hasi saioa Cloud Slicer-en lehenik. Orduan leiho honek zure AI aplikazioa konektatzeko eskatuko dizu.",
+    "noSignIn": "Saio-hasiera ez dago konfiguratuta gune honetan.",
+    "codeLabel": "Zure AI aplikazioak erakusten duen kodea",
+    "checkingCode": "Kodea egiaztatzen…",
+    "connected": "Konektatuta. Itzuli zure AI aplikaziora: {{name}} gisa hasi du saioa.",
+    "turnedDown": "Ukatuta. Zure AI aplikazioak ez du saiorik hasi.",
+    "asks": "Zure ordenagailuko AI aplikazio batek (Cloud Slicer gehigarriak) zure kontua erabiltzeko eskatzen du, <b>{{email}}</b>. Egiaztatu kode hau erakusten duela:",
+    "willSee": "Zure gordetako aurrezarpenak eta inprimagailuak ikusiko ditu, eta zure inprimagailuak egiaztatu eta haietara kargatu ditzake. Inprimaketa bat hasi aurretik beti galdetzen dizu. Saioa AI aplikaziotik amaitu dezakezu.",
+    "continueGoogle": "Jarraitu Google-rekin",
+    "dontConnect": "Ez konektatu",
+    "connect": "Konektatu",
+    "title": "Konektatu AI aplikazio bat"
+  }
+}

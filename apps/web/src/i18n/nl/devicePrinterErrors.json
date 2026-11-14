@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "Probleem met het bewegingssysteem",
+    "mainboardProblem": "Probleem met het moederbord",
+    "amsProblem": "AMS-probleem",
+    "toolheadProblem": "Probleem met de printkop",
+    "cameraProblem": "Probleem met de camera",
+    "printerProblem": "Probleem met de printer",
+    "bambuUnknown": "De printer meldde dit probleem. Bekijk het scherm van de printer voor details.",
+    "printerError": "Printerfout",
+    "u1Unknown": "De printer meldde een fout. Bekijk het scherm van de printer voor details."
+  }
+}

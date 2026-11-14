@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Kontynuować od miejsca, w którym skończono?",
+    "local": "{{name}}, zmieniono {{when}}. Przechowywane w tej przeglądarce, niezapisane.",
+    "discard": "Odrzuć",
+    "continue": "Kontynuuj",
+    "projectAsk": "Kontynuować {{name}}?",
+    "project": "Kontynuuj {{name}}",
+    "openHere": "Był tu otwarty, edytowano {{when}}",
+    "editedOn": "Edytowano {{when}}, urządzenie: {{device}}",
+    "notNow": "Nie teraz",
+    "editedElsewhere": "{{name}} jest edytowany, urządzenie: {{device}}",
+    "viewOnly": "Ta karta jest tylko do podglądu.",
+    "viewOnlyUnsaved": "Ta karta jest tylko do podglądu. Zmiany wprowadzone tutaj nie są w nim zawarte.",
+    "saveMineAsCopy": "Zapisz moją wersję jako kopię",
+    "editHere": "Zamiast tego edytuj tutaj",
+    "gone": "Usunięto „{{name}}”, urządzenie: {{device}}. Nadal jest tu otwarty, niezapisany."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "deviceFiles": {
+    "print": "In…",
+    "deleteName": "Xóa {{name}}",
+    "delete": "Xóa",
+    "title": "Tệp trên máy in",
+    "upload": "Tải lên G-code…",
+    "timelapses": "Timelapse",
+    "none": "Chưa có tệp G-code nào.",
+    "searchN_other": "Tìm trong {{count}} tệp",
+    "search": "Tìm tệp",
+    "noMatch": "Không có tệp nào khớp “{{query}}”.",
+    "deleteFile": "Xóa tệp",
+    "deleteText": "Xóa {{name}} khỏi máy in?",
+    "deleted": "Đã xóa",
+    "pages": "Trang tệp",
+    "newer": "Mới hơn",
+    "older": "Cũ hơn",
+    "range": "{{from}}–{{to}} trên {{total}}"
+  }
+}

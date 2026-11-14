@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "이동",
+    "rotate": "회전",
+    "scale": "배율",
+    "rotateText": "텍스트 회전",
+    "moveSvgSurface": "표면 위에서 SVG 이동",
+    "moveTextSurface": "표면 위에서 텍스트 이동",
+    "movePart": "부품 이동",
+    "rotatePart": "부품 회전",
+    "scalePart": "부품 배율",
+    "plates": "플레이트",
+    "ownSettingsTip": "이 플레이트에는 자체 설정이 있습니다",
+    "ownSettings": "자체 설정 있음",
+    "plateSettings": "플레이트 설정",
+    "plateNSettings": "플레이트 {{n}} 설정"
+  }
+}

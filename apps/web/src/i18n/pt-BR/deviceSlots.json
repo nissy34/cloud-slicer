@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "um filamento correspondente",
+    "noSlot": "Nenhum(a) {{noun}} tem {{material}}. Carregue-o ou troque o filamento no fatiador e fatie de novo.",
+    "noSlotNozzle": "Nenhum(a) {{noun}} tem {{material}} com bico de {{nozzle}} mm. Carregue-o ou troque o filamento no fatiador e fatie de novo.",
+    "noType": "{{slot}} não tem tipo de filamento definido. {{unset}}",
+    "otherMaterial": "{{slot}} tem {{has}}, mas este filamento foi fatiado como {{material}}.",
+    "otherNozzle": "{{slot}} tem bico de {{has}} mm, mas o arquivo foi fatiado para {{nozzle}} mm.",
+    "highFlow": "O arquivo foi fatiado para um bico de alto fluxo, mas {{slot}} tem um padrão."
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint ist nicht mit dem Drucker verbunden.",
+    "octoprintRestart": "Erneut verbinden",
+    "octoprintRestarting": "OctoPrint wird mit dem Drucker verbunden",
+    "bambuStopped": "Der Drucker antwortet nicht mehr: Prüfen Sie, ob er eingeschaltet und im Netzwerk ist.",
+    "bambuCameraMissing": "Nur P1- und A1-Drucker zeigen ihre Kamera hier: X1, H2 und P2S senden Video, das nur die eigenen Apps von Bambu abspielen.",
+    "bambuSlotNoun": "AMS-Slot",
+    "bambuSlotUnset": "Laden Sie dort Filament oder stellen Sie es am Bildschirm des Druckers ein.",
+    "bambuSlotNote": "Wie in Bambu Studio kann ein Filament nur in einen Slot mit demselben Filamenttyp. Marke und Farbe können abweichen.",
+    "outsideSpool": "Externe Spule",
+    "u1Heads": "Werkzeugköpfe",
+    "u1HeadNoun": "Werkzeugkopf",
+    "u1HeadUnset": "Laden Sie Filament oder stellen Sie seinen Typ auf der Karte Werkzeugköpfe ein.",
+    "u1HeadNote": "Wie in der eigenen App von Snapmaker kann ein Filament nur in einen Kopf mit demselben Filamenttyp und derselben Düsengröße. Marke und Farbe können abweichen.",
+    "nozzleStandard": "Standard",
+    "nozzleHighFlow": "High Flow",
+    "calibratingOffsets": "Werkzeug-Offsets werden kalibriert",
+    "levellingBed": "Druckbett wird nivelliert",
+    "calibratingFlow": "Fluss wird kalibriert",
+    "calibratingShaper": "Input Shaping wird kalibriert",
+    "updatingFirmware": "Firmware wird aktualisiert",
+    "needsAttention": "Braucht Aufmerksamkeit am Bildschirm des Druckers",
+    "adjustingScrews": "Druckbettschrauben werden eingestellt",
+    "loadingFilament": "Filament wird geladen",
+    "unloadingFilament": "Filament wird entladen",
+    "calibratingPark": "Parkposition wird kalibriert",
+    "calibratingHome": "Referenzposition wird kalibriert",
+    "hotendFan": "Hotend-Lüfter T{{n}}"
+  }
+}

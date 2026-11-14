@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Jiné chatovací aplikace",
+    "title": "Použít s AI aplikací",
+    "more": "Více o tom",
+    "intro": "Požádejte svou AI aplikaci, aby slicovala za vás: „Naslicuj tohoto Benchyho pro můj U1 z PETG se 4 stěnami a řekni mi čas.“ Nainstalujte to do Claude Desktop jako rozšíření nebo do jiných chatovacích aplikací na počítači, například LM Studio a Msty. Slicuje na vašem počítači se stejnými jádry a předvolbami jako tento web a vaše modely tam zůstávají.",
+    "whichApp": "Která aplikace",
+    "step1": "Stáhněte rozšíření Cloud Slicer.",
+    "download": "Stáhnout pro Claude Desktop",
+    "size": "asi 11 MB. Už nainstalováno? Stáhněte ho znovu pro aktualizaci.",
+    "step2": "Otevřete soubor. Claude Desktop se zeptá na instalaci: klikněte na <b>Install</b>.",
+    "step3": "Požádejte Claude, aby naslicoval soubor na vašem počítači.",
+    "otherStep1": "V nastavení chatovací aplikace přidejte server MCP s tímto (většina aplikací ho přijme tak, jak je):",
+    "otherStep2": "Vyžaduje na počítači Node 20 nebo novější (<a>nodejs.org</a>).",
+    "canDo": "Umí otevírat modely a projekty, vybírat tiskárnu, proces a filamenty, nastavovat barvy a to, který filament tiskne který objekt, měnit nastavení, rozkládat desky a slicovat. Dokud je váš počítač zapnutý, může ho používat i Claude v telefonu. Když jste přihlášeni, používá také vaše předvolby a tiskárny a před zahájením tisku se vás zeptá.",
+    "version": "Verze {{version}}"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Download del motore di elaborazione",
+    "setup": "Avvio del motore di elaborazione",
+    "printers": "Caricamento di stampanti e profili",
+    "downloadingProject": "Download di “{{name}}”",
+    "opening": "Apertura di {{name}}"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Sjednocení",
+    "difference": "Rozdíl",
+    "intersection": "Průsečík",
+    "subtractFrom": "Odečíst od",
+    "subtractWith": "Odečíst pomocí",
+    "part": "Díl {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Booleovská operace se sítí",
+    "done": "Hotovo",
+    "operation": "Operace",
+    "needTwo": "Funguje na dvou dílech jednoho objektu. V nabídce objektu (klikněte na něj pravým tlačítkem nebo použijte tlačítko ⋯ v seznamu objektů) přidejte díl, negativní díl nebo modifikátor, umístěte ho a vraťte se sem.",
+    "unionHint": "Spojí oba do jednoho dílu.",
+    "differenceHint": "Vyřízne druhý z prvního.",
+    "intersectionHint": "Ponechá jen místo, kde se oba překrývají.",
+    "resultHint": "Výsledek převezme místo, typ a nastavení prvního. Zpět vrátí oba.",
+    "pickDifferent": "Vyberte dva různé díly.",
+    "deleteInput": "Smazat vstup (odstranit i druhý)",
+    "working": "Pracuje se…"
+  }
+}

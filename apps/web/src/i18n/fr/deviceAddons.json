@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint n’est pas connecté à l’imprimante.",
+    "octoprintRestart": "Se reconnecter",
+    "octoprintRestarting": "Connexion d’OctoPrint à l’imprimante",
+    "bambuStopped": "L’imprimante ne répond plus : vérifiez qu’elle est allumée et sur le réseau.",
+    "bambuCameraMissing": "Seules les imprimantes P1 et A1 affichent leur caméra ici : les X1, H2 et P2S envoient une vidéo que seules les applis de Bambu savent lire.",
+    "bambuSlotNoun": "emplacement AMS",
+    "bambuSlotUnset": "Chargez-y du filament, ou réglez-le sur l’écran de l’imprimante.",
+    "bambuSlotNote": "Comme dans Bambu Studio, un filament ne peut aller que dans un emplacement du même type de filament. La marque et la couleur peuvent différer.",
+    "outsideSpool": "Bobine externe",
+    "u1Heads": "Têtes d’outil",
+    "u1HeadNoun": "tête d’outil",
+    "u1HeadUnset": "Chargez du filament, ou réglez son type sur la carte Têtes d’outil.",
+    "u1HeadNote": "Comme dans l’appli de Snapmaker, un filament ne peut aller que sur une tête de même type de filament et de même taille de buse. La marque et la couleur peuvent différer.",
+    "nozzleStandard": "Standard",
+    "nozzleHighFlow": "Grand débit",
+    "calibratingOffsets": "Calibration des décalages d’outils",
+    "levellingBed": "Nivellement du plateau",
+    "calibratingFlow": "Calibration du débit",
+    "calibratingShaper": "Calibration de l’input shaping",
+    "updatingFirmware": "Mise à jour du firmware",
+    "needsAttention": "Nécessite une action sur l’écran de l’imprimante",
+    "adjustingScrews": "Réglage des vis du plateau",
+    "loadingFilament": "Chargement du filament",
+    "unloadingFilament": "Déchargement du filament",
+    "calibratingPark": "Calibration de la position de stationnement",
+    "calibratingHome": "Calibration de la position d’origine",
+    "hotendFan": "Ventilateur de hotend T{{n}}"
+  }
+}

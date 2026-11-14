@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "Nejprve tento model zjednodušit?",
+    "openAsIs": "Otevřít, jak je",
+    "simplify": "Zjednodušit",
+    "paintKept": "Jeho malování se zachová na zjednodušené síti.",
+    "dontAsk": "Na tomto zařízení se znovu neptat"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "deviceConsole": {
+    "filterTemps": "온도",
+    "filterTimelapse": "타임랩스",
+    "filterTimelapseExample": "타임랩스 프레임 메시지",
+    "filterProgress": "출력 진행률",
+    "filterOk": "단순 \"ok\"",
+    "done": "완료",
+    "filtersN": "필터 ({{n}})",
+    "filters": "필터",
+    "hideThese": "이 줄 숨기기",
+    "hideLike": "이런 줄 숨기기: {{example}}",
+    "hideContaining": "“{{text}}”이(가) 포함된 줄 숨기기",
+    "removeFilter": "“{{text}}” 필터 제거",
+    "remove": "제거",
+    "hideContainingPlaceholder": "포함된 줄 숨기기…",
+    "hideContainingLabel": "포함된 줄 숨기기",
+    "add": "추가",
+    "filtersHelp": "칩을 눌러 켜고 끕니다. 내가 보낸 내용과 오류는 항상 표시됩니다.",
+    "linesHidden_other": "필터로 {{count}}줄 숨김",
+    "sendPlaceholder": "G-code 보내기 (예: M115)",
+    "commandLabel": "G-code 명령",
+    "send": "전송"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "จุด",
+    "edge": "ขอบ",
+    "circle": "วงกลม",
+    "plane": "ระนาบ",
+    "position": "ตำแหน่ง",
+    "length": "ความยาว",
+    "from": "จาก",
+    "to": "ถึง",
+    "diameter": "เส้นผ่านศูนย์กลาง",
+    "radius": "รัศมี",
+    "centre": "ศูนย์กลาง",
+    "normal": "เส้นตั้งฉากพื้นผิว",
+    "angle": "มุม",
+    "distance": "ระยะทาง",
+    "perpendicular": "ระยะตั้งฉาก",
+    "along": "ตามแนว {{axis}}"
+  }
+}

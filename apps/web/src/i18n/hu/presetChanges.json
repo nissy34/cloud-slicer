@@ -1,0 +1,23 @@
+{
+  "presetChanges": {
+    "filamentN": "{{n}}. filament",
+    "process": "Folyamat",
+    "printer": "Nyomtató",
+    "changes_one": "{{count}} módosítás",
+    "changes_other": "{{count}} módosítás",
+    "saveTitle": "Módosított beállítások mentése",
+    "back": "Vissza",
+    "saving": "Mentés…",
+    "save": "Mentés",
+    "namesText": "A saját előbeállításai megtartják a nevüket, és átveszik a módosításokat. Adjon új nevet, ha inkább másolatot szeretne menteni.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Megtartja a módosított beállításait?",
+    "discard": "Elvetés",
+    "saveMenu": "Mentés…",
+    "keep": "Megtartás",
+    "text": "Néhány előbeállítás beállításai módosultak. Tartsa meg őket az új projektben, vesse el őket, vagy mentse őket előbeállításokba.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "A választásom megjegyzése (Megtartás vagy Elvetés)"
+  }
+}

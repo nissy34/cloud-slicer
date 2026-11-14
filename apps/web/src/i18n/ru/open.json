@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Перетащите сюда файлы STL, 3MF, OBJ, STEP или SVG",
+    "openModel": "Открыть модель",
+    "fromDrive": "Открыть из Google Drive",
+    "deletePlateTip": "Удалить этот стол и всё, что на нём",
+    "deletePlate": "Удалить стол",
+    "clearAsk": "Очистить стол?",
+    "unsavedChanges": "В «{{name}}» есть ещё не сохранённые изменения.",
+    "clearAll": "Очистить всё",
+    "dropToAdd": "Отпустите, чтобы добавить"
+  }
+}

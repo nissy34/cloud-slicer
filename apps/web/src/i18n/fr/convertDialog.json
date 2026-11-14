@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Convertir ce projet ?",
+    "convert": "Convertir",
+    "setUpFor": "Il était configuré pour <b>{{printer}}</b>. Choisissez l’une de vos imprimantes pour l’imprimer.",
+    "printer": "Imprimante",
+    "convertTo": "Convertir pour l’imprimante",
+    "keep": "Conserver les réglages de modèle modifiés par le projet : couches, parois, remplissage, supports, coutures, bordure",
+    "remember": "Faire cela automatiquement la prochaine fois",
+    "note": "Les réglages que le projet a laissés aux valeurs par défaut de son ancienne imprimante, ainsi que les vitesses, l’accélération, le jerk, les largeurs de ligne, la calibration du débit et la tour d’amorçage, viennent de {{printer}}. Les filaments sont associés par matériau et par type (mat, soie, grand débit…) et gardent les couleurs du projet.",
+    "yourPrinter": "votre imprimante"
+  }
+}

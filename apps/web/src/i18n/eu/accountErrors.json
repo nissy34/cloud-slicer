@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "Ez du garaiz erantzun",
+    "noAccounts": "Kontuak ez daude erabilgarri zerbitzari honetan",
+    "siteNoAnswer": "Cloud Slicer-ek ez du erantzun. Egiaztatu zure konexioa eta saiatu berriro.",
+    "driveReconnect": "Google Drive berriro konektatu behar da. Ireki kontuaren menua (goian eskuinean) eta sakatu Konektatu Google Drive.",
+    "driveNoAnswer": "Google Drive-k ez du erantzun. Egiaztatu zure konexioa eta gorde berriro.",
+    "driveFull": "Zure Google Drive beteta dago. Libratu lekua Drive-n eta gorde berriro.",
+    "driveGone": "Proiektu hau ez dago jada zure Google Drive-n",
+    "driveNoUpload": "Google Drive-k ez du kargatzea hasi",
+    "pickerBlocked": "Zure nabigatzaileak Google Drive leihoa blokeatu du. Baimendu laster-leihoak gune honetarako eta saiatu berriro.",
+    "driveSignIn": "Hasi saioa Google-rekin zure Google Drive-ko fitxategiak irekitzeko.",
+    "driveConnectFirst": "Konektatu Google Drive kontuaren menuan lehenik.",
+    "pickerNotSetUp": "Google Drive-tik irekitzea ez dago oraindik konfiguratuta gune honetan."
+  }
+}

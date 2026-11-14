@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Diğer sohbet uygulamaları",
+    "title": "Yapay zekâ uygulamasıyla kullan",
+    "more": "Daha fazla bilgi",
+    "intro": "Yapay zekâ uygulamanızdan sizin için dilimlemesini isteyin: “Bu Benchy'yi U1'im için PETG ile 4 duvarlı dilimle ve süreyi söyle.” Claude Desktop'a uzantı olarak veya bilgisayarınızdaki LM Studio ve Msty gibi diğer sohbet uygulamalarına kurun. Bu sitedeki motorlar ve ön ayarlarla bilgisayarınızda dilimler, modelleriniz de orada kalır.",
+    "whichApp": "Hangi uygulama",
+    "step1": "Cloud Slicer uzantısını indirin.",
+    "download": "Claude Desktop için indir",
+    "size": "yaklaşık 11 MB. Zaten kurulu mu? Güncellemek için yeniden indirin.",
+    "step2": "Dosyayı açın. Claude Desktop kurmak için izin ister: <b>Install</b>'a tıklayın.",
+    "step3": "Claude'dan bilgisayarınızdaki bir dosyayı dilimlemesini isteyin.",
+    "otherStep1": "Sohbet uygulamanızın ayarlarında bununla bir MCP sunucusu ekleyin (çoğu uygulama olduğu gibi kabul eder):",
+    "otherStep2": "Bilgisayarınızda Node 20 veya daha yenisi gerekir (<a>nodejs.org</a>).",
+    "canDo": "Model ve projeleri açabilir, yazıcıyı, işlemi ve filamentleri seçebilir, renkleri ve her nesneyi hangi filamentin basacağını ayarlayabilir, ayarları değiştirebilir, plakaları hizalayabilir ve dilimleyebilir. Bilgisayarınız açıkken telefonunuzdaki Claude da onu kullanabilir. Oturum açıkken ön ayarlarınızı ve yazıcılarınızı da kullanır ve bir baskıyı başlatmadan önce size sorar.",
+    "version": "Sürüm {{version}}"
+  }
+}

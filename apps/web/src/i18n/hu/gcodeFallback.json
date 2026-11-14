@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "A(z) {{engine}} indító és filamentcsere G-code-ját használja?",
+    "yes": "Igen, szeletel",
+    "body": "A fájl indító és filamentcsere G-code-ját a(z) {{app}} számára írták, és a(z) {{engine}} nem tudja használni. A(z) {{engine}}-nek van saját a(z) <b>{{printer}}</b> nyomtatóhoz, amely működik. Ez a választás a projekttel együtt mentődik."
+  }
+}

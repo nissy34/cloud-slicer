@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Arbetsyta",
+    "prepare": "Förbered",
+    "preview": "Förhandsvisning",
+    "device": "Enhet",
+    "calibration": "Kalibrering",
+    "slicingWith": "Bereder med {{name}} {{version}}"
+  }
+}

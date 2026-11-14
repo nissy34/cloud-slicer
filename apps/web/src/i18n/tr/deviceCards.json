@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Kameralar",
+    "climate": "Yatak ve hazne",
+    "move": "Taşı",
+    "console": "Konsol",
+    "print": "Yazdır",
+    "toolHeads": "Takım kafaları",
+    "alerts": "Uyarılar",
+    "files": "Dosyalar",
+    "unfold": "Bu kartı aç",
+    "fold": "Bu kartı kapat",
+    "targetOf": "{{label}} hedefi",
+    "turnOff": "{{label}} kapat",
+    "off": "Kapalı",
+    "keepGoing": "Devam et",
+    "chamberLight": "Hazne ışığı",
+    "purifierExhaust": "Arıtıcı egzozu",
+    "purifierFilter": "Arıtıcı filtresi",
+    "fanAuto": "Yazıcı bu fanı kendi kendine çalıştırır"
+  }
+}

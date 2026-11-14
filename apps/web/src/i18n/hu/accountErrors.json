@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "Nem válaszolt időben",
+    "noAccounts": "A fiókok nem érhetők el ezen a szerveren",
+    "siteNoAnswer": "A Cloud Slicer nem válaszolt. Ellenőrizze a kapcsolatot, majd próbálja újra.",
+    "driveReconnect": "A Google Drive-ot újra kell csatlakoztatni. Nyissa meg a fiókmenüt (jobb felül), és nyomja meg a Google Drive csatlakoztatása gombot.",
+    "driveNoAnswer": "A Google Drive nem válaszolt. Ellenőrizze a kapcsolatot, majd mentsen újra.",
+    "driveFull": "A Google Drive megtelt. Szabadítson fel helyet a Drive-on, majd mentsen újra.",
+    "driveGone": "Ez a projekt már nincs a Google Drive-on",
+    "driveNoUpload": "A Google Drive nem indította el a feltöltést",
+    "pickerBlocked": "A böngésző letiltotta a Google Drive ablakát. Engedélyezze a felugró ablakokat ezen az oldalon, majd próbálja újra.",
+    "driveSignIn": "Jelentkezzen be Google-fiókkal, hogy fájlokat nyithasson meg a Google Drive-ról.",
+    "driveConnectFirst": "Először csatlakoztassa a Google Drive-ot a fiókmenüben.",
+    "pickerNotSetUp": "A megnyitás Google Drive-ról ezen az oldalon még nincs beállítva."
+  }
+}

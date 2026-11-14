@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Não foi possível salvar a disposição dos cartões. Ela é mantida até você recarregar a página.",
+    "pageCard": "Cartão de página {{n}}",
+    "cameraCard": "Cartão de câmera {{n}}",
+    "arrangingFor": "Organizando os cartões de {{name}}.",
+    "helpPhone": "Segure um cartão pela alça e arraste para cima ou para baixo.",
+    "helpDesktop": "Arraste um cartão pela alça para uma coluna, ou para o topo ou a base.",
+    "helpRest": "Os cartões ocultos ficam aqui, esmaecidos. As outras impressoras mantêm a própria disposição.",
+    "columns": "Colunas",
+    "addCameraCard": "Adicionar um cartão de câmera",
+    "addPageCard": "Adicionar um cartão de página",
+    "backToDefault": "Voltar ao padrão",
+    "acrossTop": "Ao longo do topo",
+    "column": "Coluna {{n}}",
+    "acrossBottom": "Ao longo da base",
+    "small": "Pequeno",
+    "medium": "Médio",
+    "large": "Grande",
+    "moveCard": "Mover {{name}}",
+    "halfWidthTip": "Meia largura: dois cartões de meia largura ficam lado a lado",
+    "halfWidth": "Meia largura",
+    "cameraSize": "Tamanho da câmera",
+    "remove": "Remover"
+  }
+}

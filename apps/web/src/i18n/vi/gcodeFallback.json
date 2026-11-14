@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "Dùng G-code bắt đầu và đổi filament của {{engine}}?",
+    "yes": "Có, slice",
+    "body": "G-code bắt đầu và đổi filament của tệp này được viết cho {{app}}, và {{engine}} không dùng được. {{engine}} có G-code riêng cho <b>{{printer}}</b>, và nó hoạt động. Lựa chọn này được lưu cùng dự án này."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Nesne ayarları",
+    "modifierSettings": "Değiştirici ayarları",
+    "partSettings": "Parça ayarları",
+    "addToObject": "Bu nesneye bir ayar ekle",
+    "addToModifier": "Bu değiştiriciye bir ayar ekle",
+    "addToPart": "Bu parçaya bir ayar ekle",
+    "addSetting": "+ Ayar ekle",
+    "modifierEmpty": "Değiştiricinin nesneyle çakıştığı yerde bir şeyi değiştirmek için ayar ekleyin, örneğin bir noktada daha fazla dolgu.",
+    "partEmpty": "Nesnenin ayarlarını kullanır. Yalnızca bu parça için değiştirmek üzere bir ayar ekleyin.",
+    "objectEmpty": "İşlem ayarlarını kullanır. Yalnızca bu nesne için değiştirmek üzere bir ayar ekleyin.",
+    "others": "Diğerleri",
+    "removeFromObject": "Bu nesneden kaldır",
+    "removeFromModifier": "Bu değiştiriciden kaldır",
+    "removeFromPart": "Bu parçadan kaldır"
+  }
+}

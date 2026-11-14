@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "máy in khác",
+    "slicedFile": "{{name}} là một tệp đã slice: nó chứa G-code cho máy in khác nhưng không có mô hình. Hãy mở dự án gốc (.3mf) thay vào đó.",
+    "noObjects": "{{name}} không có vật thể nào để in."
+  }
+}

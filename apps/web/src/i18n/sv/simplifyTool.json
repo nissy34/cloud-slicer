@@ -1,0 +1,29 @@
+{
+  "simplifyTool": {
+    "title": "Förenkla",
+    "done": "Klar",
+    "hint": "Färre trianglar gör att en stor modell öppnas, beredas och förhandsvisas snabbare. Fina detaljer kan mjukna; Ångra ger tillbaka den gamla meshen.",
+    "trianglesLabel": "Trianglar",
+    "triangles_one": "{{n}} trianglar",
+    "triangles_other": "{{n}} trianglar",
+    "trianglesUnknown": "… trianglar",
+    "workingOut": "(räknar ut…)",
+    "by": "Förenkla med",
+    "detailLevel": "Detaljnivå",
+    "ratio": "Decimeringsförhållande",
+    "detail": "Detalj",
+    "removeTip": "Andel av trianglarna som tas bort",
+    "remove": "Ta bort",
+    "paintKept": "Det här objektets målning (färger, support, sömmar, luddig yta) behålls på den förenklade meshen.",
+    "apply": "Använd",
+    "extraHigh": "Extra hög",
+    "high": "Hög",
+    "medium": "Medel",
+    "low": "Låg",
+    "extraLow": "Extra låg",
+    "million": "{{n}} miljoner",
+    "heavyPlates": "{{n}} plattor har fler än {{limit}} trianglar (upp till {{most}}), vilket kan vara mer än den här enheten klarar. Om varje förenklas till ungefär {{light}} behålls gott om detaljer för utskrift.",
+    "heavyPlate": "Platta {{n}} har {{triangles}} trianglar, vilket kan vara mer än den här enheten klarar. Om den förenklas till ungefär {{light}} behålls gott om detaljer för utskrift.",
+    "heavyModel": "Den här modellen har {{triangles}} trianglar, vilket kan vara mer än den här enheten klarar. Om den förenklas till ungefär {{light}} behålls gott om detaljer för utskrift."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Andere chat-apps",
+    "title": "Gebruiken met een AI-app",
+    "more": "Meer hierover",
+    "intro": "Vraag uw AI-app om voor u te slicen: “Slice deze Benchy voor mijn U1 in PETG met 4 wanden en vertel me de tijd.” Installeer het in Claude Desktop als extensie, of in andere chat-apps op uw computer zoals LM Studio en Msty. Het slicet op uw computer met dezelfde engines en voorinstellingen als deze site, en uw modellen blijven daar.",
+    "whichApp": "Welke app",
+    "step1": "Download de Cloud Slicer-extensie.",
+    "download": "Downloaden voor Claude Desktop",
+    "size": "ongeveer 11 MB. Al geïnstalleerd? Download het opnieuw om bij te werken.",
+    "step2": "Open het bestand. Claude Desktop vraagt om het te installeren: klik op <b>Installeren</b>.",
+    "step3": "Vraag Claude om een bestand op uw computer te slicen.",
+    "otherStep1": "Voeg in de instellingen van uw chat-app een MCP-server toe met dit (de meeste apps nemen het zo over):",
+    "otherStep2": "Het heeft Node 20 of nieuwer nodig op uw computer (<a>nodejs.org</a>).",
+    "canDo": "Het kan modellen en projecten openen, de printer, het proces en de filamenten kiezen, kleuren instellen en welk filament elk voorwerp print, instellingen wijzigen, printbedden rangschikken en slicen. Zolang uw computer aanstaat, kan Claude op uw telefoon het ook gebruiken. Aangemeld gebruikt het ook uw voorinstellingen en printers, en vraagt het u voordat het een print start.",
+    "version": "Versie {{version}}"
+  }
+}

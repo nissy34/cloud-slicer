@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "SVG-form",
+    "done": "Klar",
+    "pickHint": "Välj en SVG-form i objektlistan eller 3D-vyn för att ändra den, eller lägg till en från en .svg-fil: på det valda objektet, eller som ett eget objekt när inget är valt. Att öppna eller släppa en .svg-fil lägger också till en.",
+    "addSvg": "Lägg till SVG…",
+    "depth": "Djup",
+    "depthCutTip": "Hur djupt formen skär in",
+    "depthTip": "Hur långt formen står ut",
+    "width": "Bredd",
+    "widthTip": "Storlek tvärs över formen",
+    "height": "Höjd",
+    "heightTip": "Storlek uppåt på formen",
+    "keepProportions": "Behåll proportioner",
+    "useSurfaceTip": "Formen böjer sig med objektets yta i stället för att stå plant på den",
+    "useSurface": "Använd ytan",
+    "svgType": "SVG-typ",
+    "changeType": "Ändra typ",
+    "engraved": "Graverad",
+    "making": "Skapar formen…",
+    "undoHint": "Ångra ger tillbaka den senaste formen."
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "pasujący filament",
+    "noSlot": "Żaden element ({{noun}}) nie ma materiału {{material}}. Załaduj go lub zmień filament w slicerze i potnij ponownie.",
+    "noSlotNozzle": "Żaden element ({{noun}}) nie ma materiału {{material}} z dyszą {{nozzle}} mm. Załaduj go lub zmień filament w slicerze i potnij ponownie.",
+    "noType": "{{slot}} nie ma ustawionego typu filamentu. {{unset}}",
+    "otherMaterial": "{{slot}} ma {{has}}, ale ten filament pocięto jako {{material}}.",
+    "otherNozzle": "{{slot}} ma dyszę {{has}} mm, ale plik pocięto dla {{nozzle}} mm.",
+    "highFlow": "Plik pocięto dla dyszy wysokoprzepływowej, ale {{slot}} ma standardową."
+  }
+}

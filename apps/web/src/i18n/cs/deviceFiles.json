@@ -1,0 +1,24 @@
+{
+  "deviceFiles": {
+    "print": "Tisknout…",
+    "deleteName": "Smazat {{name}}",
+    "delete": "Smazat",
+    "title": "Soubory na tiskárně",
+    "upload": "Nahrát G-code…",
+    "timelapses": "Časosběry",
+    "none": "Zatím žádné soubory G-code.",
+    "searchN_one": "Prohledat {{count}} soubor",
+    "searchN_few": "Prohledat {{count}} soubory",
+    "searchN_many": "Prohledat {{count}} souboru",
+    "searchN_other": "Prohledat {{count}} souborů",
+    "search": "Hledat soubory",
+    "noMatch": "Žádný soubor neodpovídá „{{query}}“.",
+    "deleteFile": "Smazat soubor",
+    "deleteText": "Smazat {{name}} z tiskárny?",
+    "deleted": "Smazáno",
+    "pages": "Stránky souborů",
+    "newer": "Novější",
+    "older": "Starší",
+    "range": "{{from}}–{{to}} z {{total}}"
+  }
+}

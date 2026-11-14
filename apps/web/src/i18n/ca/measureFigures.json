@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Punt",
+    "edge": "Aresta",
+    "circle": "Cercle",
+    "plane": "Pla",
+    "position": "Posició",
+    "length": "Longitud",
+    "from": "De",
+    "to": "A",
+    "diameter": "Diàmetre",
+    "radius": "Radi",
+    "centre": "Centre",
+    "normal": "Normal",
+    "angle": "Angle",
+    "distance": "Distància",
+    "perpendicular": "Distància perpendicular",
+    "along": "Al llarg de {{axis}}"
+  }
+}

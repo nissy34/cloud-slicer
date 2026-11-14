@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "beste inprimagailu bat",
+    "slicedFile": "{{name}} xerratutako fitxategi bat da: beste inprimagailu baterako G-code dauka, baina ez eredurik. Ireki jatorrizko proiektua (.3mf) horren ordez.",
+    "noObjects": "{{name}} fitxategiak ez dauka inprimatzeko objekturik."
+  }
+}

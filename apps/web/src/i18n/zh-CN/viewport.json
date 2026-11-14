@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "移动",
+    "rotate": "旋转",
+    "scale": "缩放",
+    "rotateText": "旋转文字",
+    "moveSvgSurface": "在表面上移动 SVG",
+    "moveTextSurface": "在表面上移动文字",
+    "movePart": "移动零件",
+    "rotatePart": "旋转零件",
+    "scalePart": "缩放零件",
+    "plates": "盘",
+    "ownSettingsTip": "此盘有自己的设置",
+    "ownSettings": "有自己的设置",
+    "plateSettings": "盘设置",
+    "plateNSettings": "第 {{n}} 盘设置"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "SVG 形狀",
+    "done": "完成",
+    "pickHint": "在物件清單或 3D 檢視中選擇 SVG 形狀即可更改，或從 .svg 檔案新增：有選取物件時加到該物件上，沒有選取時則成為獨立的物件。開啟或拖放 .svg 檔案也會新增一個。",
+    "addSvg": "新增 SVG…",
+    "depth": "深度",
+    "depthCutTip": "形狀切入的深度",
+    "depthTip": "形狀凸出的高度",
+    "width": "寬度",
+    "widthTip": "形狀的橫向大小",
+    "height": "高度",
+    "heightTip": "形狀的縱向大小",
+    "keepProportions": "保持比例",
+    "useSurfaceTip": "形狀會隨物件表面彎曲，而不是平放在上面",
+    "useSurface": "貼合表面",
+    "svgType": "SVG 類型",
+    "changeType": "變更類型",
+    "engraved": "雕刻",
+    "making": "正在產生形狀…",
+    "undoHint": "復原可找回上一個形狀。"
+  }
+}

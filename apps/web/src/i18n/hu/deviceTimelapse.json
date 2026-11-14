@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} / {{size}} MB",
+    "arrivingRelay": "{{got}} / {{size}} MB a relay-en át",
+    "cannotFetch": "Ez a nyomtatókapcsolat nem tud videókat lekérni.",
+    "fetchFailed": "A videót nem sikerült lekérni.",
+    "delete": "Törlés",
+    "download": "Letöltés",
+    "cantPlay": "Ez a fajta videó nem játszható le a böngészőben. Töltse le a megtekintéséhez.",
+    "none": "Még nincsenek timelapse-ek. Kapcsolja be a Timelapse-t a nyomtatás indításakor.",
+    "watch": "Megtekintés",
+    "pages": "Timelapse-oldalak",
+    "refresh": "Frissítés",
+    "deleteTitle": "Timelapse törlése"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Dieses Projekt umwandeln?",
+    "convert": "Umwandeln",
+    "setUpFor": "Es war für <b>{{printer}}</b> eingerichtet. Wählen Sie einen Ihrer Drucker, auf dem es gedruckt werden soll.",
+    "printer": "Drucker",
+    "convertTo": "In Drucker umwandeln",
+    "keep": "Die vom Projekt geänderten Modelleinstellungen beibehalten: Schichten, Wände, Füllung, Stützen, Nähte, Rand",
+    "remember": "Beim nächsten Mal automatisch so verfahren",
+    "note": "Einstellungen, die das Projekt auf den Standardwerten des alten Druckers belassen hat, sowie Geschwindigkeiten, Beschleunigung, Ruck, Linienbreiten, Flusskalibrierung und der Reinigungsturm stammen von {{printer}}. Filamente werden nach Material und Art (matt, Seide, High Flow …) zugeordnet und behalten die Farben des Projekts.",
+    "yourPrinter": "Ihr Drucker"
+  }
+}

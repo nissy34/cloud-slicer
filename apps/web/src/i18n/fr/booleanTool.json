@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Fusion",
+    "difference": "Soustraction",
+    "intersection": "Intersection",
+    "subtractFrom": "Soustraire de",
+    "subtractWith": "Soustraire avec",
+    "part": "Pièce {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Opérations booléennes",
+    "done": "Terminé",
+    "operation": "Opération",
+    "needTwo": "Cela fonctionne sur deux pièces d’un même objet. Ajoutez une pièce, une partie négative ou un modificateur depuis le menu de l’objet (clic droit dessus, ou le bouton ⋯ dans la liste des objets), placez-la, puis revenez ici.",
+    "unionHint": "Réunit les deux en une seule pièce.",
+    "differenceHint": "Découpe la seconde dans la première.",
+    "intersectionHint": "Ne garde que la zone où les deux se recouvrent.",
+    "resultHint": "Le résultat prend la place, le type et les réglages de la première. Annuler rend les deux.",
+    "pickDifferent": "Choisissez deux pièces différentes.",
+    "deleteInput": "Supprimer l’entrée (retirer aussi la seconde)",
+    "working": "Traitement…"
+  }
+}

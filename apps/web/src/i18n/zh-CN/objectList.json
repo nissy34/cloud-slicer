@@ -1,0 +1,31 @@
+{
+  "objectList": {
+    "notPrinted": "不打印",
+    "someNotPrinted": "部分副本不打印",
+    "object": "对象",
+    "sameAsObject": "与对象相同",
+    "objects": "对象",
+    "skippedTip": "{{name}}：{{why}}。切片时会将其排除；在其 ⋯ 菜单中勾选“可打印”即可打印。",
+    "objectN": "对象 {{n}}",
+    "filamentFor": "{{name}}的耗材",
+    "more": "更多",
+    "moreFor": "{{name}}的更多操作",
+    "moreTip": "更多：克隆、重命名、镜像、导出…（或右键点击对象）",
+    "painted": "（已绘制）",
+    "moreForPart": "零件 {{name}} 的更多操作",
+    "partMoreTip": "重命名、更改类型、设置、删除",
+    "chosen_other": "已选 {{count}} 个对象",
+    "groupHint": "移动、旋转和缩放对所有对象生效。其余操作请右键点击已选模型，手机上请长按。",
+    "deleteAllTip": "全部删除（Del）",
+    "delete": "删除",
+    "blockerHint": "{{kind}}：开启支撑时，支撑不会长在它与对象重叠的地方。用移动工具移动它。",
+    "enforcerHint": "{{kind}}：开启支撑时，支撑会长在它与对象重叠的地方。用移动工具移动它。",
+    "addInstance": "添加实例",
+    "addInstanceTip": "在旁边再复制一个（+）。Ctrl+C 和 Ctrl+V 会将其粘贴为新对象。",
+    "removeInstance": "移除实例",
+    "removeInstanceTip": "移除此副本，保留其他副本（-）",
+    "simplify": "简化",
+    "simplifyTip": "减少三角面，类似桌面版的“简化模型”",
+    "deleteTip": "对象及其所有副本（Del 只移除所选副本）"
+  }
+}

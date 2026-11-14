@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "攝影機",
+    "climate": "列印板與腔體",
+    "move": "移動",
+    "console": "主控台",
+    "print": "列印",
+    "toolHeads": "工具頭",
+    "alerts": "警示",
+    "files": "檔案",
+    "unfold": "展開此卡片",
+    "fold": "收合此卡片",
+    "targetOf": "{{label}}目標溫度",
+    "turnOff": "關閉{{label}}",
+    "off": "關閉",
+    "keepGoing": "繼續",
+    "chamberLight": "腔體燈",
+    "purifierExhaust": "淨化器排氣",
+    "purifierFilter": "淨化器濾網",
+    "fanAuto": "列印裝置會自動控制此風扇"
+  }
+}

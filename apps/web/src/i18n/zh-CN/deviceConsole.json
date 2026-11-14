@@ -1,0 +1,25 @@
+{
+  "deviceConsole": {
+    "filterTemps": "温度",
+    "filterTimelapse": "延时摄影",
+    "filterTimelapseExample": "延时摄影帧消息",
+    "filterProgress": "打印进度",
+    "filterOk": "单独的“ok”",
+    "done": "完成",
+    "filtersN": "过滤器（{{n}}）",
+    "filters": "过滤器",
+    "hideThese": "隐藏这些行",
+    "hideLike": "隐藏类似的行：{{example}}",
+    "hideContaining": "隐藏包含“{{text}}”的行",
+    "removeFilter": "移除“{{text}}”过滤器",
+    "remove": "移除",
+    "hideContainingPlaceholder": "隐藏包含以下内容的行…",
+    "hideContainingLabel": "隐藏包含以下内容的行",
+    "add": "添加",
+    "filtersHelp": "点按标签可切换。你发送的内容和错误始终会显示。",
+    "linesHidden_other": "过滤器隐藏了 {{count}} 行",
+    "sendPlaceholder": "发送 G-code，例如 M115",
+    "commandLabel": "G-code 命令",
+    "send": "发送"
+  }
+}

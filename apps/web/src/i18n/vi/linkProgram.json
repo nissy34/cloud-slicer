@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Mã này đã hết hạn. Hãy nhờ ứng dụng AI của bạn đăng nhập lại để lấy mã mới.",
+    "invalid": "Mã này không hợp lệ. Hãy so với mã mà ứng dụng AI của bạn hiển thị, hoặc nhờ nó đăng nhập lại.",
+    "siteAnswered": "Trang trả lời {{status}}",
+    "checkingAccount": "Đang kiểm tra tài khoản của bạn…",
+    "signInFirst": "Hãy đăng nhập Cloud Slicer trước. Sau đó cửa sổ này sẽ yêu cầu bạn kết nối ứng dụng AI.",
+    "noSignIn": "Trang này chưa thiết lập đăng nhập.",
+    "codeLabel": "Mã mà ứng dụng AI của bạn hiển thị",
+    "checkingCode": "Đang kiểm tra mã…",
+    "connected": "Đã kết nối. Hãy quay lại ứng dụng AI của bạn: nó đã đăng nhập với tên {{name}}.",
+    "turnedDown": "Đã từ chối. Ứng dụng AI của bạn chưa đăng nhập.",
+    "asks": "Một ứng dụng AI trên máy tính của bạn (tiện ích Cloud Slicer) xin dùng tài khoản <b>{{email}}</b> của bạn. Hãy kiểm tra nó hiển thị mã này:",
+    "willSee": "Nó sẽ thấy các cài đặt sẵn và máy in đã lưu của bạn, và có thể kiểm tra máy in cũng như tải lên máy in. Nó luôn hỏi bạn trước khi bắt đầu in. Bạn có thể đăng xuất nó từ ứng dụng AI.",
+    "continueGoogle": "Tiếp tục với Google",
+    "dontConnect": "Không kết nối",
+    "connect": "Kết nối",
+    "title": "Kết nối ứng dụng AI"
+  }
+}

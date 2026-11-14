@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "要從上次中斷的地方繼續嗎？",
+    "local": "{{name}}，{{when}}變更。保存在此瀏覽器中，尚未儲存。",
+    "discard": "捨棄",
+    "continue": "繼續",
+    "projectAsk": "要繼續 {{name}} 嗎？",
+    "project": "繼續 {{name}}",
+    "openHere": "您曾在此開啟它，{{when}}編輯",
+    "editedOn": "{{when}}在{{device}}上編輯",
+    "notNow": "暫不",
+    "editedElsewhere": "{{name}} 正在{{device}}上編輯",
+    "viewOnly": "此分頁僅供檢視。",
+    "viewOnlyUnsaved": "此分頁僅供檢視。您在這裡所做的變更不在其中。",
+    "saveMineAsCopy": "將我的版本另存為副本",
+    "editHere": "改為在這裡編輯",
+    "gone": "「{{name}}」已在{{device}}上刪除。它仍在這裡開啟，但尚未儲存。"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "Motiv",
+    "current": "Motiv: {{choice}}",
+    "system": "Systémový",
+    "systemHint": "Podle tohoto zařízení",
+    "light": "Světlý",
+    "dark": "Tmavý"
+  }
+}

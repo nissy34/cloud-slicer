@@ -1,0 +1,18 @@
+{
+  "chooseBar": {
+    "chosenModels": "Kiválasztott modellek",
+    "tapToChoose": "Koppintson a modellekre a kiválasztásukhoz",
+    "chosen_one": "{{count}} kiválasztva",
+    "chosen_other": "{{count}} kiválasztva",
+    "selectAll": "Összes kijelölése",
+    "all": "Mind",
+    "assemble": "Összeállítás",
+    "assembleTip": "Egy objektummá egyesíti őket, minden tárgy a helyén marad",
+    "menuTip": "Mi legyen mindegyikkel (vagy jobb kattintás / hosszú nyomás egy kiválasztott modellen)",
+    "menu": "Mi legyen velük",
+    "doneTip": "A koppintás ismét egy modellt jelöl ki",
+    "clearTip": "Nincs kiválasztva semmi (Esc)",
+    "done": "Kész",
+    "clear": "Törlés"
+  }
+}

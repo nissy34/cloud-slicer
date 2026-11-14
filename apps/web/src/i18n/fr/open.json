@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Déposez ici des fichiers STL, 3MF, OBJ, STEP ou SVG",
+    "openModel": "Ouvrir un modèle",
+    "fromDrive": "Ouvrir depuis Google Drive",
+    "deletePlateTip": "Supprimer cette plaque et ce qu’elle contient",
+    "deletePlate": "Supprimer la plaque",
+    "clearAsk": "Vider la plaque ?",
+    "unsavedChanges": "« {{name}} » a des modifications pas encore enregistrées.",
+    "clearAll": "Tout vider",
+    "dropToAdd": "Déposez pour ajouter"
+  }
+}

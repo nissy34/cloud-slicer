@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Точка",
+    "edge": "Ребро",
+    "circle": "Окружность",
+    "plane": "Плоскость",
+    "position": "Положение",
+    "length": "Длина",
+    "from": "От",
+    "to": "До",
+    "diameter": "Диаметр",
+    "radius": "Радиус",
+    "centre": "Центр",
+    "normal": "Нормаль",
+    "angle": "Угол",
+    "distance": "Расстояние",
+    "perpendicular": "Перпендикулярное расстояние",
+    "along": "Вдоль {{axis}}"
+  }
+}

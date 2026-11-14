@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Visszaállítás az előbeállítás értékére",
+    "keptOld": "A régi érték megmaradt.",
+    "kept": "Megmaradt: {{value}}.",
+    "plateUses": "A(z) {{n}}. tálca ezt használja:",
+    "on": "be",
+    "off": "ki",
+    "itsOwn": "(saját beállítása).",
+    "plateSettings": "Tálcabeállítások",
+    "default": "Alapértelmezett",
+    "percentOrMm": "Százalék vagy mm?",
+    "isItPercent": "{{label}}: {{number}}% vagy {{number}} {{unit}}?",
+    "filamentN": "{{n}}. filament",
+    "mix": "Keverék",
+    "mixes": "Keverékek"
+  }
+}

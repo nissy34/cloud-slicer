@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "az Ön {{device}}",
+    "another": "másik eszköz",
+    "iPad": "iPad",
+    "phone": "telefon",
+    "tablet": "táblagép",
+    "windows": "Windows számítógép",
+    "mac": "Mac",
+    "chromebook": "Chromebook",
+    "linux": "Linux számítógép",
+    "other": "másik eszköz"
+  }
+}

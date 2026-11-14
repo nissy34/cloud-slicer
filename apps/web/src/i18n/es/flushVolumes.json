@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Volúmenes de limpieza",
+    "ownAmounts": "sus propias cantidades",
+    "fromColours": "según los colores",
+    "leftNozzle": "Boquilla izquierda",
+    "rightNozzle": "Boquilla derecha",
+    "nozzleN": "Boquilla {{n}}",
+    "filamentN": "Filamento {{n}}",
+    "recalculate": "Recalcular",
+    "done": "Hecho",
+    "explain": "Cuánto expulsa la impresora, en mm³, al cambiar del filamento de la izquierda al de arriba. Se calcula según los colores: de oscuro a claro necesita más.",
+    "nozzle": "Boquilla",
+    "tableLabel": "Volúmenes de limpieza en mm³",
+    "from": "de",
+    "to": "a",
+    "toFilament": "A {{name}}",
+    "fromFilament": "De {{name}}",
+    "purgeLabel": "Purga de {{from}} a {{to}}, mm³",
+    "suggested": "Sugerido: de {{min}} a {{max}} mm³ (fuera de ese rango se muestra en rojo).",
+    "multiplier": "Multiplicador",
+    "scales": "Escala todas las cantidades ({{min}} a {{max}}).",
+    "towerOff": "“Purgar en la torre de purga” está desactivado en los ajustes de esta impresora (página Multimaterial), así que cada cambio de filamento purga el volumen de purga ({{volume}} mm³) en lugar de estas cantidades. Aun así determinan la longitud de limpieza que recibe el G-code de cambio de la impresora."
+  }
+}

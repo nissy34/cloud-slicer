@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "「{{variable}}」は、このスライサーが知らない設定です（ほかのスライサーや新しいバージョンのものかもしれません）。",
+    "unknownName": "このスライサーが知らない名前が使われています。",
+    "negativeIndex": "「{{variable}}」が最初のフィラメントを装填する前に読み取られています（そこではインデックスが -1 です）。先に {if ...} でそのインデックスを確認してください。",
+    "negativeIndexList": "最初のフィラメントを装填する前にリストが読み取られています（そこではインデックスが -1 です）。先に {if ...} でそのインデックスを確認してください。",
+    "reasonAt": "{{reason}}（「{{variable}}」）。",
+    "reason": "{{reason}}。",
+    "line": "{{setting}}、{{line}} 行目: {{why}}",
+    "filamentSettings": "フィラメント設定",
+    "printerSettings": "プリンター設定",
+    "or": "、または",
+    "stoppedOne": "スライスを停止しました: カスタム G-code を完成させられません。",
+    "stoppedSome": "スライスを停止しました: 一部のカスタム G-code を完成させられません。",
+    "fix": "{{where}}で修正するか、プリセットの G-code にリセットしてください。"
+  }
+}

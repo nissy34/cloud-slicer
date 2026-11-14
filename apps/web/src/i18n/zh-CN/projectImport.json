@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "另一台打印机",
+    "slicedFile": "{{name}} 是已切片的文件：它包含另一台打印机的 G-code，但没有模型。请改为打开原始项目（.3mf）。",
+    "noObjects": "{{name}} 没有可打印的对象。"
+  }
+}

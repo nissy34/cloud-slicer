@@ -1,0 +1,7 @@
+{
+  "flowVariant": {
+    "label": "Áramlási változat",
+    "standard": "Normál áramlás",
+    "high": "Nagy áramlás"
+  }
+}

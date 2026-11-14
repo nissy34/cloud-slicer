@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "A(z) {{label}} mérete {{size}}; egy előbeállításfájl legfeljebb {{max}} lehet.",
+    "notJson": "A(z) {{label}} nem előbeállításfájl (nem JSON).",
+    "tooMany": "Egyszerre csak {{max}} előbeállítás importálható; a(z) {{label}} kimaradt.",
+    "bundleTooBig": "A(z) {{name}} mérete {{size}}; egy csomag legfeljebb {{max}} lehet.",
+    "badZip": "A(z) {{name}} nem nyitható meg zip fájlként.",
+    "unpacksTooBig": "A(z) {{name}} kicsomagolva több mint {{max}}, vagy tartalmaz egy {{fileMax}} fölötti fájlt; semmi sem lett importálva belőle.",
+    "empty": "A(z) {{name}} nem tartalmaz előbeállításfájlokat.",
+    "tooManyKeys": "Több mint {{max}} beállítást módosít.",
+    "tooLarge": "A beállításai meghaladják a(z) {{max}} méretet.",
+    "fileN": "{{n}}. fájl",
+    "unreadable": "Nem olyan előbeállítás, amelyet az Orca olvasni tud: {{error}}.",
+    "noName": "Nincs használható neve.",
+    "anotherPrinter": "másik nyomtató",
+    "otherPrinter": "Ehhez készült: {{made}}, amellyel ez az alkalmazás nem rendelkezik. A nyomtatóbeállítások az adott géphez tartoznak, ezért nem vihetők át másik nyomtatóra.",
+    "noPrinterBase": "Nem olyan nyomtatóra épül, amellyel ez az alkalmazás rendelkezik.",
+    "noFilamentBase": "Nincs filament-előbeállítás, amelyre rá lehetne tenni.",
+    "noProcessBase": "Nincs folyamat-előbeállítás, amelyre rá lehetne tenni."
+  }
+}

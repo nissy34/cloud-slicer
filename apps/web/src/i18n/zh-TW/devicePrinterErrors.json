@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "運動系統問題",
+    "mainboardProblem": "主機板問題",
+    "amsProblem": "AMS 問題",
+    "toolheadProblem": "工具頭問題",
+    "cameraProblem": "攝影機問題",
+    "printerProblem": "列印裝置問題",
+    "bambuUnknown": "列印裝置回報了此問題。請查看其螢幕瞭解詳情。",
+    "printerError": "列印裝置錯誤",
+    "u1Unknown": "列印裝置回報了錯誤。請查看其螢幕瞭解詳情。"
+  }
+}

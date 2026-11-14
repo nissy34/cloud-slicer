@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "Fehér",
+    "yellow": "Sárga",
+    "lime": "Lime",
+    "green": "Zöld",
+    "darkGreen": "Sötétzöld",
+    "teal": "Pávakék",
+    "mint": "Menta",
+    "skyBlue": "Égkék",
+    "lightBlue": "Világoskék",
+    "blue": "Kék",
+    "indigo": "Indigó",
+    "purple": "Lila",
+    "magenta": "Magenta",
+    "lavender": "Levendula",
+    "pink": "Rózsaszín",
+    "red": "Piros",
+    "brown": "Barna",
+    "orange": "Narancs",
+    "cream": "Krém",
+    "beige": "Bézs",
+    "tan": "Cserszín",
+    "grey": "Szürke",
+    "lightGrey": "Világosszürke",
+    "black": "Fekete",
+    "colours": "Színek",
+    "recent": "Legutóbbi",
+    "recentColours": "Legutóbbi színek",
+    "hex": "Hexakód",
+    "custom": "Egyéni"
+  }
+}

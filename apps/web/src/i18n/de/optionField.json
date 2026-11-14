@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Auf den Profilwert zurücksetzen",
+    "keptOld": "Der alte Wert wurde beibehalten.",
+    "kept": "{{value}} wurde beibehalten.",
+    "plateUses": "Platte {{n}} verwendet",
+    "on": "an",
+    "off": "aus",
+    "itsOwn": "(eigene Einstellung).",
+    "plateSettings": "Platteneinstellungen",
+    "default": "Standard",
+    "percentOrMm": "Prozent oder mm?",
+    "isItPercent": "{{label}}: {{number}} % oder {{number}} {{unit}}?",
+    "filamentN": "Filament {{n}}",
+    "mix": "Mischung",
+    "mixes": "Mischungen"
+  }
+}

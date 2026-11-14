@@ -1,0 +1,14 @@
+{
+  "common": {
+    "cancel": "Avbryt",
+    "copied": "Kopierat",
+    "copyError": "Kopiera felet",
+    "hide": "Dölj",
+    "show": "Visa",
+    "close": "Stäng",
+    "closeMessage": "Stäng meddelandet",
+    "done": "Klar",
+    "notNow": "Inte nu",
+    "next": "Nästa"
+  }
+}

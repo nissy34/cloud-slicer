@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "Hareket sistemi sorunu",
+    "mainboardProblem": "Ana kart sorunu",
+    "amsProblem": "AMS sorunu",
+    "toolheadProblem": "Takım kafası sorunu",
+    "cameraProblem": "Kamera sorunu",
+    "printerProblem": "Yazıcı sorunu",
+    "bambuUnknown": "Yazıcı bu sorunu bildirdi. Ayrıntılar için ekranına bakın.",
+    "printerError": "Yazıcı hatası",
+    "u1Unknown": "Yazıcı bir hata bildirdi. Ayrıntılar için ekranına bakın."
+  }
+}

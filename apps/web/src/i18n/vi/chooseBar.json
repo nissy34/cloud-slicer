@@ -1,0 +1,17 @@
+{
+  "chooseBar": {
+    "chosenModels": "Mô hình đã chọn",
+    "tapToChoose": "Chạm vào mô hình để chọn",
+    "chosen_other": "Đã chọn {{count}}",
+    "selectAll": "Chọn tất cả",
+    "all": "Tất cả",
+    "assemble": "Lắp ráp",
+    "assembleTip": "Ghép chúng thành một vật thể, mỗi phần giữ nguyên vị trí",
+    "menuTip": "Việc cần làm với tất cả (hoặc nhấp chuột phải / nhấn giữ một mô hình đã chọn)",
+    "menu": "Việc cần làm",
+    "doneTip": "Chạm sẽ chọn lại từng mô hình một",
+    "clearTip": "Chưa chọn gì (Esc)",
+    "done": "Xong",
+    "clear": "Bỏ chọn"
+  }
+}

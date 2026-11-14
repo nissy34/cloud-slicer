@@ -1,0 +1,26 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Hőmérsékletek",
+    "filterTimelapse": "Timelapse",
+    "filterTimelapseExample": "timelapse-képkockaüzenetek",
+    "filterProgress": "Nyomtatás előrehaladása",
+    "filterOk": "Sima „ok”",
+    "done": "Kész",
+    "filtersN": "Szűrők ({{n}})",
+    "filters": "Szűrők",
+    "hideThese": "Ezen sorok elrejtése",
+    "hideLike": "Ilyen sorok elrejtése: {{example}}",
+    "hideContaining": "A(z) „{{text}}” szöveget tartalmazó sorok elrejtése",
+    "removeFilter": "A(z) „{{text}}” szűrő eltávolítása",
+    "remove": "Eltávolítás",
+    "hideContainingPlaceholder": "Szöveget tartalmazó sorok elrejtése…",
+    "hideContainingLabel": "Szöveget tartalmazó sorok elrejtése",
+    "add": "Hozzáadás",
+    "filtersHelp": "Koppintson egy címkére a kapcsolásához. Amit elküld, és a hibák mindig látszanak.",
+    "linesHidden_one": "1 sort elrejtettek a szűrők",
+    "linesHidden_other": "{{count}} sort elrejtettek a szűrők",
+    "sendPlaceholder": "G-code küldése, pl. M115",
+    "commandLabel": "G-code parancs",
+    "send": "Küldés"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Proiektu hau bihurtu?",
+    "convert": "Bihurtu",
+    "setUpFor": "<b>{{printer}}</b> inprimagailurako konfiguratuta zegoen. Aukeratu zure inprimagailuetako bat bertan inprimatzeko.",
+    "printer": "Inprimagailua",
+    "convertTo": "Bihurtu inprimagailura",
+    "keep": "Mantendu proiektuak aldatutako ereduaren ezarpenak: geruzak, hormak, betegarria, euskarriak, josturak, itsaspen ertza",
+    "remember": "Egin hau automatikoki hurrengoan",
+    "note": "Proiektuak bere inprimagailu zaharraren lehenespenetan utzitako ezarpenak, eta abiadurak, azelerazioa, jerk-a, lerro-zabalerak, fluxu-kalibrazioa eta purgatze-dorrea {{printer}} inprimagailutik datoz. Filamentuak materialaren eta motaren arabera parekatzen dira (mate, zeta, fluxu handia...) eta proiektuaren koloreak mantentzen dituzte.",
+    "yourPrinter": "zure inprimagailua"
+  }
+}

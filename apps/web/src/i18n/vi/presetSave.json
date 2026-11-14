@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Dùng 1-128 ký tự, không có / \\ : * ? \" < > |",
+    "notAvailable": "Cài đặt sẵn {{name}} không khả dụng.",
+    "onlyOwn": "Chỉ lưu được cài đặt sẵn của riêng bạn; hãy dùng Lưu thành.",
+    "noneSelected": "Chưa chọn cài đặt sẵn nào.",
+    "sameName": "Hai cài đặt sẵn không thể trùng tên.",
+    "nameTaken": "Đã có một cài đặt sẵn tên “{{name}}”.",
+    "notYours": "Cài đặt sẵn này không phải của bạn."
+  }
+}

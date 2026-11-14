@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Objekto parametrai",
+    "modifierSettings": "Modifikatoriaus parametrai",
+    "partSettings": "Dalies parametrai",
+    "addToObject": "Pridėti parametrą šiam objektui",
+    "addToModifier": "Pridėti parametrą šiam modifikatoriui",
+    "addToPart": "Pridėti parametrą šiai daliai",
+    "addSetting": "+ Pridėti parametrą",
+    "modifierEmpty": "Pridėkite parametrą, kad pakeistumėte jį ten, kur modifikatorius kertasi su objektu, pavyzdžiui, daugiau užpildo vienoje vietoje.",
+    "partEmpty": "Naudoja objekto parametrus. Pridėkite parametrą, kad pakeistumėte jį tik šiai daliai.",
+    "objectEmpty": "Naudoja proceso parametrus. Pridėkite parametrą, kad pakeistumėte jį tik šiam objektui.",
+    "others": "Kiti",
+    "removeFromObject": "Pašalinti iš šio objekto",
+    "removeFromModifier": "Pašalinti iš šio modifikatoriaus",
+    "removeFromPart": "Pašalinti iš šios dalies"
+  }
+}

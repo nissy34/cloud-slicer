@@ -1,0 +1,31 @@
+{
+  "layersPanel": {
+    "addDetail": "ディテールを追加",
+    "addDetailTip": "積層を薄くします（デスクトップ: 左ボタン）",
+    "removeDetail": "ディテールを削減",
+    "removeDetailTip": "積層を厚くします（デスクトップ: 右ボタン）",
+    "backToBase": "基本に戻す",
+    "backToBaseTip": "通常の積層ピッチに戻します（デスクトップ: Shift + 左ボタン）",
+    "smooth": "スムーズ",
+    "smoothTip": "段差をなめらかにします（デスクトップ: Shift + 右ボタン）",
+    "profile": "可変積層ピッチのプロファイル",
+    "title": "可変積層ピッチ",
+    "done": "完了",
+    "intro": "形状にディテールが必要な場所は薄く、不要な場所は厚くします。「アダプティブ」は傾斜から自動で行います。または、グラフを長押しして、その高さの周辺のディテールを増減します。",
+    "heights": "積層ピッチ",
+    "variable": "可変",
+    "plain": "固定",
+    "layers_other": "{{count}} 層",
+    "chartEdits": "グラフでの編集",
+    "band": "範囲を編集",
+    "adaptive": "アダプティブ",
+    "quality": "品質",
+    "qualityOrSpeed": "品質か速度",
+    "speed": "速度",
+    "radius": "半径",
+    "smoothRadius": "スムージング半径",
+    "keepMin": "最も薄い積層を維持",
+    "reset": "リセット",
+    "reading": "積層を読み込み中…"
+  }
+}

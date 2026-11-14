@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "İzometrik",
+    "top": "Üst",
+    "bottom": "Alt",
+    "front": "Ön",
+    "back": "Arka",
+    "left": "Sol",
+    "right": "Sağ",
+    "views": "Görünümler",
+    "viewsTip": "Görünümler: üst, ön, yan...",
+    "viewTip": "{{view}} görünümü ({{key}})",
+    "fitAll": "Tümünü sığdır",
+    "fitAllTip": "Tümünü sığdır: her şeyi göster (Z)"
+  }
+}

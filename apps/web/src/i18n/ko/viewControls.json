@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "등각",
+    "top": "위",
+    "bottom": "아래",
+    "front": "앞",
+    "back": "뒤",
+    "left": "왼쪽",
+    "right": "오른쪽",
+    "views": "보기",
+    "viewsTip": "보기: 위, 앞, 옆…",
+    "viewTip": "{{view}} 보기 ({{key}})",
+    "fitAll": "모두 맞춤",
+    "fitAllTip": "모두 맞춤: 전체 표시 (Z)"
+  }
+}

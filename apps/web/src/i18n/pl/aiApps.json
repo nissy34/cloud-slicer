@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Inne aplikacje czatu",
+    "title": "Użyj z aplikacją AI",
+    "more": "Więcej na ten temat",
+    "intro": "Poproś aplikację AI, aby pocięła model za Ciebie: „Potnij tego Benchy'ego dla mojego U1 w PETG z 4 ścianami i podaj mi czas.” Zainstaluj go w Claude Desktop jako rozszerzenie albo w innych aplikacjach czatu na komputerze, takich jak LM Studio i Msty. Tnie na Twoim komputerze, tymi samymi silnikami i profilami co ta witryna, a Twoje modele tam zostają.",
+    "whichApp": "Która aplikacja",
+    "step1": "Pobierz rozszerzenie Cloud Slicer.",
+    "download": "Pobierz dla Claude Desktop",
+    "size": "około 11 MB. Już zainstalowane? Pobierz je ponownie, aby zaktualizować.",
+    "step2": "Otwórz plik. Claude Desktop poprosi o instalację: kliknij <b>Zainstaluj</b>.",
+    "step3": "Poproś Claude'a, aby pociął plik na Twoim komputerze.",
+    "otherStep1": "W ustawieniach aplikacji czatu dodaj serwer MCP z tym wpisem (większość aplikacji przyjmuje go bez zmian):",
+    "otherStep2": "Wymaga Node 20 lub nowszego na Twoim komputerze (<a>nodejs.org</a>).",
+    "canDo": "Może otwierać modele i projekty, wybierać drukarkę, proces i filamenty, ustawiać kolory i to, który filament drukuje który obiekt, zmieniać ustawienia, układać płyty i ciąć. Gdy Twój komputer jest włączony, może z niego korzystać także Claude na telefonie. Po zalogowaniu używa też Twoich profili i drukarek oraz pyta Cię, zanim rozpocznie druk.",
+    "version": "Wersja {{version}}"
+  }
+}

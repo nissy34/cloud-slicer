@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Dit bestand",
+    "title": "Openen als project?",
+    "geometryOnly": "Alleen geometrie importeren",
+    "open": "Project openen",
+    "body": "<b>{{name}}</b> is een project met eigen printbedden en instellingen. Openen vervangt wat nu op uw printbedden staat. Als u alleen de geometrie importeert, worden de voorwerpen aan uw printbed toegevoegd en blijven uw instellingen behouden."
+  }
+}

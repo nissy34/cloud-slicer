@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Jaregin hemen STL, 3MF, OBJ, STEP edo SVG fitxategiak",
+    "openModel": "Ireki eredua",
+    "fromDrive": "Ireki Google Drive-tik",
+    "deletePlateTip": "Ezabatu plaka hau eta gainean dagoena",
+    "deletePlate": "Ezabatu plaka",
+    "clearAsk": "Plaka garbitu?",
+    "unsavedChanges": "“{{name}}” fitxategiak oraindik gorde gabeko aldaketak ditu.",
+    "clearAll": "Garbitu dena",
+    "dropToAdd": "Jaregin gehitzeko"
+  }
+}

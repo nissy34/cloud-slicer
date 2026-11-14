@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "Pencereyi kapat",
+    "moreAboutThis": "Daha fazla bilgi",
+    "plannedForPhase": "{{phase}}. aşama için planlandı.",
+    "saving": "Kaydediliyor",
+    "loadedOf": "{{loaded}} / {{total}}"
+  }
+}

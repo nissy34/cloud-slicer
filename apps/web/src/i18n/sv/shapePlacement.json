@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Rotera text",
+    "rotateSvg": "Rotera SVG",
+    "moveText": "Flytta text från ytan",
+    "moveSvg": "Flytta SVG från ytan",
+    "rotationTip": "Vrid den runt sin egen axel, medurs (ringen i 3D-vyn gör samma sak)",
+    "rotation": "Rotation",
+    "fromSurfaceTip": "Hur långt den står ut från ytan",
+    "fromSurface": "Från ytan",
+    "keepUpTip": "Håller den upprätt medan du glider den över ytan eller vänder den mot kameran",
+    "keepUp": "Håll upprätt",
+    "faceCameraTip": "Vrid den mot dig, dit du tittar på den ifrån",
+    "faceCamera": "Vänd mot kameran",
+    "moveToolsText": "Flytta eller rotera texten med de verktygen.",
+    "moveToolsShape": "Flytta eller rotera formen med de verktygen.",
+    "dragText": "Dra texten eller dess blå ram för att glida den över objektet. Ringen vrider den.",
+    "dragShape": "Dra formen eller dess blå ram för att glida den över objektet. Ringen vrider den."
+  }
+}

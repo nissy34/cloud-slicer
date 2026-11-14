@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} de {{size}} MB",
+    "arrivingRelay": "{{got}} de {{size}} MB a través del relé",
+    "cannotFetch": "Esta conexión de impresora no puede obtener vídeos.",
+    "fetchFailed": "No se pudo obtener el vídeo.",
+    "delete": "Eliminar",
+    "download": "Descargar",
+    "cantPlay": "Este tipo de vídeo no se reproduce en el navegador. Descárguelo para verlo.",
+    "none": "Aún no hay timelapses. Active Timelapse al iniciar una impresión.",
+    "watch": "Ver",
+    "pages": "Páginas de timelapses",
+    "refresh": "Actualizar",
+    "deleteTitle": "Eliminar timelapse"
+  }
+}

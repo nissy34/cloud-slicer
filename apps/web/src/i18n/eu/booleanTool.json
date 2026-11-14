@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Bildura",
+    "difference": "Diferentzia",
+    "intersection": "Ebakidura",
+    "subtractFrom": "Kendu honi",
+    "subtractWith": "Kendu honekin",
+    "part": "{{n}}. pieza",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Sare-boolearra",
+    "done": "Eginda",
+    "operation": "Eragiketa",
+    "needTwo": "Honek objektu bateko bi piezatan funtzionatzen du. Gehitu pieza, pieza negatibo edo aldatzaile bat objektuaren menutik (egin klik eskuinez gainean, edo objektu-zerrendako ⋯ botoia), kokatu, eta itzuli hona.",
+    "unionHint": "Biak pieza bakarrean elkartzen ditu.",
+    "differenceHint": "Bigarrena lehenengotik ebakitzen du.",
+    "intersectionHint": "Biak gainjartzen diren lekua soilik mantentzen du.",
+    "resultHint": "Emaitzak lehenengoaren lekua, mota eta ezarpenak hartzen ditu. Desegiteak biak itzultzen ditu.",
+    "pickDifferent": "Aukeratu bi pieza desberdin.",
+    "deleteInput": "Ezabatu sarrera (kendu bigarrena ere)",
+    "working": "Lanean…"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "deviceFiles": {
+    "print": "Друкувати…",
+    "deleteName": "Видалити {{name}}",
+    "delete": "Видалити",
+    "title": "Файли на принтері",
+    "upload": "Завантажити G-code…",
+    "timelapses": "Таймлапси",
+    "none": "Файлів G-code ще немає.",
+    "searchN_one": "Пошук серед {{count}} файлу",
+    "searchN_few": "Пошук серед {{count}} файлів",
+    "searchN_many": "Пошук серед {{count}} файлів",
+    "searchN_other": "Пошук серед {{count}} файлу",
+    "search": "Шукати файли",
+    "noMatch": "Жоден файл не відповідає «{{query}}».",
+    "deleteFile": "Видалити файл",
+    "deleteText": "Видалити {{name}} з принтера?",
+    "deleted": "Видалено",
+    "pages": "Сторінки файлів",
+    "newer": "Новіші",
+    "older": "Старіші",
+    "range": "{{from}}–{{to}} з {{total}}"
+  }
+}

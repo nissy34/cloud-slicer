@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "odpovídající filament",
+    "noSlot": "Žádný {{noun}} nemá {{material}}. Zaveďte ho, nebo změňte filament ve slicru a slicujte znovu.",
+    "noSlotNozzle": "Žádný {{noun}} nemá {{material}} s tryskou {{nozzle}} mm. Zaveďte ho, nebo změňte filament ve slicru a slicujte znovu.",
+    "noType": "{{slot}} nemá nastavený typ filamentu. {{unset}}",
+    "otherMaterial": "{{slot}} má {{has}}, ale tento filament byl naslicován jako {{material}}.",
+    "otherNozzle": "{{slot}} má trysku {{has}} mm, ale soubor byl naslicován pro {{nozzle}} mm.",
+    "highFlow": "Soubor byl naslicován pro trysku s vysokým průtokem, ale {{slot}} má standardní."
+  }
+}

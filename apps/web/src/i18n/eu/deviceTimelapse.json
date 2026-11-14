@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} / {{size}} MB",
+    "arrivingRelay": "{{got}} / {{size}} MB errelearen bidez",
+    "cannotFetch": "Inprimagailu-konexio honek ezin ditu bideoak eskuratu.",
+    "fetchFailed": "Ezin izan da bideoa eskuratu.",
+    "delete": "Ezabatu",
+    "download": "Deskargatu",
+    "cantPlay": "Bideo mota hau ez da nabigatzailean erreproduzitzen. Deskargatu ikusteko.",
+    "none": "Oraindik ez dago denbora-igarotzerik. Aktibatu Denbora-igarotzea inprimaketa hastean.",
+    "watch": "Ikusi",
+    "pages": "Denbora-igarotzeen orriak",
+    "refresh": "Freskatu",
+    "deleteTitle": "Ezabatu denbora-igarotzea"
+  }
+}

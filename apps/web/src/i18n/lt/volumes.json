@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "Pridėti dalį",
+    "addNegative": "Pridėti neigiamą dalį",
+    "addModifier": "Pridėti modifikatorių",
+    "addBlocker": "Pridėti atramų blokatorių",
+    "addEnforcer": "Pridėti atramų stiprintuvą",
+    "part": "Dalis",
+    "negative": "Neigiama dalis",
+    "modifier": "Modifikatorius",
+    "enforcer": "Atramų stiprintuvas",
+    "blocker": "Atramų blokatorius",
+    "other": "Kita"
+  }
+}

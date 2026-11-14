@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Ohne Titel",
+    "nothingYet": "Auf dieser Platte liegt noch nichts",
+    "locked": "Diese Platte ist gesperrt",
+    "deleteTip": "Diese Platte samt Inhalt entfernen (nicht die letzte)",
+    "orientTip": "Objekte auf dieser Platte automatisch ausrichten",
+    "arrangeTip": "Objekte auf dieser Platte anordnen (Shift+A)",
+    "unlockTip": "Diese Platte entsperren",
+    "lockTip": "Diese Platte sperren: Anordnen und Automatisch ausrichten lassen sie unverändert",
+    "settingsOwnTip": "Platteneinstellungen: Diese Platte hat eigene Einstellungen",
+    "settingsTip": "Platteneinstellungen: Plattentyp, Druckreihenfolge, Vasenmodus, Filamentreihenfolge",
+    "renameTip": "Diese Platte umbenennen"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Este código expirou. Peça ao seu app de IA para entrar de novo e obter outro.",
+    "invalid": "Este código não é válido. Compare com o que o seu app de IA mostra ou peça a ele para entrar de novo.",
+    "siteAnswered": "O site respondeu {{status}}",
+    "checkingAccount": "Verificando sua conta…",
+    "signInFirst": "Entre primeiro no Cloud Slicer. Depois esta janela pede para você conectar o seu app de IA.",
+    "noSignIn": "O login não está configurado neste site.",
+    "codeLabel": "O código que o seu app de IA mostra",
+    "checkingCode": "Verificando o código…",
+    "connected": "Conectado. Volte ao seu app de IA: ele entrou como {{name}}.",
+    "turnedDown": "Recusado. Seu app de IA não entrou.",
+    "asks": "Um app de IA no seu computador (o complemento do Cloud Slicer) pede para usar a sua conta, <b>{{email}}</b>. Verifique se ele mostra este código:",
+    "willSee": "Ele verá suas predefinições e impressoras salvas e poderá verificar suas impressoras e enviar arquivos a elas. Ele pergunta a cada vez antes de iniciar uma impressão. Você pode desconectá-lo pelo app de IA.",
+    "continueGoogle": "Continuar com o Google",
+    "dontConnect": "Não conectar",
+    "connect": "Conectar",
+    "title": "Conectar um app de IA"
+  }
+}

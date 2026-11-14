@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Đặt lại về giá trị của cài đặt sẵn",
+    "keptOld": "Đã giữ giá trị cũ.",
+    "kept": "Đã giữ {{value}}.",
+    "plateUses": "Plate {{n}} dùng",
+    "on": "bật",
+    "off": "tắt",
+    "itsOwn": "(cài đặt riêng của nó).",
+    "plateSettings": "Cài đặt plate",
+    "default": "Mặc định",
+    "percentOrMm": "Phần trăm hay mm?",
+    "isItPercent": "{{label}}: là {{number}}% hay {{number}} {{unit}}?",
+    "filamentN": "Filament {{n}}",
+    "mix": "Hỗn hợp",
+    "mixes": "Hỗn hợp"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "brimEars": {
+    "title": "Itsaspen-belarriak",
+    "done": "Eginda",
+    "intro": "Izkinen azpiko itsaspen-plaka biribilek altxatzea saihesten dute, itsaspen ertz oso batek baino itsaspen askoz gutxiago garbitzeko utzita.",
+    "howTouch": "Ukitu eredua edo ondoko ohea belarri bat gehitzeko. Ukitu belarri bat aukeratzeko, eta gero Kendu aukeratutakoa.",
+    "howMouse": "Egin klik eredua edo ondoko ohea belarri bat gehitzeko. Egin klik belarri batean aukeratzeko (Shift-ek gehiago gehitzen ditu), edo egin klik eskuinez kentzeko.",
+    "reading": "Belarriak irakurtzen…",
+    "notPainted": "Belarriak objektu honen itsaspen mota Margotua (itsaspen-belarriak) denean soilik inprimatzen dira.",
+    "usePainted": "Erabili itsaspen-belarriak objektu honetarako",
+    "ears": "Belarriak",
+    "count_one": "Belarri {{count}}",
+    "count_other": "{{count}} belarri",
+    "loose_one": "{{count}} ez dago objektuarekin kontaktuan",
+    "loose_other": "{{count}} ez daude objektuarekin kontaktuan",
+    "picked_one": "{{count}} aukeratuta",
+    "picked_other": "{{count}} aukeratuta",
+    "size": "Belarriaren tamaina",
+    "auto": "Gehitu belarriak izkinetan",
+    "maxAngle": "Gehienezko angelua",
+    "maxAngleTip": "Hau baino zorrotzagoak diren izkinek belarri bat jasotzen dute",
+    "detection": "Detekzio-luzera",
+    "detectionTip": "Hau baino laburragoak diren irtengune txikiak lehenik leuntzen dira, beraz ez dute belarririk jasotzen",
+    "resize": "Aldatu aukeratutakoaren tamaina",
+    "remove": "Kendu aukeratutakoa",
+    "removeAll": "Kendu denak"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "deviceFiles": {
+    "print": "Skriv ut…",
+    "deleteName": "Ta bort {{name}}",
+    "delete": "Ta bort",
+    "title": "Filer på skrivaren",
+    "upload": "Ladda upp G-code…",
+    "timelapses": "Timelapse-filmer",
+    "none": "Inga G-code-filer än.",
+    "searchN_one": "Sök i {{count}} fil",
+    "searchN_other": "Sök i {{count}} filer",
+    "search": "Sök filer",
+    "noMatch": "Ingen fil matchar ”{{query}}”.",
+    "deleteFile": "Ta bort fil",
+    "deleteText": "Ta bort {{name}} från skrivaren?",
+    "deleted": "Borttagen",
+    "pages": "Filsidor",
+    "newer": "Nyare",
+    "older": "Äldre",
+    "range": "{{from}}–{{to}} av {{total}}"
+  }
+}

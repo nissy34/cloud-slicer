@@ -1,0 +1,10 @@
+{
+  "presetEngines": {
+    "split_one": "{{count}} paràmetre ja no és igual en tots dos motors; «{{name}}» conserva els seus valors a cadascun.",
+    "split_many": "{{count}} paràmetres ja no són iguals en tots dos motors; «{{name}}» conserva els seus valors a cadascun.",
+    "split_other": "{{count}} paràmetres ja no són iguals en tots dos motors; «{{name}}» conserva els seus valors a cadascun.",
+    "separate_one": "{{count}} paràmetre de «{{name}}» ara pot ser igual en tots dos motors però és diferent; «Usa els mateixos valors en tots dos motors» al seu menú els fa coincidir.",
+    "separate_many": "{{count}} paràmetres de «{{name}}» ara poden ser iguals en tots dos motors però són diferents; «Usa els mateixos valors en tots dos motors» al seu menú els fa coincidir.",
+    "separate_other": "{{count}} paràmetres de «{{name}}» ara poden ser iguals en tots dos motors però són diferents; «Usa els mateixos valors en tots dos motors» al seu menú els fa coincidir."
+  }
+}

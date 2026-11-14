@@ -1,0 +1,25 @@
+{
+  "brimEars": {
+    "title": "Brim ears",
+    "done": "Xong",
+    "intro": "Các miếng brim tròn dưới các góc giữ cho chúng không bị cong lên, với lượng brim cần dọn ít hơn nhiều so với brim đầy đủ.",
+    "howTouch": "Chạm vào mô hình hoặc bàn in cạnh nó để thêm một ear. Chạm vào ear để chọn, rồi nhấn Xóa mục đã chọn.",
+    "howMouse": "Nhấp vào mô hình hoặc bàn in cạnh nó để thêm một ear. Nhấp vào ear để chọn (Shift để chọn thêm), hoặc nhấp chuột phải để xóa.",
+    "reading": "Đang đọc các ear…",
+    "notPainted": "Các ear chỉ được in khi loại brim của vật thể này là Painted (brim ears).",
+    "usePainted": "Dùng brim ears cho vật thể này",
+    "ears": "Ears",
+    "count_other": "{{count}} ear",
+    "loose_other": "{{count}} không chạm vật thể",
+    "picked_other": "{{count}} đã chọn",
+    "size": "Kích thước ear",
+    "auto": "Thêm ear ở các góc",
+    "maxAngle": "Góc tối đa",
+    "maxAngleTip": "Các góc nhọn hơn mức này sẽ có ear",
+    "detection": "Độ dài phát hiện",
+    "detectionTip": "Các chỗ lồi nhỏ ngắn hơn mức này được làm mịn trước, nên không có ear",
+    "resize": "Đổi kích thước mục đã chọn",
+    "remove": "Xóa mục đã chọn",
+    "removeAll": "Xóa tất cả"
+  }
+}

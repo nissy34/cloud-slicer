@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "내 프린터",
+    "otherPrinters": "기타",
+    "printer": "프린터",
+    "manage": "관리",
+    "printerPreset": "프린터 사전 설정",
+    "addRemovePrinters": "프린터 추가 또는 제거…",
+    "sendsFromDevice": "장치 탭에서 출력을 보낼 수 있습니다.",
+    "noDirectPrint": "이 프린터는 바로 출력할 수 없습니다 (Klipper, Prusa, Centauri Carbon이 아님). G-code를 다운로드해서 출력하거나, OctoPrint로 프린터를 운영한다면 장치 탭에서 보내세요.",
+    "plateType": "플레이트 타입",
+    "filament": "필라멘트",
+    "addFilament": "필라멘트 추가",
+    "add": "+ 추가",
+    "filamentColour": "필라멘트 색상",
+    "filamentNColour": "필라멘트 {{n}} 색상",
+    "filamentNPreset": "필라멘트 {{n}} 사전 설정",
+    "addRemoveFilaments": "필라멘트 추가 또는 제거…",
+    "removeFilament": "이 필라멘트 제거",
+    "removeFilamentN": "필라멘트 {{n}} 제거",
+    "process": "프로세스",
+    "processPreset": "프로세스 사전 설정",
+    "readingFilaments": "프린터의 필라멘트를 읽는 중…",
+    "myPresets": "내 사전 설정",
+    "systemPresets": "시스템 사전 설정",
+    "show": "사이드바 표시 (Shift+Tab)",
+    "hide": "사이드바 숨기기 (Shift+Tab)",
+    "width": "사이드바 너비"
+  }
+}

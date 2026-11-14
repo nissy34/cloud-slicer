@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "jiná tiskárna",
+    "slicedFile": "{{name}} je naslicovaný soubor: obsahuje G-code pro jinou tiskárnu, ale žádné modely. Otevřete místo toho původní projekt (.3mf).",
+    "noObjects": "{{name}} nemá žádné objekty k tisku."
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "time": {
+    "justNow": "az önce",
+    "minAgo": "{{n}} dk önce",
+    "hoursAgo": "{{n}} sa önce"
+  }
+}

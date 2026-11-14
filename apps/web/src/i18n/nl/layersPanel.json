@@ -1,0 +1,32 @@
+{
+  "layersPanel": {
+    "addDetail": "Detail toevoegen",
+    "addDetailTip": "Dunnere lagen (desktop: linkermuisknop)",
+    "removeDetail": "Detail verwijderen",
+    "removeDetailTip": "Dikkere lagen (desktop: rechtermuisknop)",
+    "backToBase": "Terug naar basis",
+    "backToBaseTip": "Terug naar de gewone laaghoogte (desktop: Shift + linkerknop)",
+    "smooth": "Gladstrijken",
+    "smoothTip": "Trappen gladstrijken (desktop: Shift + rechterknop)",
+    "profile": "Laaghoogteprofiel",
+    "title": "Variabele laaghoogte",
+    "done": "Klaar",
+    "intro": "Dunne lagen waar de vorm detail nodig heeft, dikke waar dat niet zo is. Adaptief doet dit op basis van de hellingen; of houd de grafiek ingedrukt om detail rond die hoogte toe te voegen of te verwijderen.",
+    "heights": "Laaghoogtes",
+    "variable": "Variabel",
+    "plain": "Gewoon",
+    "layers_one": "{{count}} laag",
+    "layers_other": "{{count}} lagen",
+    "chartEdits": "Grafiekbewerkingen",
+    "band": "Band bewerken",
+    "adaptive": "Adaptief",
+    "quality": "Kwaliteit",
+    "qualityOrSpeed": "Kwaliteit of snelheid",
+    "speed": "Snelheid",
+    "radius": "Straal",
+    "smoothRadius": "Afvlakkingsstraal",
+    "keepMin": "De dunste lagen behouden",
+    "reset": "Terugzetten",
+    "reading": "De lagen worden gelezen…"
+  }
+}

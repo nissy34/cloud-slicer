@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "オブジェクト設定",
+    "modifierSettings": "モディファイア設定",
+    "partSettings": "パーツ設定",
+    "addToObject": "このオブジェクトに設定を追加",
+    "addToModifier": "このモディファイアに設定を追加",
+    "addToPart": "このパーツに設定を追加",
+    "addSetting": "+ 設定を追加",
+    "modifierEmpty": "設定を追加すると、モディファイアがオブジェクトと重なる部分で変更できます（1 か所だけインフィルを増やすなど）。",
+    "partEmpty": "オブジェクトの設定を使います。このパーツだけ変更するには設定を追加してください。",
+    "objectEmpty": "プロセス設定を使います。このオブジェクトだけ変更するには設定を追加してください。",
+    "others": "その他",
+    "removeFromObject": "このオブジェクトから削除",
+    "removeFromModifier": "このモディファイアから削除",
+    "removeFromPart": "このパーツから削除"
+  }
+}

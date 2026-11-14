@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "API 金鑰",
+    "klipperHint": "Mainsail 和 Fluidd 會在其設定中顯示。",
+    "klipperLocked": "此列印裝置已鎖定：請輸入其 API 金鑰",
+    "prusaKey": "PrusaLink 密碼",
+    "prusaHint": "列印裝置會在「設定」→「網路」→ PrusaLink 下顯示（那裡的使用者名稱是 maker）。",
+    "prusaLocked": "請輸入列印裝置螢幕上的 PrusaLink 密碼",
+    "octoprintKey": "OctoPrint API 金鑰",
+    "octoprintHint": "在 OctoPrint 中：設定 → Application Keys，然後為 Cloud Slicer 建立一組金鑰（或複製「設定 → API」下您使用者的 API 金鑰）。",
+    "octoprintLocked": "此 OctoPrint 已鎖定：請輸入其設定中的 API 金鑰",
+    "bambuKey": "區域網路存取碼",
+    "bambuHint": "列印裝置會在其螢幕的網路設定中，於「僅區域網路模式」旁顯示。若要從這裡傳送列印並控制它，還需在那裡開啟「僅區域網路模式」和「開發者模式」（開啟期間，Bambu 雲端和 Bambu Handy 應用程式將無法使用）。",
+    "bambuLocked": "請輸入列印裝置螢幕上的存取碼",
+    "featStatus": "狀態",
+    "featSend": "傳送並列印",
+    "featCamera": "攝影機",
+    "featMove": "移動與溫度",
+    "featMoveShort": "移動與溫度",
+    "featConsole": "主控台",
+    "klipperName": "Klipper 列印裝置",
+    "klipperExamples": "Snapmaker U1、Voron、Qidi、Sovol",
+    "prusaName": "使用 PrusaLink 的 Prusa",
+    "prusaExamples": "MK4、Core One、XL、Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "任何由 OctoPrint 控制的列印裝置",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "尚不支援 Carbon 2",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1、P1、P2S、A1、H2；P1 和 A1 有攝影機；需要開發者模式"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Outros apps de chat",
+    "title": "Usar com um app de IA",
+    "more": "Saiba mais",
+    "intro": "Peça ao seu app de IA para fatiar por você: “Fatie este Benchy para a minha U1 em PETG com 4 paredes e me diga o tempo.” Instale-o no Claude Desktop como extensão ou em outros apps de chat no seu computador, como LM Studio e Msty. Ele fatia no seu computador, com os mesmos motores e predefinições deste site, e seus modelos ficam lá.",
+    "whichApp": "Qual app",
+    "step1": "Baixe a extensão do Cloud Slicer.",
+    "download": "Baixar para o Claude Desktop",
+    "size": "cerca de 11 MB. Já instalou? Baixe de novo para atualizar.",
+    "step2": "Abra o arquivo. O Claude Desktop pede para instalar: clique em <b>Instalar</b>.",
+    "step3": "Peça ao Claude para fatiar um arquivo no seu computador.",
+    "otherStep1": "Nas configurações do seu app de chat, adicione um servidor MCP com isto (a maioria dos apps aceita como está):",
+    "otherStep2": "É preciso ter o Node 20 ou mais recente no seu computador (<a>nodejs.org</a>).",
+    "canDo": "Ele pode abrir modelos e projetos, escolher a impressora, o processo e os filamentos, definir cores e qual filamento imprime cada objeto, mudar configurações, organizar placas e fatiar. Com o seu computador ligado, o Claude no seu celular também pode usá-lo. Se você estiver conectado, ele também usa suas predefinições e impressoras e pergunta antes de iniciar uma impressão.",
+    "version": "Versão {{version}}"
+  }
+}

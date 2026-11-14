@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Volumi di spurgo",
+    "ownAmounts": "quantità personalizzate",
+    "fromColours": "dai colori",
+    "leftNozzle": "Ugello sinistro",
+    "rightNozzle": "Ugello destro",
+    "nozzleN": "Ugello {{n}}",
+    "filamentN": "Filamento {{n}}",
+    "recalculate": "Ricalcola",
+    "done": "Fatto",
+    "explain": "Quanto la stampante espelle, in mm³, quando passa dal filamento a sinistra a quello in alto. Calcolato dai colori: da scuro a chiaro serve di più.",
+    "nozzle": "Ugello",
+    "tableLabel": "Volumi di spurgo in mm³",
+    "from": "da",
+    "to": "a",
+    "toFilament": "A {{name}}",
+    "fromFilament": "Da {{name}}",
+    "purgeLabel": "Spurgo da {{from}} a {{to}}, mm³",
+    "suggested": "Consigliato: da {{min}} a {{max}} mm³ (fuori da questo intervallo è rosso).",
+    "multiplier": "Moltiplicatore",
+    "scales": "Scala ogni quantità (da {{min}} a {{max}}).",
+    "towerOff": "\"Spurgo nella torre di spurgo\" è disattivato nelle impostazioni di questa stampante (pagina Multimateriale), quindi ogni cambio di filamento spurga il volume di spurgo ({{volume}} mm³) invece di queste quantità. Queste impostano comunque la lunghezza di spurgo che riceve il G-code di cambio della stampante."
+  }
+}

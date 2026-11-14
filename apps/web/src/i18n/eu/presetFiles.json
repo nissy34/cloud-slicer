@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} {{size}} da; aurrezarpen-fitxategi batek {{max}} izan ditzake gehienez.",
+    "notJson": "{{label}} ez da aurrezarpen-fitxategi bat (ez da JSON).",
+    "tooMany": "{{max}} aurrezarpen soilik inporta daitezke aldi berean; {{label}} kanpoan geratu da.",
+    "bundleTooBig": "{{name}} {{size}} da; sorta batek {{max}} izan ditzake gehienez.",
+    "badZip": "{{name}} ezin izan da zip gisa ireki.",
+    "unpacksTooBig": "{{name}} fitxategiak {{max}} baino gehiago ditu deskonprimituta, edo {{fileMax}} baino handiagoa den fitxategi bat dauka; ez da ezer inportatu bertatik.",
+    "empty": "{{name}} fitxategiak ez dauka aurrezarpen-fitxategirik.",
+    "tooManyKeys": "{{max}} ezarpen baino gehiago aldatzen ditu.",
+    "tooLarge": "Bere ezarpenak {{max}} baino handiagoak dira.",
+    "fileN": "{{n}}. fitxategia",
+    "unreadable": "Ez da Orca-k irakur dezakeen aurrezarpena: {{error}}.",
+    "noName": "Ez dauka izen erabilgarririk.",
+    "anotherPrinter": "beste inprimagailu bat",
+    "otherPrinter": "{{made}}(r)entzat da, eta aplikazio honek ez dauka. Inprimagailuaren ezarpenak makinari dagozkio, beraz ezin da beste inprimagailu batera eraman.",
+    "noPrinterBase": "Ez dago aplikazio honek duen inprimagailu batean oinarrituta.",
+    "noFilamentBase": "Ez dago filament-aurrezarpenik hartan jartzeko.",
+    "noProcessBase": "Ez dago prozesu-aurrezarpenik hartan jartzeko."
+  }
+}

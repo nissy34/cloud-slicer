@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Continuare da dove eri rimasto?",
+    "local": "{{name}}, modificato {{when}}. Conservato in questo browser, non salvato.",
+    "discard": "Scarta",
+    "continue": "Continua",
+    "projectAsk": "Continuare {{name}}?",
+    "project": "Continua {{name}}",
+    "openHere": "Lo avevi aperto qui, modificato {{when}}",
+    "editedOn": "Modificato {{when}} su {{device}}",
+    "notNow": "Non ora",
+    "editedElsewhere": "{{name}} è in modifica su {{device}}",
+    "viewOnly": "Questa scheda è di sola lettura.",
+    "viewOnlyUnsaved": "Questa scheda è di sola lettura. Le modifiche fatte qui non ci sono.",
+    "saveMineAsCopy": "Salva le mie come copia",
+    "editHere": "Modifica qui",
+    "gone": "“{{name}}” è stato eliminato su {{device}}. È ancora aperto qui, non salvato."
+  }
+}

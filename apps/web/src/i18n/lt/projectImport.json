@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "kitas spausdintuvas",
+    "slicedFile": "{{name}} yra išsluoksniuotas failas: jame yra kito spausdintuvo G-code, bet nėra modelių. Vietoje to atidarykite originalų projektą (.3mf).",
+    "noObjects": "{{name}} neturi objektų spausdinti."
+  }
+}

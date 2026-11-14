@@ -1,0 +1,25 @@
+{
+  "brimEars": {
+    "title": "耳狀 Brim",
+    "done": "完成",
+    "intro": "在轉角下方加上圓形 Brim 墊片，可防止轉角翹起，而且比完整的 Brim 更容易清除。",
+    "howTouch": "點選模型或旁邊的列印板即可新增耳狀 Brim。點選耳狀 Brim 可選取，再按「移除已選取」。",
+    "howMouse": "在模型或旁邊的列印板上按一下即可新增耳狀 Brim。按一下耳狀 Brim 可選取（按住 Shift 可多選），或按右鍵移除。",
+    "reading": "正在讀取耳狀 Brim…",
+    "notPainted": "只有在此物件的 Brim 類型為「繪製」（耳狀 Brim）時，才會列印耳狀 Brim。",
+    "usePainted": "為此物件使用耳狀 Brim",
+    "ears": "耳狀 Brim",
+    "count_other": "{{count}} 個耳狀 Brim",
+    "loose_other": "{{count}} 個未接觸物件",
+    "picked_other": "已選取 {{count}} 個",
+    "size": "耳狀 Brim 大小",
+    "auto": "在轉角上新增耳狀 Brim",
+    "maxAngle": "最大角度",
+    "maxAngleTip": "比此角度更尖的轉角會加上耳狀 Brim",
+    "detection": "偵測長度",
+    "detectionTip": "比此長度更短的小凸起會先被平滑處理，因此不會加上耳狀 Brim",
+    "resize": "調整已選取項目大小",
+    "remove": "移除已選取",
+    "removeAll": "全部移除"
+  }
+}

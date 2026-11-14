@@ -1,0 +1,10 @@
+{
+  "shapes": {
+    "cube": "Kubus",
+    "cylinder": "Cilinder",
+    "sphere": "Bol",
+    "cone": "Kegel",
+    "disc": "Schijf",
+    "torus": "Torus"
+  }
+}

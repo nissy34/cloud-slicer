@@ -1,0 +1,12 @@
+{
+  "optionCheck": {
+    "allowed": "{{min}}〜{{max}} の範囲で指定できます",
+    "lowest": "最小値は {{min}} です",
+    "highest": "最大値は {{max}} です",
+    "setTo": "{{allowed}}。{{value}} に設定しました。",
+    "needed": "値が必要です。",
+    "noPercent": "この設定にパーセントは使えません。",
+    "notWhole": "「{{text}}」は整数ではありません。",
+    "notNumber": "「{{text}}」は数値ではありません。"
+  }
+}

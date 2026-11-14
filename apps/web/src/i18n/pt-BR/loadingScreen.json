@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Baixando o motor de fatiamento",
+    "setup": "Iniciando o motor de fatiamento",
+    "printers": "Carregando suas impressoras e predefinições",
+    "downloadingProject": "Baixando “{{name}}”",
+    "opening": "Abrindo {{name}}"
+  }
+}

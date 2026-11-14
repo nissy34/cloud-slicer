@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Térköz",
+    "spacingMm": "Térköz mm-ben",
+    "autoNote": "A 0 automatikus térközt jelent.",
+    "rotate": "Automatikus forgatás elrendezéskor",
+    "multiMaterial": "Több anyag engedélyezése ugyanazon a tálcán",
+    "alignYOff": "A használatához kapcsolja ki az Automatikus forgatást",
+    "alignYTip": "Úgy fordítja az objektumokat, hogy hosszabb oldaluk elölről hátra fusson",
+    "alignY": "Igazítás az Y tengelyhez",
+    "arrange": "Elrendezés",
+    "reset": "Visszaállítás"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "No se pudo guardar la disposición de las tarjetas. Se conserva hasta que recargue la página.",
+    "pageCard": "Tarjeta de página {{n}}",
+    "cameraCard": "Tarjeta de cámara {{n}}",
+    "arrangingFor": "Organizando las tarjetas de {{name}}.",
+    "helpPhone": "Mantenga pulsada una tarjeta por su asa y arrástrela hacia arriba o abajo.",
+    "helpDesktop": "Arrastre una tarjeta por su asa a una columna, o a lo largo de la parte superior o inferior.",
+    "helpRest": "Las tarjetas ocultas se quedan aquí, atenuadas. Las demás impresoras conservan su propia disposición.",
+    "columns": "Columnas",
+    "addCameraCard": "Añadir una tarjeta de cámara",
+    "addPageCard": "Añadir una tarjeta de página",
+    "backToDefault": "Volver a lo predeterminado",
+    "acrossTop": "A lo largo de la parte superior",
+    "column": "Columna {{n}}",
+    "acrossBottom": "A lo largo de la parte inferior",
+    "small": "Pequeña",
+    "medium": "Mediana",
+    "large": "Grande",
+    "moveCard": "Mover {{name}}",
+    "halfWidthTip": "Medio ancho: dos tarjetas de medio ancho van una al lado de la otra",
+    "halfWidth": "Medio ancho",
+    "cameraSize": "Tamaño de la cámara",
+    "remove": "Quitar"
+  }
+}

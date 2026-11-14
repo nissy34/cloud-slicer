@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "De slice-engine wordt gedownload",
+    "setup": "De slice-engine wordt gestart",
+    "printers": "Uw printers en voorinstellingen worden geladen",
+    "downloadingProject": "“{{name}}” wordt gedownload",
+    "opening": "{{name}} wordt geopend"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} / {{total}}",
+    "engineNoStart": "{{engine}} ezin izan da abiarazi",
+    "openedWith": "{{engine}}-rekin ireki da, proiektu hau egin zen motorrarekin.",
+    "somethingWrong": "Zerbait gaizki joan da",
+    "files_one": "Fitxategi {{count}}",
+    "files_other": "{{count}} fitxategi",
+    "saving": "Gordetzen…",
+    "savingAfterSlice": "Gordetzen… xerratu ondoren",
+    "savingMaking": "Gordetzen… 3MF egiten",
+    "savingSent": "Gordetzen… {{progress}}",
+    "savingFinishing": "Gordetzen… amaitzen",
+    "saved": "“{{name}}” zure proiektuetan gorde da",
+    "notSaved": "Gorde gabe: {{error}}",
+    "preparing": "3MF prestatzen…",
+    "makeFailed": "Ezin izan da 3MF egin: {{error}}",
+    "opening": "“{{name}}” irekitzen…",
+    "openFailed": "Ezin izan da “{{name}}” ireki: {{error}}",
+    "saveCancelled": "Gordetzea utzi da",
+    "viewOnly": "Proiektu hau ikusteko soilik da hemen. Erabili “Editatu hemen” aldatzeko.",
+    "openDriveFailed": "Ezin izan da “{{name}}” Google Drive-tik ireki: {{error}}",
+    "quoted": "“{{name}}”",
+    "cantOpen": "Cloud Slicer-ek ezin du {{names}} ireki.",
+    "cantOpenShared": "Cloud Slicer-ek ezin du {{names}} ireki",
+    "openedDriveFile": "“{{name}}” zure Google Drive-tik ireki da. Gordetzeak kopia bat mantentzen du zure Cloud Slicer karpetan. Drive-ko fitxategia dagoen bezala geratzen da.",
+    "openedDriveFiles": "{{name}} zure Google Drive-tik ireki dira. Gordetzeak kopia bat mantentzen du zure Cloud Slicer karpetan. Drive-ko fitxategiak dauden bezala geratzen dira.",
+    "myProject": "Nire proiektua",
+    "removed": "“{{name}}” zure proiektuetatik kendu da"
+  }
+}

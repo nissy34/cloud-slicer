@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "時間内に応答がありませんでした",
+    "noAccounts": "このサーバーではアカウントを利用できません",
+    "siteNoAnswer": "Cloud Slicer から応答がありません。接続を確認して、もう一度お試しください。",
+    "driveReconnect": "Google Drive をもう一度接続してください。アカウントメニュー（右上）を開き、「Google Drive を接続」を押してください。",
+    "driveNoAnswer": "Google Drive から応答がありません。接続を確認して、もう一度保存してください。",
+    "driveFull": "Google Drive がいっぱいです。Drive の空き容量を確保してから、もう一度保存してください。",
+    "driveGone": "このプロジェクトはもう Google Drive にありません",
+    "driveNoUpload": "Google Drive がアップロードを開始しませんでした",
+    "pickerBlocked": "ブラウザーが Google Drive のウィンドウをブロックしました。このサイトのポップアップを許可してから、もう一度お試しください。",
+    "driveSignIn": "Google Drive のファイルを開くには、Google でサインインしてください。",
+    "driveConnectFirst": "先にアカウントメニューで Google Drive を接続してください。",
+    "pickerNotSetUp": "Google Drive から開く機能は、このサイトではまだ設定されていません。"
+  }
+}

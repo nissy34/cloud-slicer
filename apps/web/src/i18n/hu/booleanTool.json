@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Egyesítés",
+    "difference": "Különbség",
+    "intersection": "Metszet",
+    "subtractFrom": "Kivonás ebből",
+    "subtractWith": "Kivonás ezzel",
+    "part": "{{n}}. tárgy",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Modellháló logikai műveletek",
+    "done": "Kész",
+    "operation": "Művelet",
+    "needTwo": "Ez egy objektum két tárgyán működik. Adjon hozzá tárgyat, negatív tárgyat vagy módosítót az objektum menüjéből (kattintson rá jobb gombbal, vagy az objektumlista ⋯ gombjával), helyezze el, majd jöjjön vissza ide.",
+    "unionHint": "A kettőt egy tárggyá egyesíti.",
+    "differenceHint": "A másodikat kivágja az elsőből.",
+    "intersectionHint": "Csak azt tartja meg, ahol a kettő átfedi egymást.",
+    "resultHint": "Az eredmény az első helyét, típusát és beállításait veszi át. A Visszavonás mindkettőt visszahozza.",
+    "pickDifferent": "Válasszon két különböző tárgyat.",
+    "deleteInput": "Bemenet törlése (a másodikat is eltávolítja)",
+    "working": "Dolgozik…"
+  }
+}

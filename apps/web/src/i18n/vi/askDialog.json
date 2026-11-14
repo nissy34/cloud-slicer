@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "Lưu “{{name}}”?",
+    "saveText": "Nó chưa có trong các dự án trực tuyến của bạn. Chọn Không lưu sẽ bỏ nó đi.",
+    "save": "Lưu",
+    "dontSave": "Không lưu",
+    "discardTitle": "Bỏ các thay đổi chưa lưu?",
+    "discard": "Bỏ thay đổi",
+    "openTitle": "Mở {{what}}",
+    "addToText": "Bạn đang làm việc với “{{project}}”. Thêm vào đó, hay bắt đầu dự án mới với nó?",
+    "newProject": "Dự án mới",
+    "addTo": "Thêm vào {{project}}"
+  }
+}

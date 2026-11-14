@@ -1,0 +1,32 @@
+{
+  "objectList": {
+    "notPrinted": "Skrivs inte ut",
+    "someNotPrinted": "Vissa kopior skrivs inte ut",
+    "object": "Objekt",
+    "sameAsObject": "Samma som objektet",
+    "objects": "Objekt",
+    "skippedTip": "{{name}}: {{why}}. Beredningen utelämnar det; kryssa i Utskriftsbar i dess ⋯-meny för att skriva ut det.",
+    "objectN": "Objekt {{n}}",
+    "filamentFor": "Filament för {{name}}",
+    "more": "Mer",
+    "moreFor": "Mer för {{name}}",
+    "moreTip": "Mer: klona, byt namn, spegelvänd, exportera… (eller högerklicka på objektet)",
+    "painted": "(målad)",
+    "moreForPart": "Mer för delen {{name}}",
+    "partMoreTip": "Byt namn, ändra typ, inställningar, ta bort",
+    "chosen_one": "{{count}} objekt valt",
+    "chosen_other": "{{count}} objekt valda",
+    "groupHint": "Flytta, rotera och skala fungerar på alla. Högerklicka på en vald modell, eller långtryck på den på en telefon, för resten.",
+    "deleteAllTip": "Ta bort alla (Del)",
+    "delete": "Ta bort",
+    "blockerHint": "{{kind}}: support växer inte där den överlappar objektet, när support är på. Flytta den med verktyget Flytta.",
+    "enforcerHint": "{{kind}}: support växer där den överlappar objektet, när support är på. Flytta den med verktyget Flytta.",
+    "addInstance": "Lägg till instans",
+    "addInstanceTip": "En kopia till av det, bredvid det (+). Ctrl+C och Ctrl+V klistrar in det som ett nytt objekt.",
+    "removeInstance": "Ta bort instans",
+    "removeInstanceTip": "Ta bort den här kopian och behåll de andra (-)",
+    "simplify": "Förenkla",
+    "simplifyTip": "Färre trianglar, som Förenkla modellen på datorn",
+    "deleteTip": "Objektet med alla dess kopior (Del tar bara bort den valda kopian)"
+  }
+}

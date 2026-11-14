@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Kamerák",
+    "climate": "Asztal és kamra",
+    "move": "Mozgatás",
+    "console": "Konzol",
+    "print": "Nyomtatás",
+    "toolHeads": "Szerszámfejek",
+    "alerts": "Értesítések",
+    "files": "Fájlok",
+    "unfold": "Kártya kinyitása",
+    "fold": "Kártya összecsukása",
+    "targetOf": "{{label}} célértéke",
+    "turnOff": "{{label}} kikapcsolása",
+    "off": "Ki",
+    "keepGoing": "Folytatás",
+    "chamberLight": "Kamravilágítás",
+    "purifierExhaust": "Légtisztító kifúvás",
+    "purifierFilter": "Légtisztító szűrő",
+    "fanAuto": "A nyomtató magától működteti ezt a ventilátort"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "카메라",
+    "climate": "베드 및 챔버",
+    "move": "이동",
+    "console": "콘솔",
+    "print": "출력",
+    "toolHeads": "툴헤드",
+    "alerts": "알림",
+    "files": "파일",
+    "unfold": "이 카드 펼치기",
+    "fold": "이 카드 접기",
+    "targetOf": "{{label}} 목표 온도",
+    "turnOff": "{{label}} 끄기",
+    "off": "꺼짐",
+    "keepGoing": "계속 진행",
+    "chamberLight": "챔버 조명",
+    "purifierExhaust": "공기 청정기 배기",
+    "purifierFilter": "공기 청정기 필터",
+    "fanAuto": "프린터가 이 팬을 자동으로 제어합니다"
+  }
+}

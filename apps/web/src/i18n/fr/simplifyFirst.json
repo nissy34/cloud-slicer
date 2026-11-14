@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "Simplifier d’abord ce modèle ?",
+    "openAsIs": "Ouvrir tel quel",
+    "simplify": "Simplifier",
+    "paintKept": "Sa peinture sera conservée sur le maillage simplifié.",
+    "dontAsk": "Ne plus demander sur cet appareil"
+  }
+}

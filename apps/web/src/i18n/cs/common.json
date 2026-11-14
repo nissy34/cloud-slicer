@@ -1,0 +1,14 @@
+{
+  "common": {
+    "cancel": "Zrušit",
+    "copied": "Zkopírováno",
+    "copyError": "Kopírovat chybu",
+    "hide": "Skrýt",
+    "show": "Zobrazit",
+    "close": "Zavřít",
+    "closeMessage": "Zavřít zprávu",
+    "done": "Hotovo",
+    "notNow": "Teď ne",
+    "next": "Další"
+  }
+}

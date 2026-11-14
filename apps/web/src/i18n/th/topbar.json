@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "พื้นที่ทำงาน",
+    "prepare": "เตรียม",
+    "preview": "พรีวิว",
+    "device": "อุปกรณ์",
+    "calibration": "การปรับเทียบ",
+    "slicingWith": "กำลังสไลซ์ด้วย {{name}} {{version}}"
+  }
+}

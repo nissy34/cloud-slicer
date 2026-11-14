@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Doorgaan waar u gebleven was?",
+    "local": "{{name}}, gewijzigd {{when}}. Bewaard in deze browser, niet opgeslagen.",
+    "discard": "Verwerpen",
+    "continue": "Doorgaan",
+    "projectAsk": "{{name}} voortzetten?",
+    "project": "{{name}} voortzetten",
+    "openHere": "U had het hier geopend, bewerkt {{when}}",
+    "editedOn": "Bewerkt {{when}} op {{device}}",
+    "notNow": "Nu niet",
+    "editedElsewhere": "{{name}} wordt bewerkt op {{device}}",
+    "viewOnly": "Dit tabblad is alleen om te bekijken.",
+    "viewOnlyUnsaved": "Dit tabblad is alleen om te bekijken. Wijzigingen die u hier maakte zitten er niet in.",
+    "saveMineAsCopy": "Mijn versie als kopie bewaren",
+    "editHere": "In plaats daarvan hier bewerken",
+    "gone": "“{{name}}” is verwijderd op {{device}}. Het is hier nog open, maar niet bewaard."
+  }
+}

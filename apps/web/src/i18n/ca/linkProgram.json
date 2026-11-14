@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Aquest codi ha caducat. Demaneu a la vostra aplicació d'IA que torni a iniciar la sessió per obtenir-ne un de nou.",
+    "invalid": "Aquest codi no és vàlid. Compareu-lo amb el que mostra la vostra aplicació d'IA, o demaneu-li que torni a iniciar la sessió.",
+    "siteAnswered": "El lloc ha respost {{status}}",
+    "checkingAccount": "Comprovant el vostre compte…",
+    "signInFirst": "Primer inicieu la sessió a Cloud Slicer. Després aquesta finestra us demanarà de connectar la vostra aplicació d'IA.",
+    "noSignIn": "L'inici de sessió no està configurat en aquest lloc.",
+    "codeLabel": "El codi que mostra la vostra aplicació d'IA",
+    "checkingCode": "Comprovant el codi…",
+    "connected": "Connectada. Torneu a la vostra aplicació d'IA: ha iniciat la sessió com a {{name}}.",
+    "turnedDown": "Rebutjada. La vostra aplicació d'IA no ha iniciat la sessió.",
+    "asks": "Una aplicació d'IA del vostre ordinador (el complement de Cloud Slicer) demana d'usar el vostre compte, <b>{{email}}</b>. Comproveu que mostra aquest codi:",
+    "willSee": "Veurà els vostres perfils i impressores desats, i pot comprovar les impressores i pujar-hi fitxers. Us ho demana cada vegada abans d'iniciar una impressió. Podeu tancar-li la sessió des de l'aplicació d'IA.",
+    "continueGoogle": "Continua amb Google",
+    "dontConnect": "No connectis",
+    "connect": "Connecta",
+    "title": "Connecta una aplicació d'IA"
+  }
+}

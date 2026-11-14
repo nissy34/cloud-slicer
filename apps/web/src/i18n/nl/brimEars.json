@@ -1,0 +1,28 @@
+{
+  "brimEars": {
+    "title": "Randoren",
+    "done": "Klaar",
+    "intro": "Ronde randpads onder de hoeken voorkomen dat ze loskomen, met veel minder rand om te verwijderen dan bij een volledige rand.",
+    "howTouch": "Tik op het model of op het printbed ernaast om een oor toe te voegen. Tik op een oor om het te kiezen en dan op Gekozen verwijderen.",
+    "howMouse": "Klik op het model of op het printbed ernaast om een oor toe te voegen. Klik op een oor om het te kiezen (Shift voegt er meer toe), of klik met rechts om het te verwijderen.",
+    "reading": "De oren worden gelezen…",
+    "notPainted": "De oren worden alleen geprint als het randtype van dit voorwerp Geschilderd (randoren) is.",
+    "usePainted": "Randoren gebruiken voor dit voorwerp",
+    "ears": "Oren",
+    "count_one": "{{count}} oor",
+    "count_other": "{{count}} oren",
+    "loose_one": "{{count}} raakt het voorwerp niet",
+    "loose_other": "{{count}} raken het voorwerp niet",
+    "picked_one": "{{count}} gekozen",
+    "picked_other": "{{count}} gekozen",
+    "size": "Oorgrootte",
+    "auto": "Oren op de hoeken toevoegen",
+    "maxAngle": "Maximale hoek",
+    "maxAngleTip": "Hoeken die scherper zijn dan dit krijgen een oor",
+    "detection": "Detectielengte",
+    "detectionTip": "Kleine bulten die korter zijn dan dit worden eerst gladgestreken, zodat ze geen oren krijgen",
+    "resize": "Gekozen oren verkleinen of vergroten",
+    "remove": "Gekozen verwijderen",
+    "removeAll": "Alles verwijderen"
+  }
+}

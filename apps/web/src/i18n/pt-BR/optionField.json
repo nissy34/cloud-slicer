@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Redefinir para o valor da predefinição",
+    "keptOld": "O valor antigo foi mantido.",
+    "kept": "{{value}} foi mantido.",
+    "plateUses": "A placa {{n}} usa",
+    "on": "ativado",
+    "off": "desativado",
+    "itsOwn": "(configuração própria).",
+    "plateSettings": "Configurações da placa",
+    "default": "Padrão",
+    "percentOrMm": "Porcentagem ou mm?",
+    "isItPercent": "{{label}}: é {{number}}% ou {{number}} {{unit}}?",
+    "filamentN": "Filamento {{n}}",
+    "mix": "Mistura",
+    "mixes": "Misturas"
+  }
+}

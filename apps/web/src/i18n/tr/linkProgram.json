@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Bu kodun süresi doldu. Yeni bir kod için yapay zekâ uygulamanızdan yeniden oturum açmasını isteyin.",
+    "invalid": "Bu kod geçerli değil. Yapay zekâ uygulamanızın gösterdiği kodla karşılaştırın veya yeniden oturum açmasını isteyin.",
+    "siteAnswered": "Site {{status}} yanıtı verdi",
+    "checkingAccount": "Hesabınız denetleniyor…",
+    "signInFirst": "Önce Cloud Slicer'da oturum açın. Ardından bu pencere yapay zekâ uygulamanızı bağlamanızı ister.",
+    "noSignIn": "Bu sitede oturum açma kurulmadı.",
+    "codeLabel": "Yapay zekâ uygulamanızın gösterdiği kod",
+    "checkingCode": "Kod denetleniyor…",
+    "connected": "Bağlandı. Yapay zekâ uygulamanıza dönün: {{name}} olarak oturum açtı.",
+    "turnedDown": "Reddedildi. Yapay zekâ uygulamanız oturum açmadı.",
+    "asks": "Bilgisayarınızdaki bir yapay zekâ uygulaması (Cloud Slicer eklentisi) <b>{{email}}</b> hesabınızı kullanmak istiyor. Bu kodu gösterdiğinden emin olun:",
+    "willSee": "Kayıtlı ön ayarlarınızı ve yazıcılarınızı görecek, yazıcılarınızı denetleyip onlara yükleme yapabilecek. Bir baskıyı başlatmadan önce her seferinde size sorar. Yapay zekâ uygulamasından oturumunu kapatabilirsiniz.",
+    "continueGoogle": "Google ile devam et",
+    "dontConnect": "Bağlanma",
+    "connect": "Bağlan",
+    "title": "Yapay zekâ uygulaması bağla"
+  }
+}

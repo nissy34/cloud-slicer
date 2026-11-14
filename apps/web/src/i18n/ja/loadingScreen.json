@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "スライスエンジンをダウンロード中",
+    "setup": "スライスエンジンを起動中",
+    "printers": "プリンターとプリセットを読み込み中",
+    "downloadingProject": "「{{name}}」をダウンロード中",
+    "opening": "{{name}}を開いています"
+  }
+}

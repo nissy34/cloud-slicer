@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Altres aplicacions de xat",
+    "title": "Usa amb una aplicació d'IA",
+    "more": "Més informació",
+    "intro": "Demaneu a la vostra aplicació d'IA que lamini per vosaltres: «Lamina aquest Benchy per a la meva U1 en PETG amb 4 parets i digues-me el temps.» Instal·leu-la a Claude Desktop com a extensió, o en altres aplicacions de xat de l'ordinador com LM Studio i Msty. Lamina a l'ordinador amb els mateixos motors i perfils que aquest lloc, i els vostres models hi queden.",
+    "whichApp": "Quina aplicació",
+    "step1": "Descarregueu l'extensió de Cloud Slicer.",
+    "download": "Descarrega per a Claude Desktop",
+    "size": "uns 11 MB. Ja la teniu instal·lada? Torneu-la a descarregar per actualitzar-la.",
+    "step2": "Obriu el fitxer. Claude Desktop us demanarà d'instal·lar-la: feu clic a <b>Instal·la</b>.",
+    "step3": "Demaneu a Claude que lamini un fitxer de l'ordinador.",
+    "otherStep1": "A la configuració de la vostra aplicació de xat, afegiu un servidor MCP amb això (la majoria d'aplicacions l'accepten tal qual):",
+    "otherStep2": "Necessita Node 20 o posterior a l'ordinador (<a>nodejs.org</a>).",
+    "canDo": "Pot obrir models i projectes, triar la impressora, el procés i els filaments, definir colors i quin filament imprimeix cada objecte, canviar paràmetres, ordenar safates i laminar. Mentre l'ordinador estigui encès, Claude al mòbil també el pot usar. Amb la sessió iniciada, també usa els vostres perfils i impressores, i us pregunta abans d'iniciar una impressió.",
+    "version": "Versió {{version}}"
+  }
+}

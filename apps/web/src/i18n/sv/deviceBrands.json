@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "API-nyckel",
+    "klipperHint": "Mainsail och Fluidd visar den i sina inställningar.",
+    "klipperLocked": "Den här skrivaren är låst: skriv dess API-nyckel",
+    "prusaKey": "PrusaLink-lösenord",
+    "prusaHint": "Skrivaren visar det under Settings, Network, PrusaLink (användarnamnet där är maker).",
+    "prusaLocked": "Skriv PrusaLink-lösenordet från skrivarens skärm",
+    "octoprintKey": "OctoPrint API-nyckel",
+    "octoprintHint": "I OctoPrint: Settings, Application Keys, skapa sedan en nyckel för Cloud Slicer (eller kopiera din användares API-nyckel under Settings, API).",
+    "octoprintLocked": "Den här OctoPrint är låst: skriv en API-nyckel från dess inställningar",
+    "bambuKey": "LAN-åtkomstkod",
+    "bambuHint": "Skrivaren visar den på sin skärm, i nätverksinställningarna intill LAN Only-läget. För att skicka utskrifter och styra den härifrån, slå också på LAN Only-läge och Developer Mode där (Bambus moln och appen Bambu Handy slutar fungera medan de är på).",
+    "bambuLocked": "Skriv åtkomstkoden från skrivarens skärm",
+    "featStatus": "Status",
+    "featSend": "Skicka och skriv ut",
+    "featCamera": "Kamera",
+    "featMove": "Flytta och temperaturer",
+    "featMoveShort": "Flytta och temp.",
+    "featConsole": "Konsol",
+    "klipperName": "Klipper-skrivare",
+    "klipperExamples": "Snapmaker U1, Voron, Qidi, Sovol",
+    "prusaName": "Prusa med PrusaLink",
+    "prusaExamples": "MK4, Core One, XL, Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "alla skrivare som OctoPrint kör",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "inte Carbon 2 än",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1, P1, P2S, A1, H2; kamera på P1 och A1; kräver Developer Mode"
+  }
+}

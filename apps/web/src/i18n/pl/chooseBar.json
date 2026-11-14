@@ -1,0 +1,20 @@
+{
+  "chooseBar": {
+    "chosenModels": "Wybrane modele",
+    "tapToChoose": "Dotknij modeli, aby je wybrać",
+    "chosen_one": "Wybrano {{count}}",
+    "chosen_few": "Wybrano {{count}}",
+    "chosen_many": "Wybrano {{count}}",
+    "chosen_other": "Wybrano {{count}}",
+    "selectAll": "Zaznacz wszystko",
+    "all": "Wszystko",
+    "assemble": "Złóż",
+    "assembleTip": "Połącz je w jeden obiekt, każdą część tam, gdzie stoi",
+    "menuTip": "Co zrobić ze wszystkimi (lub kliknij prawym przyciskiem / przytrzymaj wybrany model)",
+    "menu": "Co z nimi zrobić",
+    "doneTip": "Dotknięcia znów wybierają jeden model",
+    "clearTip": "Nic nie wybrano (Esc)",
+    "done": "Gotowe",
+    "clear": "Wyczyść"
+  }
+}

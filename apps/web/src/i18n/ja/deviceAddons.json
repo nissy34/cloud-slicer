@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint がプリンターに接続されていません。",
+    "octoprintRestart": "再接続",
+    "octoprintRestarting": "OctoPrint をプリンターに接続中",
+    "bambuStopped": "プリンターが応答しなくなりました。電源が入っていてネットワークにつながっているか確認してください。",
+    "bambuCameraMissing": "カメラをここに表示できるのは P1 と A1 のプリンターだけです。X1、H2、P2S の映像は Bambu 純正アプリでしか再生できません。",
+    "bambuSlotNoun": "AMS スロット",
+    "bambuSlotUnset": "そこにフィラメントをセットするか、プリンターの画面で設定してください。",
+    "bambuSlotNote": "Bambu Studio と同様、フィラメントは同じ種類のフィラメントのスロットにしか入れられません。ブランドと色は異なっていてもかまいません。",
+    "outsideSpool": "外部スプール",
+    "u1Heads": "ツールヘッド",
+    "u1HeadNoun": "ツールヘッド",
+    "u1HeadUnset": "フィラメントをセットするか、ツールヘッドのカードで種類を設定してください。",
+    "u1HeadNote": "Snapmaker 純正アプリと同様、フィラメントは同じフィラメントの種類とノズル径のヘッドにしか入れられません。ブランドと色は異なっていてもかまいません。",
+    "nozzleStandard": "標準",
+    "nozzleHighFlow": "ハイフロー",
+    "calibratingOffsets": "ツールオフセットを調整中",
+    "levellingBed": "ベッドのレベリング中",
+    "calibratingFlow": "フローを調整中",
+    "calibratingShaper": "インプットシェーピングを調整中",
+    "updatingFirmware": "ファームウェアを更新中",
+    "needsAttention": "プリンターの画面で操作が必要です",
+    "adjustingScrews": "ベッドのネジを調整中",
+    "loadingFilament": "フィラメントを装填中",
+    "unloadingFilament": "フィラメントを取り外し中",
+    "calibratingPark": "パーク位置を調整中",
+    "calibratingHome": "ホーム位置を調整中",
+    "hotendFan": "ホットエンドファン T{{n}}"
+  }
+}

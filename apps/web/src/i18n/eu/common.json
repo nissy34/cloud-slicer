@@ -1,0 +1,14 @@
+{
+  "common": {
+    "cancel": "Utzi",
+    "copied": "Kopiatuta",
+    "copyError": "Kopiatu errorea",
+    "hide": "Ezkutatu",
+    "show": "Erakutsi",
+    "close": "Itxi",
+    "closeMessage": "Itxi mezua",
+    "done": "Eginda",
+    "notNow": "Orain ez",
+    "next": "Hurrengoa"
+  }
+}

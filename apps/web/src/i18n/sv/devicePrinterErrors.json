@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "Problem med rörelsesystemet",
+    "mainboardProblem": "Problem med moderkortet",
+    "amsProblem": "AMS-problem",
+    "toolheadProblem": "Problem med verktygshuvudet",
+    "cameraProblem": "Kameraproblem",
+    "printerProblem": "Skrivarproblem",
+    "bambuUnknown": "Skrivaren rapporterade det här problemet. Titta på dess skärm för detaljer.",
+    "printerError": "Skrivarfel",
+    "u1Unknown": "Skrivaren rapporterade ett fel. Titta på dess skärm för detaljer."
+  }
+}

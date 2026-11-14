@@ -1,0 +1,28 @@
+{
+  "simplifyTool": {
+    "title": "简化",
+    "done": "完成",
+    "hint": "三角面更少，大模型的打开、切片和预览会更快。细节可能变柔和；撤销可恢复原来的网格。",
+    "trianglesLabel": "三角面",
+    "triangles_other": "{{n}} 个三角面",
+    "trianglesUnknown": "… 个三角面",
+    "workingOut": "（计算中…）",
+    "by": "简化方式",
+    "detailLevel": "细节级别",
+    "ratio": "抽取比例",
+    "detail": "细节",
+    "removeTip": "要移除的三角面占比",
+    "remove": "移除",
+    "paintKept": "此对象的绘制内容（颜色、支撑、接缝、绒毛表面）会保留在简化后的网格上。",
+    "apply": "应用",
+    "extraHigh": "极高",
+    "high": "高",
+    "medium": "中",
+    "low": "低",
+    "extraLow": "极低",
+    "million": "{{n}} 百万",
+    "heavyPlates": "有 {{n}} 个盘的三角面超过 {{limit}}（最多 {{most}}），这可能超出此设备的承受能力。将每个简化到约 {{light}} 个仍能保留足够的打印细节。",
+    "heavyPlate": "第 {{n}} 盘有 {{triangles}} 个三角面，这可能超出此设备的承受能力。简化到约 {{light}} 个仍能保留足够的打印细节。",
+    "heavyModel": "此模型有 {{triangles}} 个三角面，这可能超出此设备的承受能力。简化到约 {{light}} 个仍能保留足够的打印细节。"
+  }
+}

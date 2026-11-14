@@ -1,0 +1,25 @@
+{
+  "presetChanges": {
+    "filamentN": "Filament {{n}}",
+    "process": "Proces",
+    "printer": "Tiskárna",
+    "changes_one": "{{count}} změna",
+    "changes_few": "{{count}} změny",
+    "changes_many": "{{count}} změny",
+    "changes_other": "{{count}} změn",
+    "saveTitle": "Uložit změněná nastavení",
+    "back": "Zpět",
+    "saving": "Ukládání…",
+    "save": "Uložit",
+    "namesText": "Vaše vlastní předvolby si ponechají název a převezmou změny. Zadejte nový název, abyste místo toho uložili kopii.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Ponechat změněná nastavení?",
+    "discard": "Zahodit",
+    "saveMenu": "Uložit…",
+    "keep": "Ponechat",
+    "text": "Některé předvolby mají změněná nastavení. Ponechte je v novém projektu, zahoďte je, nebo je uložte do předvoleb.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Zapamatovat si mou volbu (Ponechat nebo Zahodit)"
+  }
+}

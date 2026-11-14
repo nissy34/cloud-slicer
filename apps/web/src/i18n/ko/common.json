@@ -1,0 +1,14 @@
+{
+  "common": {
+    "cancel": "취소",
+    "copied": "복사됨",
+    "copyError": "오류 복사",
+    "hide": "숨기기",
+    "show": "표시",
+    "close": "닫기",
+    "closeMessage": "메시지 닫기",
+    "done": "완료",
+    "notNow": "나중에",
+    "next": "다음"
+  }
+}

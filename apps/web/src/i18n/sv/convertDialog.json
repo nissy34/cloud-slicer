@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Konvertera det här projektet?",
+    "convert": "Konvertera",
+    "setUpFor": "Det var konfigurerat för <b>{{printer}}</b>. Välj en av dina skrivare att skriva ut det på.",
+    "printer": "Skrivare",
+    "convertTo": "Konvertera till skrivare",
+    "keep": "Behåll de modellinställningar som projektet ändrade: lager, väggar, ifyllnad, support, sömmar, brim",
+    "remember": "Gör så här automatiskt nästa gång",
+    "note": "Inställningar som projektet lämnade på sin gamla skrivares standardvärden, samt hastigheter, acceleration, jerk, linjebredder, flödeskalibrering och prime tornet, kommer från {{printer}}. Filament matchas efter material och sort (matt, silke, högt flöde...) och behåller projektets färger.",
+    "yourPrinter": "din skrivare"
+  }
+}

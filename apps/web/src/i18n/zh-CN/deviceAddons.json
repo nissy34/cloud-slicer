@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint 未连接到打印机。",
+    "octoprintRestart": "重新连接",
+    "octoprintRestarting": "正在将 OctoPrint 连接到打印机",
+    "bambuStopped": "打印机已停止响应：请检查它是否开机并已联网。",
+    "bambuCameraMissing": "只有 P1 和 A1 打印机会在此显示摄像头：X1、H2 和 P2S 发送的视频只能由 Bambu 自己的应用播放。",
+    "bambuSlotNoun": "AMS 槽位",
+    "bambuSlotUnset": "请在那里装入耗材，或在打印机屏幕上设置。",
+    "bambuSlotNote": "与 Bambu Studio 一样，耗材只能放入相同耗材类型的槽位。品牌和颜色可以不同。",
+    "outsideSpool": "外挂料盘",
+    "u1Heads": "工具头",
+    "u1HeadNoun": "工具头",
+    "u1HeadUnset": "装入耗材，或在“工具头”卡片上设置其类型。",
+    "u1HeadNote": "与 Snapmaker 自己的应用一样，耗材只能放入耗材类型和喷嘴大小相同的工具头。品牌和颜色可以不同。",
+    "nozzleStandard": "标准",
+    "nozzleHighFlow": "高流量",
+    "calibratingOffsets": "正在校准工具偏移",
+    "levellingBed": "正在调平热床",
+    "calibratingFlow": "正在校准流量",
+    "calibratingShaper": "正在校准输入整形",
+    "updatingFirmware": "正在更新固件",
+    "needsAttention": "需要在打印机屏幕上处理",
+    "adjustingScrews": "正在调整热床螺丝",
+    "loadingFilament": "正在进料",
+    "unloadingFilament": "正在退料",
+    "calibratingPark": "正在校准停靠位置",
+    "calibratingHome": "正在校准原点位置",
+    "hotendFan": "热端风扇 T{{n}}"
+  }
+}

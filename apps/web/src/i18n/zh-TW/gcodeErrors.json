@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "「{{variable}}」不是此切片軟體認識的設定（可能來自其他切片軟體或較新的版本）。",
+    "unknownName": "它使用了此切片軟體不認識的名稱。",
+    "negativeIndex": "在載入第一個線材之前就讀取了「{{variable}}」（此時索引為 -1）；請先用 {if ...} 檢查該索引。",
+    "negativeIndexList": "在載入第一個線材之前就讀取了清單（此時索引為 -1）；請先用 {if ...} 檢查該索引。",
+    "reasonAt": "在「{{variable}}」處：{{reason}}。",
+    "reason": "{{reason}}。",
+    "line": "{{setting}}，第 {{line}} 行：{{why}}",
+    "filamentSettings": "線材設定",
+    "printerSettings": "列印裝置設定",
+    "or": "或",
+    "stoppedOne": "切片已停止：有一段自訂 G-code 無法填入。",
+    "stoppedSome": "切片已停止：有些自訂 G-code 無法填入。",
+    "fix": "請在{{where}}中修正，或重設為預設的 G-code。"
+  }
+}

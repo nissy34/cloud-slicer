@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "합집합",
+    "difference": "차집합",
+    "intersection": "교집합",
+    "subtractFrom": "뺄 대상",
+    "subtractWith": "빼는 부품",
+    "part": "부품 {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "메시 불리언",
+    "done": "완료",
+    "operation": "연산",
+    "needTwo": "한 객체의 부품 두 개에 사용할 수 있습니다. 객체 메뉴(우클릭하거나 객체 목록의 ⋯ 버튼)에서 부품, 비우기 부품 또는 수정자를 추가하고 배치한 뒤 다시 오세요.",
+    "unionHint": "두 부품을 하나로 합칩니다.",
+    "differenceHint": "첫 번째 부품에서 두 번째 부품을 잘라냅니다.",
+    "intersectionHint": "두 부품이 겹치는 부분만 남깁니다.",
+    "resultHint": "결과는 첫 번째 부품의 자리, 종류, 설정을 따릅니다. 실행 취소하면 둘 다 돌아옵니다.",
+    "pickDifferent": "서로 다른 부품 두 개를 고르세요.",
+    "deleteInput": "원본 삭제 (두 번째 부품도 제거)",
+    "working": "작업 중…"
+  }
+}

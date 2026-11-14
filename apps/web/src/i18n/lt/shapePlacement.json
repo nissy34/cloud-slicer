@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Sukti tekstą",
+    "rotateSvg": "Sukti SVG",
+    "moveText": "Atitraukti tekstą nuo paviršiaus",
+    "moveSvg": "Atitraukti SVG nuo paviršiaus",
+    "rotationTip": "Sukti aplink savo ašį pagal laikrodžio rodyklę (žiedas 3D vaizde daro tą patį)",
+    "rotation": "Pasukimas",
+    "fromSurfaceTip": "Kaip toli jis stovi nuo paviršiaus",
+    "fromSurface": "Nuo paviršiaus",
+    "keepUpTip": "Laiko jį stačią, kai slenkate paviršiumi arba atsukate į kamerą",
+    "keepUp": "Laikyti stačią",
+    "faceCameraTip": "Atsukti jį į jus, iš ten, iš kur į jį žiūrite",
+    "faceCamera": "Atsukti į kamerą",
+    "moveToolsText": "Perkelkite arba pasukite tekstą tais įrankiais.",
+    "moveToolsShape": "Perkelkite arba pasukite formą tais įrankiais.",
+    "dragText": "Vilkite tekstą arba jo mėlyną rėmelį, kad slinktumėte objektu. Žiedas jį pasuka.",
+    "dragShape": "Vilkite formą arba jos mėlyną rėmelį, kad slinktumėte objektu. Žiedas ją pasuka."
+  }
+}

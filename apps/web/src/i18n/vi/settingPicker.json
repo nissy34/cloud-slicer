@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "Cài đặt để thêm vào vật thể này",
+    "forPart": "Cài đặt để thêm vào phần này",
+    "forModifier": "Cài đặt để thêm vào modifier này",
+    "search": "Tìm cài đặt",
+    "done": "Xong",
+    "noMatch": "Không có cài đặt nào khớp “{{query}}”.",
+    "more": "Thêm cài đặt"
+  }
+}

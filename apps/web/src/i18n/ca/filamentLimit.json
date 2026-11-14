@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} filaments en {{heads}} capçals: en enviar la impressió trieu quin capçal imprimeix cadascun.",
+    "warn": "{{n}} filaments en una impressora amb {{heads}} capçals."
+  }
+}

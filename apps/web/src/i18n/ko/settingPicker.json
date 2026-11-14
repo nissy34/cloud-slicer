@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "이 객체에 추가할 설정",
+    "forPart": "이 부품에 추가할 설정",
+    "forModifier": "이 수정자에 추가할 설정",
+    "search": "설정 검색",
+    "done": "완료",
+    "noMatch": "“{{query}}”와(과) 일치하는 설정이 없습니다.",
+    "more": "설정 더 보기"
+  }
+}

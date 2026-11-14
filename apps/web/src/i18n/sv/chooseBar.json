@@ -1,0 +1,18 @@
+{
+  "chooseBar": {
+    "chosenModels": "Valda modeller",
+    "tapToChoose": "Tryck på modeller för att välja dem",
+    "chosen_one": "{{count}} vald",
+    "chosen_other": "{{count}} valda",
+    "selectAll": "Markera alla",
+    "all": "Alla",
+    "assemble": "Montera",
+    "assembleTip": "Sammanfoga dem till ett objekt, varje del där den står",
+    "menuTip": "Vad du vill göra med dem alla (eller högerklicka / långtryck på en vald modell)",
+    "menu": "Vad du vill göra med dem",
+    "doneTip": "Tryck väljer en modell igen",
+    "clearTip": "Inget valt (Esc)",
+    "done": "Klar",
+    "clear": "Rensa"
+  }
+}

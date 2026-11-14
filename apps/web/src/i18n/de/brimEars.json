@@ -1,0 +1,28 @@
+{
+  "brimEars": {
+    "title": "Brim-Ohren",
+    "done": "Fertig",
+    "intro": "Runde Randflächen unter den Ecken verhindern, dass sie sich abheben, und lassen sich viel leichter entfernen als ein vollständiger Rand.",
+    "howTouch": "Tippen Sie auf das Modell oder das Druckbett daneben, um ein Ohr hinzuzufügen. Tippen Sie auf ein Ohr, um es auszuwählen, dann auf Ausgewählte entfernen.",
+    "howMouse": "Klicken Sie auf das Modell oder das Druckbett daneben, um ein Ohr hinzuzufügen. Klicken Sie auf ein Ohr, um es auszuwählen (Shift wählt weitere aus), oder klicken Sie es mit der rechten Maustaste an, um es zu entfernen.",
+    "reading": "Ohren werden gelesen…",
+    "notPainted": "Die Ohren werden nur gedruckt, wenn der Randtyp dieses Objekts „Bemalt“ (Brim-Ohren) ist.",
+    "usePainted": "Brim-Ohren für dieses Objekt verwenden",
+    "ears": "Ohren",
+    "count_one": "{{count}} Ohr",
+    "count_other": "{{count}} Ohren",
+    "loose_one": "{{count}} berührt das Objekt nicht",
+    "loose_other": "{{count}} berühren das Objekt nicht",
+    "picked_one": "{{count}} ausgewählt",
+    "picked_other": "{{count}} ausgewählt",
+    "size": "Ohrgröße",
+    "auto": "Ohren an den Ecken hinzufügen",
+    "maxAngle": "Maximaler Winkel",
+    "maxAngleTip": "Ecken, die spitzer sind, bekommen ein Ohr",
+    "detection": "Erkennungslänge",
+    "detectionTip": "Kleine Unebenheiten, die kürzer sind, werden zuerst geglättet und bekommen daher keine Ohren",
+    "resize": "Ausgewählte skalieren",
+    "remove": "Ausgewählte entfernen",
+    "removeAll": "Alle entfernen"
+  }
+}

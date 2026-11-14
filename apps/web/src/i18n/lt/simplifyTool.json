@@ -1,0 +1,31 @@
+{
+  "simplifyTool": {
+    "title": "Supaprastinimas",
+    "done": "Atlikta",
+    "hint": "Mažiau trikampių didelį modelį padaro greičiau atidaromą, sluoksniuojamą ir peržiūrimą. Smulkios detalės gali sušvelnėti; Atšaukti grąžina seną tinklą.",
+    "trianglesLabel": "Trikampiai",
+    "triangles_one": "{{n}} trikampis",
+    "triangles_few": "{{n}} trikampiai",
+    "triangles_many": "{{n}} trikampio",
+    "triangles_other": "{{n}} trikampių",
+    "trianglesUnknown": "… trikampių",
+    "workingOut": "(skaičiuojama…)",
+    "by": "Supaprastinti pagal",
+    "detailLevel": "Detalumo lygis",
+    "ratio": "Mažinimo santykis",
+    "detail": "Detalumas",
+    "removeTip": "Šalinamų trikampių dalis",
+    "remove": "Šalinti",
+    "paintKept": "Šio objekto dažymas (spalvos, atramos, siūlės, šiurkštus paviršius) išlaikomas supaprastintame tinkle.",
+    "apply": "Taikyti",
+    "extraHigh": "Labai aukštas",
+    "high": "Aukštas",
+    "medium": "Vidutinis",
+    "low": "Žemas",
+    "extraLow": "Labai žemas",
+    "million": "{{n}} mln.",
+    "heavyPlates": "{{n}} plokščių turi daugiau nei {{limit}} trikampių (iki {{most}}), o tai gali būti daugiau, nei šis įrenginys gali sutalpinti. Supaprastinus kiekvieną iki maždaug {{light}}, spausdinimui išlieka pakankamai detalių.",
+    "heavyPlate": "Plokštė {{n}} turi {{triangles}} trikampių, o tai gali būti daugiau, nei šis įrenginys gali sutalpinti. Supaprastinus ją iki maždaug {{light}}, spausdinimui išlieka pakankamai detalių.",
+    "heavyModel": "Šis modelis turi {{triangles}} trikampių, o tai gali būti daugiau, nei šis įrenginys gali sutalpinti. Supaprastinus jį iki maždaug {{light}}, spausdinimui išlieka pakankamai detalių."
+  }
+}

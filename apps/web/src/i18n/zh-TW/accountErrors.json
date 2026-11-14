@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "未能及時回應",
+    "noAccounts": "此伺服器不提供帳號功能",
+    "siteNoAnswer": "Cloud Slicer 沒有回應。請檢查您的連線，然後再試一次。",
+    "driveReconnect": "Google Drive 需要重新連線。請開啟帳號選單（右上角）並按「連接 Google Drive」。",
+    "driveNoAnswer": "Google Drive 沒有回應。請檢查您的連線，然後再儲存一次。",
+    "driveFull": "您的 Google Drive 已滿。請在 Drive 中釋出一些空間，然後再儲存一次。",
+    "driveGone": "此專案已不在您的 Google Drive 中",
+    "driveNoUpload": "Google Drive 沒有開始上傳",
+    "pickerBlocked": "您的瀏覽器封鎖了 Google Drive 視窗。請允許此網站的彈出式視窗，然後再試一次。",
+    "driveSignIn": "請使用 Google 登入，以開啟您 Google Drive 中的檔案。",
+    "driveConnectFirst": "請先在帳號選單中連接 Google Drive。",
+    "pickerNotSetUp": "此網站尚未設定從 Google Drive 開啟。"
+  }
+}

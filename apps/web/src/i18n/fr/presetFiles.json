@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} fait {{size}} ; un fichier de préréglage peut faire jusqu’à {{max}}.",
+    "notJson": "{{label}} n’est pas un fichier de préréglage (pas du JSON).",
+    "tooMany": "Seuls {{max}} préréglages peuvent être importés à la fois ; {{label}} a été omis.",
+    "bundleTooBig": "{{name}} fait {{size}} ; un lot peut faire jusqu’à {{max}}.",
+    "badZip": "{{name}} n’a pas pu être ouvert comme un zip.",
+    "unpacksTooBig": "{{name}} se décompresse en plus de {{max}}, ou contient un fichier de plus de {{fileMax}} ; rien n’en a été importé.",
+    "empty": "{{name}} ne contient aucun fichier de préréglage.",
+    "tooManyKeys": "Il modifie plus de {{max}} réglages.",
+    "tooLarge": "Ses réglages dépassent {{max}}.",
+    "fileN": "fichier {{n}}",
+    "unreadable": "Ce n’est pas un préréglage qu’Orca sait lire : {{error}}.",
+    "noName": "Il n’a pas de nom utilisable.",
+    "anotherPrinter": "une autre imprimante",
+    "otherPrinter": "Il est prévu pour {{made}}, que cette appli n’a pas. Les réglages d’imprimante sont propres à la machine, il ne peut donc pas être transféré sur une autre imprimante.",
+    "noPrinterBase": "Il ne repose pas sur une imprimante que possède cette appli.",
+    "noFilamentBase": "Il n’y a pas de préréglage de filament sur lequel le placer.",
+    "noProcessBase": "Il n’y a pas de préréglage de traitement sur lequel le placer."
+  }
+}

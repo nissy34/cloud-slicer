@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "¿Usar el G-code de inicio y de cambio de filamento de {{engine}}?",
+    "yes": "Sí, laminar",
+    "body": "El G-code de inicio y de cambio de filamento de este archivo se escribió para {{app}}, y {{engine}} no puede usarlo. {{engine}} tiene el suyo para <b>{{printer}}</b>, que funciona. Esta elección se guarda con este proyecto."
+  }
+}

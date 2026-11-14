@@ -1,0 +1,31 @@
+{
+  "layersPanel": {
+    "addDetail": "增加細節",
+    "addDetailTip": "更薄的層（桌面版：滑鼠左鍵）",
+    "removeDetail": "減少細節",
+    "removeDetailTip": "更厚的層（桌面版：滑鼠右鍵）",
+    "backToBase": "恢復基準",
+    "backToBaseTip": "恢復為單一層高（桌面版：Shift + 左鍵）",
+    "smooth": "平滑",
+    "smoothTip": "平滑階梯效果（桌面版：Shift + 右鍵）",
+    "profile": "層高曲線",
+    "title": "可變層高",
+    "done": "完成",
+    "intro": "形狀需要細節的地方用薄層，不需要的地方用厚層。「適應性」會依斜率自動處理；也可以在圖表上按住，在該高度附近增加或減少細節。",
+    "heights": "層高",
+    "variable": "可變",
+    "plain": "單一",
+    "layers_other": "{{count}} 層",
+    "chartEdits": "圖表編輯",
+    "band": "編輯範圍",
+    "adaptive": "適應性",
+    "quality": "品質",
+    "qualityOrSpeed": "品質或速度",
+    "speed": "速度",
+    "radius": "半徑",
+    "smoothRadius": "平滑半徑",
+    "keepMin": "保留最薄的層",
+    "reset": "重設",
+    "reading": "正在讀取各層…"
+  }
+}

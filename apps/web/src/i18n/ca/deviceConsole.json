@@ -1,0 +1,27 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Temperatures",
+    "filterTimelapse": "Timelapse",
+    "filterTimelapseExample": "missatges de fotogrames de timelapse",
+    "filterProgress": "Progrés de la impressió",
+    "filterOk": "«ok» simple",
+    "done": "Fet",
+    "filtersN": "Filtres ({{n}})",
+    "filters": "Filtres",
+    "hideThese": "Amaga aquestes línies",
+    "hideLike": "Amaga línies com: {{example}}",
+    "hideContaining": "Amaga les línies que continguin «{{text}}»",
+    "removeFilter": "Treu el filtre «{{text}}»",
+    "remove": "Treu",
+    "hideContainingPlaceholder": "Amaga les línies que continguin…",
+    "hideContainingLabel": "Amaga les línies que continguin",
+    "add": "Afegeix",
+    "filtersHelp": "Toqueu una icona per activar-la o desactivar-la. El que envieu i els errors sempre es mostren.",
+    "linesHidden_one": "1 línia amagada pels filtres",
+    "linesHidden_many": "{{count}} línies amagades pels filtres",
+    "linesHidden_other": "{{count}} línies amagades pels filtres",
+    "sendPlaceholder": "Envia G-code, p. ex. M115",
+    "commandLabel": "Ordre de G-code",
+    "send": "Envia"
+  }
+}

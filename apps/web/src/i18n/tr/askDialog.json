@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "“{{name}}” kaydedilsin mi?",
+    "saveText": "Henüz çevrimiçi projelerinizde değil. Kaydetmezseniz atılır.",
+    "save": "Kaydet",
+    "dontSave": "Kaydetme",
+    "discardTitle": "Kaydedilmemiş değişiklikler atılsın mı?",
+    "discard": "Değişiklikleri at",
+    "openTitle": "{{what}} aç",
+    "addToText": "“{{project}}” üzerinde çalışıyordunuz. Oraya eklensin mi, yoksa bununla yeni bir proje mi başlatılsın?",
+    "newProject": "Yeni proje",
+    "addTo": "{{project}} projesine ekle"
+  }
+}

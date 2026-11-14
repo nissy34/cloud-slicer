@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Nire inprimagailuak",
+    "otherPrinters": "Besteak",
+    "printer": "Inprimagailua",
+    "manage": "Kudeatu",
+    "printerPreset": "Inprimagailuaren aurrezarpena",
+    "addRemovePrinters": "Gehitu edo kendu inprimagailuak…",
+    "sendsFromDevice": "Bidali inprimaketak hara Gailua fitxatik.",
+    "noDirectPrint": "Inprimagailu honek ez du zuzeneko inprimaketarik (ez da Klipper, Prusa edo Centauri Carbon bat): deskargatu G-code inprimatzeko, edo bidali Gailua fitxatik OctoPrint-ek inprimagailua kudeatzen badu.",
+    "plateType": "Plaka mota",
+    "filament": "Filamentua",
+    "addFilament": "Gehitu filamentua",
+    "add": "+ Gehitu",
+    "filamentColour": "Filamentuaren kolorea",
+    "filamentNColour": "{{n}}. filamentuaren kolorea",
+    "filamentNPreset": "{{n}}. filamentuaren aurrezarpena",
+    "addRemoveFilaments": "Gehitu edo kendu filamentuak…",
+    "removeFilament": "Kendu filament hau",
+    "removeFilamentN": "Kendu {{n}}. filamentua",
+    "process": "Prozesua",
+    "processPreset": "Prozesuaren aurrezarpena",
+    "readingFilaments": "Inprimagailuaren filamentuak irakurtzen…",
+    "myPresets": "Nire aurrezarpenak",
+    "systemPresets": "Sistemaren aurrezarpenak",
+    "show": "Erakutsi alboko barra (Shift+Tab)",
+    "hide": "Ezkutatu alboko barra (Shift+Tab)",
+    "width": "Alboko barraren zabalera"
+  }
+}

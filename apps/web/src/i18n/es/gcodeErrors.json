@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "“{{variable}}” no es un ajuste que este laminador conozca (puede venir de otro laminador o de una versión más reciente).",
+    "unknownName": "usa un nombre que este laminador no conoce.",
+    "negativeIndex": "“{{variable}}” se lee antes de cargar el primer filamento (su índice es -1 ahí); compruebe ese índice antes con {if ...}.",
+    "negativeIndexList": "se lee una lista antes de cargar el primer filamento (su índice es -1 ahí); compruebe ese índice antes con {if ...}.",
+    "reasonAt": "{{reason}} en “{{variable}}”.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, línea {{line}}: {{why}}",
+    "filamentSettings": "ajustes del filamento",
+    "printerSettings": "ajustes de la impresora",
+    "or": " o ",
+    "stoppedOne": "El laminado se detuvo: no se puede completar un G-code personalizado.",
+    "stoppedSome": "El laminado se detuvo: no se pueden completar algunos G-code personalizados.",
+    "fix": "Corríjalo en los {{where}}, o restablézcalo al G-code del perfil."
+  }
+}

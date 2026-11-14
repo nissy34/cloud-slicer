@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Questo codice è scaduto. Chiedi alla tua app di IA di accedere di nuovo per averne uno nuovo.",
+    "invalid": "Questo codice non è valido. Confrontalo con quello mostrato dalla tua app di IA, oppure chiedile di accedere di nuovo.",
+    "siteAnswered": "Il sito ha risposto {{status}}",
+    "checkingAccount": "Controllo del tuo account…",
+    "signInFirst": "Prima accedi a Cloud Slicer. Poi questa finestra ti chiede di collegare la tua app di IA.",
+    "noSignIn": "L'accesso non è attivo su questo sito.",
+    "codeLabel": "Il codice mostrato dalla tua app di IA",
+    "checkingCode": "Controllo del codice…",
+    "connected": "Collegata. Torna alla tua app di IA: ha effettuato l'accesso come {{name}}.",
+    "turnedDown": "Rifiutato. La tua app di IA non ha effettuato l'accesso.",
+    "asks": "Un'app di IA sul tuo computer (il componente aggiuntivo di Cloud Slicer) chiede di usare il tuo account, <b>{{email}}</b>. Controlla che mostri questo codice:",
+    "willSee": "Vedrà i tuoi profili e le tue stampanti salvati, e potrà controllare le tue stampanti e caricare file su di esse. Ti chiede conferma ogni volta prima di avviare una stampa. Puoi disconnetterla dall'app di IA.",
+    "continueGoogle": "Continua con Google",
+    "dontConnect": "Non collegare",
+    "connect": "Collega",
+    "title": "Collega un'app di IA"
+  }
+}

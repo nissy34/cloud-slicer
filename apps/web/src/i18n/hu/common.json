@@ -1,0 +1,14 @@
+{
+  "common": {
+    "cancel": "Mégse",
+    "copied": "Másolva",
+    "copyError": "Hiba másolása",
+    "hide": "Elrejtés",
+    "show": "Megjelenítés",
+    "close": "Bezárás",
+    "closeMessage": "Üzenet bezárása",
+    "done": "Kész",
+    "notNow": "Most nem",
+    "next": "Tovább"
+  }
+}

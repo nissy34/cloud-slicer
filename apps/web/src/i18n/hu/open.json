@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Húzza ide az STL, 3MF, OBJ, STEP vagy SVG fájlokat",
+    "openModel": "Modell megnyitása",
+    "fromDrive": "Megnyitás Google Drive-ról",
+    "deletePlateTip": "Ennek a tálcának és tartalmának törlése",
+    "deletePlate": "Tálca törlése",
+    "clearAsk": "Törli a tálcát?",
+    "unsavedChanges": "A(z) „{{name}}” módosításai még nincsenek mentve.",
+    "clearAll": "Összes törlése",
+    "dropToAdd": "Engedje el a hozzáadáshoz"
+  }
+}

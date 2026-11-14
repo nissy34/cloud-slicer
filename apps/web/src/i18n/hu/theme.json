@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "Téma",
+    "current": "Téma: {{choice}}",
+    "system": "Rendszer",
+    "systemHint": "Az eszközhöz igazodik",
+    "light": "Világos",
+    "dark": "Sötét"
+  }
+}

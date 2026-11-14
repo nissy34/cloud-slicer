@@ -1,0 +1,32 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} sur {{total}}",
+    "engineNoStart": "{{engine}} n’a pas pu démarrer",
+    "openedWith": "Ouvert avec {{engine}}, le moteur avec lequel ce projet a été créé.",
+    "somethingWrong": "Un problème est survenu",
+    "files_one": "{{count}} fichier",
+    "files_many": "{{count}} fichiers",
+    "files_other": "{{count}} fichiers",
+    "saving": "Enregistrement…",
+    "savingAfterSlice": "Enregistrement… après la découpe",
+    "savingMaking": "Enregistrement… création du 3MF",
+    "savingSent": "Enregistrement… {{progress}}",
+    "savingFinishing": "Enregistrement… finalisation",
+    "saved": "« {{name}} » enregistré dans vos projets",
+    "notSaved": "Non enregistré : {{error}}",
+    "preparing": "Préparation du 3MF…",
+    "makeFailed": "Impossible de créer le 3MF : {{error}}",
+    "opening": "Ouverture de « {{name}} »…",
+    "openFailed": "Impossible d’ouvrir « {{name}} » : {{error}}",
+    "saveCancelled": "Enregistrement annulé",
+    "viewOnly": "Ce projet est en lecture seule ici. Utilisez « Modifier ici à la place » pour le changer.",
+    "openDriveFailed": "Impossible d’ouvrir « {{name}} » depuis Google Drive : {{error}}",
+    "quoted": "« {{name}} »",
+    "cantOpen": "Cloud Slicer ne peut pas ouvrir {{names}}.",
+    "cantOpenShared": "Cloud Slicer ne peut pas ouvrir {{names}}",
+    "openedDriveFile": "« {{name}} » ouvert depuis votre Google Drive. Enregistrer garde une copie dans votre dossier Cloud Slicer. Le fichier dans Drive reste tel quel.",
+    "openedDriveFiles": "{{name}} ouverts depuis votre Google Drive. Enregistrer garde une copie dans votre dossier Cloud Slicer. Les fichiers dans Drive restent tels quels.",
+    "myProject": "Mon projet",
+    "removed": "« {{name}} » retiré de vos projets"
+  }
+}

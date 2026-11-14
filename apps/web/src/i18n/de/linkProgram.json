@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Dieser Code ist abgelaufen. Bitten Sie Ihre KI-App, sich erneut anzumelden, um einen neuen zu erhalten.",
+    "invalid": "Dieser Code ist ungültig. Vergleichen Sie ihn mit dem, den Ihre KI-App anzeigt, oder bitten Sie sie, sich erneut anzumelden.",
+    "siteAnswered": "Die Seite antwortete mit {{status}}",
+    "checkingAccount": "Ihr Konto wird geprüft…",
+    "signInFirst": "Melden Sie sich zuerst bei Cloud Slicer an. Dann fragt dieses Fenster, ob Sie Ihre KI-App verbinden möchten.",
+    "noSignIn": "Die Anmeldung ist auf dieser Seite nicht eingerichtet.",
+    "codeLabel": "Der Code, den Ihre KI-App anzeigt",
+    "checkingCode": "Der Code wird geprüft…",
+    "connected": "Verbunden. Gehen Sie zurück zu Ihrer KI-App: Sie ist als {{name}} angemeldet.",
+    "turnedDown": "Abgelehnt. Ihre KI-App ist nicht angemeldet.",
+    "asks": "Eine KI-App auf Ihrem Computer (das Cloud-Slicer-Add-on) möchte Ihr Konto <b>{{email}}</b> verwenden. Prüfen Sie, ob sie diesen Code anzeigt:",
+    "willSee": "Sie sieht Ihre gespeicherten Profile und Drucker und kann Ihre Drucker prüfen und Dateien darauf hochladen. Vor jedem Druckstart fragt sie Sie. Sie können sie in der KI-App abmelden.",
+    "continueGoogle": "Weiter mit Google",
+    "dontConnect": "Nicht verbinden",
+    "connect": "Verbinden",
+    "title": "KI-App verbinden"
+  }
+}

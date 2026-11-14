@@ -1,0 +1,7 @@
+{
+  "time": {
+    "justNow": "nyss",
+    "minAgo": "för {{n}} min sedan",
+    "hoursAgo": "för {{n}} h sedan"
+  }
+}

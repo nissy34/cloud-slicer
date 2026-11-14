@@ -1,0 +1,31 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} von {{total}}",
+    "engineNoStart": "{{engine}} konnte nicht gestartet werden",
+    "openedWith": "Mit {{engine}} geöffnet, der Engine, mit der dieses Projekt erstellt wurde.",
+    "somethingWrong": "Etwas ist schiefgelaufen",
+    "files_one": "{{count}} Datei",
+    "files_other": "{{count}} Dateien",
+    "saving": "Wird gespeichert…",
+    "savingAfterSlice": "Wird gespeichert… nach dem Slicen",
+    "savingMaking": "Wird gespeichert… die 3MF wird erstellt",
+    "savingSent": "Wird gespeichert… {{progress}}",
+    "savingFinishing": "Wird gespeichert… Abschluss",
+    "saved": "„{{name}}“ in Ihren Projekten gespeichert",
+    "notSaved": "Nicht gespeichert: {{error}}",
+    "preparing": "Die 3MF wird vorbereitet…",
+    "makeFailed": "Die 3MF konnte nicht erstellt werden: {{error}}",
+    "opening": "„{{name}}“ wird geöffnet…",
+    "openFailed": "„{{name}}“ konnte nicht geöffnet werden: {{error}}",
+    "saveCancelled": "Speichern abgebrochen",
+    "viewOnly": "Dieses Projekt ist hier nur zum Ansehen. Verwenden Sie „Stattdessen hier bearbeiten“, um es zu ändern.",
+    "openDriveFailed": "„{{name}}“ konnte nicht aus Google Drive geöffnet werden: {{error}}",
+    "quoted": "„{{name}}“",
+    "cantOpen": "Cloud Slicer kann {{names}} nicht öffnen.",
+    "cantOpenShared": "Cloud Slicer kann {{names}} nicht öffnen",
+    "openedDriveFile": "„{{name}}“ aus Ihrem Google Drive geöffnet. Speichern legt eine Kopie in Ihrem Cloud-Slicer-Ordner ab. Die Datei in Drive bleibt unverändert.",
+    "openedDriveFiles": "{{name}} aus Ihrem Google Drive geöffnet. Speichern legt eine Kopie in Ihrem Cloud-Slicer-Ordner ab. Die Dateien in Drive bleiben unverändert.",
+    "myProject": "Mein Projekt",
+    "removed": "„{{name}}“ aus Ihren Projekten entfernt"
+  }
+}

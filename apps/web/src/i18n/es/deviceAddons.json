@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint no está conectado a la impresora.",
+    "octoprintRestart": "Conectar de nuevo",
+    "octoprintRestarting": "Conectando OctoPrint a la impresora",
+    "bambuStopped": "La impresora dejó de responder: compruebe que está encendida y en la red.",
+    "bambuCameraMissing": "Solo las impresoras P1 y A1 muestran aquí su cámara: X1, H2 y P2S envían vídeo que solo reproducen las aplicaciones de Bambu.",
+    "bambuSlotNoun": "ranura del AMS",
+    "bambuSlotUnset": "Cargue filamento allí, o defínalo en la pantalla de la impresora.",
+    "bambuSlotNote": "Como en Bambu Studio, un filamento solo puede ir a una ranura con el mismo tipo de filamento. La marca y el color pueden diferir.",
+    "outsideSpool": "Bobina externa",
+    "u1Heads": "Cabezales",
+    "u1HeadNoun": "cabezal",
+    "u1HeadUnset": "Cargue filamento, o defina su tipo en la tarjeta Cabezales.",
+    "u1HeadNote": "Como en la aplicación de Snapmaker, un filamento solo puede ir a un cabezal con el mismo tipo de filamento y tamaño de boquilla. La marca y el color pueden diferir.",
+    "nozzleStandard": "Estándar",
+    "nozzleHighFlow": "Alto flujo",
+    "calibratingOffsets": "Calibrando los desfases de los cabezales",
+    "levellingBed": "Nivelando la cama",
+    "calibratingFlow": "Calibrando el flujo",
+    "calibratingShaper": "Calibrando el input shaping",
+    "updatingFirmware": "Actualizando el firmware",
+    "needsAttention": "Requiere atención en la pantalla de la impresora",
+    "adjustingScrews": "Ajustando los tornillos de la cama",
+    "loadingFilament": "Cargando filamento",
+    "unloadingFilament": "Descargando filamento",
+    "calibratingPark": "Calibrando la posición de aparcado",
+    "calibratingHome": "Calibrando la posición de origen",
+    "hotendFan": "Ventilador del hotend T{{n}}"
+  }
+}

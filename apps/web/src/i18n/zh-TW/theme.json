@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "主題",
+    "current": "主題：{{choice}}",
+    "system": "系統",
+    "systemHint": "與此裝置一致",
+    "light": "淺色",
+    "dark": "深色"
+  }
+}

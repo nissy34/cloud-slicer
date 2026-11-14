@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} di {{size}} MB",
+    "arrivingRelay": "{{got}} di {{size}} MB tramite il relay",
+    "cannotFetch": "Questa connessione alla stampante non può scaricare video.",
+    "fetchFailed": "Impossibile scaricare il video.",
+    "delete": "Elimina",
+    "download": "Scarica",
+    "cantPlay": "Questo tipo di video non si riproduce nel browser. Scaricalo per guardarlo.",
+    "none": "Ancora nessun timelapse. Attiva Timelapse quando avvii una stampa.",
+    "watch": "Guarda",
+    "pages": "Pagine dei timelapse",
+    "refresh": "Aggiorna",
+    "deleteTitle": "Elimina timelapse"
+  }
+}

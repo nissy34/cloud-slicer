@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Altre app di chat",
+    "title": "Usa con un'app di IA",
+    "more": "Maggiori informazioni",
+    "intro": "Chiedi alla tua app di IA di elaborare per te: “Elabora questo Benchy per la mia U1 in PETG con 4 pareti e dimmi il tempo.” Installala in Claude Desktop come estensione, o in altre app di chat sul computer come LM Studio e Msty. Elabora sul tuo computer con gli stessi motori e profili di questo sito, e i tuoi modelli restano lì.",
+    "whichApp": "Quale app",
+    "step1": "Scarica l'estensione di Cloud Slicer.",
+    "download": "Scarica per Claude Desktop",
+    "size": "circa 11 MB. Già installata? Scaricala di nuovo per aggiornare.",
+    "step2": "Apri il file. Claude Desktop chiede di installarla: clicca <b>Installa</b>.",
+    "step3": "Chiedi a Claude di elaborare un file sul tuo computer.",
+    "otherStep1": "Nelle impostazioni della tua app di chat, aggiungi un server MCP con questo (la maggior parte delle app lo accetta così com'è):",
+    "otherStep2": "Richiede Node 20 o successivo sul tuo computer (<a>nodejs.org</a>).",
+    "canDo": "Può aprire modelli e progetti, scegliere stampante, processo e filamenti, impostare i colori e quale filamento stampa ogni oggetto, cambiare le impostazioni, disporre i piatti ed elaborare. Finché il computer è acceso, anche Claude sul telefono può usarla. Con l'accesso eseguito usa anche i tuoi profili e le tue stampanti, e ti chiede prima di avviare una stampa.",
+    "version": "Versione {{version}}"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "내 {{device}}",
+    "another": "다른 기기",
+    "iPad": "iPad",
+    "phone": "휴대폰",
+    "tablet": "태블릿",
+    "windows": "Windows 컴퓨터",
+    "mac": "Mac",
+    "chromebook": "Chromebook",
+    "linux": "Linux 컴퓨터",
+    "other": "기타 기기"
+  }
+}

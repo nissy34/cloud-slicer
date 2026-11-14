@@ -1,0 +1,14 @@
+{
+  "common": {
+    "cancel": "Hủy",
+    "copied": "Đã sao chép",
+    "copyError": "Sao chép lỗi",
+    "hide": "Ẩn",
+    "show": "Hiện",
+    "close": "Đóng",
+    "closeMessage": "Đóng thông báo",
+    "done": "Xong",
+    "notNow": "Để sau",
+    "next": "Tiếp"
+  }
+}

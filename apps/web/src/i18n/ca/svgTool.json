@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "Forma SVG",
+    "done": "Fet",
+    "pickHint": "Trieu una forma SVG a la llista d'objectes o a la vista 3D per canviar-la, o afegiu-ne una d'un fitxer .svg: a l'objecte seleccionat, o com a objecte propi quan no hi ha res seleccionat. Obrir o deixar anar un fitxer .svg també n'afegeix una.",
+    "addSvg": "Afegeix un SVG…",
+    "depth": "Profunditat",
+    "depthCutTip": "Com de fondo talla la forma",
+    "depthTip": "Quant sobresurt la forma",
+    "width": "Amplada",
+    "widthTip": "Mida a través de la forma",
+    "height": "Alçada",
+    "heightTip": "Mida de dalt a baix de la forma",
+    "keepProportions": "Mantén les proporcions",
+    "useSurfaceTip": "La forma es corba amb la superfície de l'objecte en lloc de quedar plana a sobre",
+    "useSurface": "Usa la superfície",
+    "svgType": "Tipus d'SVG",
+    "changeType": "Canvia el tipus",
+    "engraved": "Gravat",
+    "making": "Creant la forma…",
+    "undoHint": "Desfer recupera l'última forma."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "presetEngines": {
+    "split_one": "{{count}} nastavení už není v obou jádrech stejné; „{{name}}“ si v každém ponechává své hodnoty.",
+    "split_few": "{{count}} nastavení už nejsou v obou jádrech stejná; „{{name}}“ si v každém ponechává své hodnoty.",
+    "split_many": "{{count}} nastavení už není v obou jádrech stejných; „{{name}}“ si v každém ponechává své hodnoty.",
+    "split_other": "{{count}} nastavení už není v obou jádrech stejných; „{{name}}“ si v každém ponechává své hodnoty.",
+    "separate_one": "{{count}} nastavení „{{name}}“ může být nyní v obou jádrech stejné, ale liší se; „Použít stejné hodnoty v obou jádrech“ v jeho nabídce je sjednotí.",
+    "separate_few": "{{count}} nastavení „{{name}}“ mohou být nyní v obou jádrech stejná, ale liší se; „Použít stejné hodnoty v obou jádrech“ v jeho nabídce je sjednotí.",
+    "separate_many": "{{count}} nastavení „{{name}}“ může být nyní v obou jádrech stejných, ale liší se; „Použít stejné hodnoty v obou jádrech“ v jeho nabídce je sjednotí.",
+    "separate_other": "{{count}} nastavení „{{name}}“ může být nyní v obou jádrech stejných, ale liší se; „Použít stejné hodnoty v obou jádrech“ v jeho nabídce je sjednotí."
+  }
+}

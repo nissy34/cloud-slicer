@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Fortsätta där du slutade?",
+    "local": "{{name}}, ändrad {{when}}. Finns kvar i den här webbläsaren, inte sparad.",
+    "discard": "Förkasta",
+    "continue": "Fortsätt",
+    "projectAsk": "Fortsätta med {{name}}?",
+    "project": "Fortsätt med {{name}}",
+    "openHere": "Du hade det öppet här, redigerat {{when}}",
+    "editedOn": "Redigerat {{when}} på {{device}}",
+    "notNow": "Inte nu",
+    "editedElsewhere": "{{name}} redigeras på {{device}}",
+    "viewOnly": "Den här fliken är skrivskyddad.",
+    "viewOnlyUnsaved": "Den här fliken är skrivskyddad. Ändringar du gjort här finns inte med i den.",
+    "saveMineAsCopy": "Spara mina som en kopia",
+    "editHere": "Redigera här i stället",
+    "gone": "”{{name}}” togs bort på {{device}}. Det är fortfarande öppet här, inte sparat."
+  }
+}

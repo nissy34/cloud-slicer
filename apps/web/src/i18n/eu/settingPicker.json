@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "Objektu honi gehitzeko ezarpenak",
+    "forPart": "Pieza honi gehitzeko ezarpenak",
+    "forModifier": "Aldatzaile honi gehitzeko ezarpenak",
+    "search": "Bilatu ezarpenak",
+    "done": "Eginda",
+    "noMatch": "Ez dago “{{query}}” bilaketarekin bat datorren ezarpenik.",
+    "more": "Ezarpen gehiago"
+  }
+}

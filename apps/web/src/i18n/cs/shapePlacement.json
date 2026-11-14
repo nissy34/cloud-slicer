@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Otočit text",
+    "rotateSvg": "Otočit SVG",
+    "moveText": "Vzdálit text od povrchu",
+    "moveSvg": "Vzdálit SVG od povrchu",
+    "rotationTip": "Otočit ho kolem vlastní osy ve směru hodinových ručiček (kruh v 3D pohledu dělá totéž)",
+    "rotation": "Rotace",
+    "fromSurfaceTip": "Jak daleko stojí od povrchu",
+    "fromSurface": "Od povrchu",
+    "keepUpTip": "Udržuje ho vzpřímeně, když ho posouváte po povrchu nebo otáčíte ke kameře",
+    "keepUp": "Držet nahoře",
+    "faceCameraTip": "Otočit ho k sobě, tam, odkud se na něj díváte",
+    "faceCamera": "Otočit ke kameře",
+    "moveToolsText": "Posuňte nebo otočte text pomocí těchto nástrojů.",
+    "moveToolsShape": "Posuňte nebo otočte tvar pomocí těchto nástrojů.",
+    "dragText": "Přetažením textu nebo jeho modrého rámečku ho posunete po objektu. Kruh ho otáčí.",
+    "dragShape": "Přetažením tvaru nebo jeho modrého rámečku ho posunete po objektu. Kruh ho otáčí."
+  }
+}

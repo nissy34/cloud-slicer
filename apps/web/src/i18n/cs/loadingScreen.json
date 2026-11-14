@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Stahování slicovacího jádra",
+    "setup": "Spouštění slicovacího jádra",
+    "printers": "Načítání vašich tiskáren a předvoleb",
+    "downloadingProject": "Stahování „{{name}}“",
+    "opening": "Otevírání {{name}}"
+  }
+}

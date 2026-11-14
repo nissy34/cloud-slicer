@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Déplacer",
+    "rotate": "Pivoter",
+    "scale": "Redimensionner",
+    "rotateText": "Pivoter le texte",
+    "moveSvgSurface": "Déplacer le SVG sur la surface",
+    "moveTextSurface": "Déplacer le texte sur la surface",
+    "movePart": "Déplacer la pièce",
+    "rotatePart": "Pivoter la pièce",
+    "scalePart": "Redimensionner la pièce",
+    "plates": "Plaques",
+    "ownSettingsTip": "Cette plaque a ses propres réglages",
+    "ownSettings": "a ses propres réglages",
+    "plateSettings": "Réglages de la plaque",
+    "plateNSettings": "Réglages de la plaque {{n}}"
+  }
+}

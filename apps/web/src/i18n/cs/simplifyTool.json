@@ -1,0 +1,31 @@
+{
+  "simplifyTool": {
+    "title": "Zjednodušit",
+    "done": "Hotovo",
+    "hint": "S méně trojúhelníky se velký model otevře, naslicuje a zobrazí rychleji. Jemné detaily se mohou změkčit; Zpět vrátí starou síť.",
+    "trianglesLabel": "Trojúhelníky",
+    "triangles_one": "{{n}} trojúhelník",
+    "triangles_few": "{{n}} trojúhelníky",
+    "triangles_many": "{{n}} trojúhelníku",
+    "triangles_other": "{{n}} trojúhelníků",
+    "trianglesUnknown": "… trojúhelníků",
+    "workingOut": "(počítá se…)",
+    "by": "Zjednodušit podle",
+    "detailLevel": "Úroveň detailu",
+    "ratio": "Poměr decimace",
+    "detail": "Detail",
+    "removeTip": "Podíl trojúhelníků k odstranění",
+    "remove": "Odstranit",
+    "paintKept": "Malování tohoto objektu (barvy, podpory, švy, fuzzy skin) se zachová na zjednodušené síti.",
+    "apply": "Použít",
+    "extraHigh": "Extra vysoká",
+    "high": "Vysoká",
+    "medium": "Střední",
+    "low": "Nízká",
+    "extraLow": "Extra nízká",
+    "million": "{{n}} milionu",
+    "heavyPlates": "{{n}} desek má víc než {{limit}} trojúhelníků (až {{most}}), což může být víc, než toto zařízení unese. Zjednodušení každé na přibližně {{light}} zachová pro tisk spoustu detailů.",
+    "heavyPlate": "Deska {{n}} má {{triangles}} trojúhelníků, což může být víc, než toto zařízení unese. Zjednodušení na přibližně {{light}} zachová pro tisk spoustu detailů.",
+    "heavyModel": "Tento model má {{triangles}} trojúhelníků, což může být víc, než toto zařízení unese. Zjednodušení na přibližně {{light}} zachová pro tisk spoustu detailů."
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Gebruik 1-128 tekens, zonder / \\ : * ? \" < > |",
+    "notAvailable": "De voorinstelling {{name}} is niet beschikbaar.",
+    "onlyOwn": "Alleen uw eigen voorinstellingen kunnen worden bewaard; gebruik Bewaren als.",
+    "noneSelected": "Er is geen voorinstelling geselecteerd.",
+    "sameName": "Twee voorinstellingen kunnen niet dezelfde naam hebben.",
+    "nameTaken": "Er bestaat al een voorinstelling met de naam “{{name}}”.",
+    "notYours": "Deze voorinstelling is niet van u."
+  }
+}

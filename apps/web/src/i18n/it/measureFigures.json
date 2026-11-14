@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Punto",
+    "edge": "Spigolo",
+    "circle": "Cerchio",
+    "plane": "Piano",
+    "position": "Posizione",
+    "length": "Lunghezza",
+    "from": "Da",
+    "to": "A",
+    "diameter": "Diametro",
+    "radius": "Raggio",
+    "centre": "Centro",
+    "normal": "Normale",
+    "angle": "Angolo",
+    "distance": "Distanza",
+    "perpendicular": "Distanza perpendicolare",
+    "along": "Lungo {{axis}}"
+  }
+}

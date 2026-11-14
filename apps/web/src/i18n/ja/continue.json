@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "前回の続きから再開しますか？",
+    "local": "{{name}}、{{when}}に変更。このブラウザーに保持されており、保存されていません。",
+    "discard": "破棄",
+    "continue": "再開",
+    "projectAsk": "{{name}} を再開しますか？",
+    "project": "{{name}} を再開",
+    "openHere": "ここで開いていました。{{when}}に編集",
+    "editedOn": "{{device}}で{{when}}に編集",
+    "notNow": "今はしない",
+    "editedElsewhere": "{{name}} は{{device}}で編集中です",
+    "viewOnly": "このタブは閲覧専用です。",
+    "viewOnlyUnsaved": "このタブは閲覧専用です。ここで行った変更は反映されていません。",
+    "saveMineAsCopy": "自分の変更をコピーとして保存",
+    "editHere": "代わりにここで編集",
+    "gone": "「{{name}}」は{{device}}で削除されました。ここではまだ開いていますが、保存されていません。"
+  }
+}

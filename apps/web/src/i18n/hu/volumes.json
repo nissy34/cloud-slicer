@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "Tárgy hozzáadása",
+    "addNegative": "Negatív tárgy hozzáadása",
+    "addModifier": "Módosító hozzáadása",
+    "addBlocker": "Támasztiltó hozzáadása",
+    "addEnforcer": "Támaszkényszerítő hozzáadása",
+    "part": "Tárgy",
+    "negative": "Negatív tárgy",
+    "modifier": "Módosító",
+    "enforcer": "Támaszkényszerítő",
+    "blocker": "Támasztiltó",
+    "other": "Egyéb"
+  }
+}

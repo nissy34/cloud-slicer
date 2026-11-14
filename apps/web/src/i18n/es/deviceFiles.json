@@ -1,0 +1,23 @@
+{
+  "deviceFiles": {
+    "print": "Imprimir…",
+    "deleteName": "Eliminar {{name}}",
+    "delete": "Eliminar",
+    "title": "Archivos en la impresora",
+    "upload": "Subir G-code…",
+    "timelapses": "Timelapses",
+    "none": "Aún no hay archivos G-code.",
+    "searchN_one": "Buscar entre {{count}} archivo",
+    "searchN_many": "Buscar entre {{count}} archivos",
+    "searchN_other": "Buscar entre {{count}} archivos",
+    "search": "Buscar archivos",
+    "noMatch": "Ningún archivo coincide con “{{query}}”.",
+    "deleteFile": "Eliminar archivo",
+    "deleteText": "¿Eliminar {{name}} de la impresora?",
+    "deleted": "Eliminado",
+    "pages": "Páginas de archivos",
+    "newer": "Más recientes",
+    "older": "Más antiguos",
+    "range": "{{from}}–{{to}} de {{total}}"
+  }
+}

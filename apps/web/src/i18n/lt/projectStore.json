@@ -1,0 +1,33 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} iš {{total}}",
+    "engineNoStart": "{{engine}} nepavyko paleisti",
+    "openedWith": "Atidaryta su {{engine}}, varikliu, su kuriuo šis projektas buvo sukurtas.",
+    "somethingWrong": "Kažkas nepavyko",
+    "files_one": "{{count}} failas",
+    "files_few": "{{count}} failai",
+    "files_many": "{{count}} failo",
+    "files_other": "{{count}} failų",
+    "saving": "Išsaugoma…",
+    "savingAfterSlice": "Išsaugoma… po sluoksniavimo",
+    "savingMaking": "Išsaugoma… kuriamas 3MF",
+    "savingSent": "Išsaugoma… {{progress}}",
+    "savingFinishing": "Išsaugoma… baigiama",
+    "saved": "„{{name}}“ išsaugota jūsų projektuose",
+    "notSaved": "Neišsaugota: {{error}}",
+    "preparing": "Ruošiamas 3MF…",
+    "makeFailed": "Nepavyko sukurti 3MF: {{error}}",
+    "opening": "Atidaroma „{{name}}“…",
+    "openFailed": "Nepavyko atidaryti „{{name}}“: {{error}}",
+    "saveCancelled": "Išsaugojimas atšauktas",
+    "viewOnly": "Šis projektas čia tik peržiūrai. Naudokite „Redaguoti čia“, kad jį pakeistumėte.",
+    "openDriveFailed": "Nepavyko atidaryti „{{name}}“ iš Google Drive: {{error}}",
+    "quoted": "„{{name}}“",
+    "cantOpen": "Cloud Slicer negali atidaryti {{names}}.",
+    "cantOpenShared": "Cloud Slicer negali atidaryti {{names}}",
+    "openedDriveFile": "Atidaryta „{{name}}“ iš jūsų Google Drive. Išsaugoti laiko kopiją jūsų Cloud Slicer aplanke. Failas Drive lieka kaip yra.",
+    "openedDriveFiles": "Atidaryta {{name}} iš jūsų Google Drive. Išsaugoti laiko kopiją jūsų Cloud Slicer aplanke. Failai Drive lieka kaip yra.",
+    "myProject": "Mano projektas",
+    "removed": "„{{name}}“ pašalinta iš jūsų projektų"
+  }
+}

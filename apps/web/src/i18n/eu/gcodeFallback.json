@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "{{engine}}(r)en hasierako eta filament-aldaketako G-code erabili?",
+    "yes": "Bai, xerratu",
+    "body": "Fitxategi honen hasierako eta filament-aldaketako G-code {{app}}(r)entzat idatzi zen, eta {{engine}}(e)k ezin du erabili. {{engine}}(e)k berea dauka <b>{{printer}}</b> inprimagailurako, eta hori ondo dabil. Aukera hau proiektu honekin batera gordetzen da."
+  }
+}

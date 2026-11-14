@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{heads}} kafada {{n}} filament var: baskıyı gönderirken her filamenti hangi kafanın basacağını siz seçersiniz.",
+    "warn": "{{heads}} kafalı bir yazıcıda {{n}} filament var."
+  }
+}

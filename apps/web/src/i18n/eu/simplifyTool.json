@@ -1,0 +1,29 @@
+{
+  "simplifyTool": {
+    "title": "Sinplifikatu",
+    "done": "Eginda",
+    "hint": "Triangelu gutxiagok eredu handi bat azkarrago irekitzea, xerratzea eta aurreikustea eragiten dute. Xehetasun fineak leundu daitezke; Desegiteak sare zaharra itzultzen du.",
+    "trianglesLabel": "Triangeluak",
+    "triangles_one": "{{n}} triangelu",
+    "triangles_other": "{{n}} triangelu",
+    "trianglesUnknown": "… triangelu",
+    "workingOut": "(kalkulatzen…)",
+    "by": "Sinplifikatu honen arabera",
+    "detailLevel": "Xehetasun-maila",
+    "ratio": "Murrizte-erlazioa",
+    "detail": "Xehetasuna",
+    "removeTip": "Kenduko diren triangeluen ehunekoa",
+    "remove": "Kendu",
+    "paintKept": "Objektu honen margoketa (koloreak, euskarriak, josturak, larruazal iletsua) sinplifikatutako sarean mantentzen da.",
+    "apply": "Aplikatu",
+    "extraHigh": "Oso altua",
+    "high": "Altua",
+    "medium": "Ertaina",
+    "low": "Baxua",
+    "extraLow": "Oso baxua",
+    "million": "{{n}} milioi",
+    "heavyPlates": "{{n}} plakak {{limit}} triangelu baino gehiago dituzte ({{most}} arte), gailu honek jasan dezakeena baino gehiago izan daitezke. Bakoitza {{light}} inguruko tamainara sinplifikatzeak xehetasun nahikoa mantentzen du inprimatzeko.",
+    "heavyPlate": "{{n}}. plakak {{triangles}} triangelu ditu, gailu honek jasan dezakeena baino gehiago izan daitezke. {{light}} inguruko tamainara sinplifikatzeak xehetasun nahikoa mantentzen du inprimatzeko.",
+    "heavyModel": "Eredu honek {{triangles}} triangelu ditu, gailu honek jasan dezakeena baino gehiago izan daitezke. {{light}} inguruko tamainara sinplifikatzeak xehetasun nahikoa mantentzen du inprimatzeko."
+  }
+}

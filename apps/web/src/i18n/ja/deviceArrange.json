@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "カードの配置を保存できませんでした。ページを再読み込みするまでは保持されます。",
+    "pageCard": "ページカード {{n}}",
+    "cameraCard": "カメラカード {{n}}",
+    "arrangingFor": "{{name}}のカードを並べ替え中。",
+    "helpPhone": "カードのつまみを押さえたまま、上下にドラッグします。",
+    "helpDesktop": "カードのつまみを、列の中、または上部か下部いっぱいにドラッグします。",
+    "helpRest": "非表示のカードは薄い表示でここに残ります。ほかのプリンターは別の配置を保ちます。",
+    "columns": "列",
+    "addCameraCard": "カメラカードを追加",
+    "addPageCard": "ページカードを追加",
+    "backToDefault": "初期設定に戻す",
+    "acrossTop": "上部いっぱい",
+    "column": "列 {{n}}",
+    "acrossBottom": "下部いっぱい",
+    "small": "小",
+    "medium": "中",
+    "large": "大",
+    "moveCard": "{{name}}を移動",
+    "halfWidthTip": "半分の幅: 半幅のカード 2 枚を横に並べます",
+    "halfWidth": "半分の幅",
+    "cameraSize": "カメラのサイズ",
+    "remove": "削除"
+  }
+}

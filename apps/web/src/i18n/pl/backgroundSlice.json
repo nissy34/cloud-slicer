@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · Cięcie · {{title}}",
+    "doneTitle": "Cięcie zakończone",
+    "plateSliced": "Płyta {{plate}} jest pocięta. Dotknij, aby ją zobaczyć.",
+    "tapToSee": "Dotknij, aby zobaczyć.",
+    "questionTitle": "Cięcie potrzebuje Ciebie",
+    "questionBody": "Ma pytanie, zanim będzie mogło się zakończyć. Dotknij, aby odpowiedzieć.",
+    "failedTitle": "Cięcie nie powiodło się",
+    "tapToSeeWhy": "Dotknij, aby zobaczyć dlaczego."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "STL、3MF、OBJ、STEP、SVG ファイルをここにドロップ",
+    "openModel": "モデルを開く",
+    "fromDrive": "Google Drive から開く",
+    "deletePlateTip": "このプレートと載っているものを削除します",
+    "deletePlate": "プレートを削除",
+    "clearAsk": "プレートをクリアしますか？",
+    "unsavedChanges": "「{{name}}」には、まだ保存されていない変更があります。",
+    "clearAll": "すべてクリア",
+    "dropToAdd": "ドロップして追加"
+  }
+}

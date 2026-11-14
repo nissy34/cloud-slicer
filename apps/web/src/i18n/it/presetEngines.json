@@ -1,0 +1,10 @@
+{
+  "presetEngines": {
+    "split_one": "{{count}} impostazione non è più uguale nei due motori; \"{{name}}\" mantiene i suoi valori in ciascuno.",
+    "split_other": "{{count}} impostazioni non sono più uguali nei due motori; \"{{name}}\" mantiene i suoi valori in ciascuno.",
+    "separate_one": "{{count}} impostazione di \"{{name}}\" ora può essere uguale nei due motori ma è diversa; \"Usa gli stessi valori in entrambi i motori\" nel suo menu le fa coincidere.",
+    "separate_other": "{{count}} impostazioni di \"{{name}}\" ora possono essere uguali nei due motori ma sono diverse; \"Usa gli stessi valori in entrambi i motori\" nel suo menu le fa coincidere.",
+    "split_many": "{{count}} impostazioni non sono più uguali nei due motori; \"{{name}}\" mantiene i suoi valori in ciascuno.",
+    "separate_many": "{{count}} impostazioni di \"{{name}}\" ora possono essere uguali nei due motori ma sono diverse; \"Usa gli stessi valori in entrambi i motori\" nel suo menu le fa coincidere."
+  }
+}

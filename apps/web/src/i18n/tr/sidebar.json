@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Yazıcılarım",
+    "otherPrinters": "Diğer",
+    "printer": "Yazıcı",
+    "manage": "Yönet",
+    "printerPreset": "Yazıcı ön ayarı",
+    "addRemovePrinters": "Yazıcı ekle veya kaldır…",
+    "sendsFromDevice": "Baskıları ona Cihaz sekmesinden gönderin.",
+    "noDirectPrint": "Bu yazıcı için doğrudan baskı yok (Klipper, Prusa veya Centauri Carbon değil): basmak için G-code'u indirin veya yazıcıyı OctoPrint yönetiyorsa Cihaz sekmesinden gönderin.",
+    "plateType": "Plaka türü",
+    "filament": "Filament",
+    "addFilament": "Filament ekle",
+    "add": "+ Ekle",
+    "filamentColour": "Filament rengi",
+    "filamentNColour": "Filament {{n}} rengi",
+    "filamentNPreset": "Filament {{n}} ön ayarı",
+    "addRemoveFilaments": "Filament ekle veya kaldır…",
+    "removeFilament": "Bu filamenti kaldır",
+    "removeFilamentN": "Filament {{n}} öğesini kaldır",
+    "process": "İşlem",
+    "processPreset": "İşlem ön ayarı",
+    "readingFilaments": "Yazıcının filamentleri okunuyor…",
+    "myPresets": "Ön ayarlarım",
+    "systemPresets": "Sistem ön ayarları",
+    "show": "Kenar çubuğunu göster (Shift+Tab)",
+    "hide": "Kenar çubuğunu gizle (Shift+Tab)",
+    "width": "Kenar çubuğu genişliği"
+  }
+}

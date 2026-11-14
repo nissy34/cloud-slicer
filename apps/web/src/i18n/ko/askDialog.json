@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "“{{name}}”을(를) 저장할까요?",
+    "saveText": "아직 온라인 프로젝트에 없습니다. 저장하지 않으면 사라집니다.",
+    "save": "저장",
+    "dontSave": "저장 안 함",
+    "discardTitle": "저장하지 않은 변경 사항을 버릴까요?",
+    "discard": "변경 사항 버리기",
+    "openTitle": "{{what}} 열기",
+    "addToText": "“{{project}}” 작업 중이었습니다. 거기에 추가할까요, 아니면 이것으로 새 프로젝트를 시작할까요?",
+    "newProject": "새 프로젝트",
+    "addTo": "{{project}}에 추가"
+  }
+}

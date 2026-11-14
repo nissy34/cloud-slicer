@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "Trắng",
+    "yellow": "Vàng",
+    "lime": "Xanh chanh",
+    "green": "Xanh lá",
+    "darkGreen": "Xanh lá đậm",
+    "teal": "Xanh mòng két",
+    "mint": "Xanh bạc hà",
+    "skyBlue": "Xanh da trời",
+    "lightBlue": "Xanh nhạt",
+    "blue": "Xanh dương",
+    "indigo": "Chàm",
+    "purple": "Tím",
+    "magenta": "Hồng sẫm",
+    "lavender": "Tím oải hương",
+    "pink": "Hồng",
+    "red": "Đỏ",
+    "brown": "Nâu",
+    "orange": "Cam",
+    "cream": "Kem",
+    "beige": "Be",
+    "tan": "Nâu vàng",
+    "grey": "Xám",
+    "lightGrey": "Xám nhạt",
+    "black": "Đen",
+    "colours": "Màu",
+    "recent": "Gần đây",
+    "recentColours": "Màu gần đây",
+    "hex": "Mã hex",
+    "custom": "Tùy chỉnh"
+  }
+}

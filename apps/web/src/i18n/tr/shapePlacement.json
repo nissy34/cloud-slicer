@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Metni döndür",
+    "rotateSvg": "SVG'yi döndür",
+    "moveText": "Metni yüzeyden uzaklaştır",
+    "moveSvg": "SVG'yi yüzeyden uzaklaştır",
+    "rotationTip": "Kendi ekseni etrafında saat yönünde çevirin (3B görünümdeki halka da aynısını yapar)",
+    "rotation": "Dönüş",
+    "fromSurfaceTip": "Yüzeyden ne kadar uzakta durduğu",
+    "fromSurface": "Yüzeyden",
+    "keepUpTip": "Yüzey üzerinde kaydırırken veya kameraya çevirirken dik tutar",
+    "keepUp": "Dik tut",
+    "faceCameraTip": "Baktığınız yerden size dönük olacak şekilde çevirir",
+    "faceCamera": "Kameraya çevir",
+    "moveToolsText": "Metni bu araçlarla taşıyın veya döndürün.",
+    "moveToolsShape": "Şekli bu araçlarla taşıyın veya döndürün.",
+    "dragText": "Nesne üzerinde kaydırmak için metni veya mavi çerçevesini sürükleyin. Halka onu çevirir.",
+    "dragShape": "Nesne üzerinde kaydırmak için şekli veya mavi çerçevesini sürükleyin. Halka onu çevirir."
+  }
+}

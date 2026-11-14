@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Use de 1 a 128 caracteres, sin / \\ : * ? \" < > |",
+    "notAvailable": "El perfil {{name}} no está disponible.",
+    "onlyOwn": "Solo se pueden guardar sus propios perfiles; use Guardar como.",
+    "noneSelected": "No hay ningún perfil seleccionado.",
+    "sameName": "Dos perfiles no pueden tener el mismo nombre.",
+    "nameTaken": "Ya existe un perfil llamado “{{name}}”.",
+    "notYours": "Este perfil no es suyo."
+  }
+}

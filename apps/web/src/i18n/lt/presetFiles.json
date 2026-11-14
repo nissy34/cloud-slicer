@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} yra {{size}}; profilio failas gali būti iki {{max}}.",
+    "notJson": "{{label}} nėra profilio failas (ne JSON).",
+    "tooMany": "Vienu metu galima importuoti tik {{max}} profilių; {{label}} praleistas.",
+    "bundleTooBig": "{{name}} yra {{size}}; rinkinys gali būti iki {{max}}.",
+    "badZip": "{{name}} nepavyko atidaryti kaip zip.",
+    "unpacksTooBig": "{{name}} išpakuojamas į daugiau nei {{max}} arba turi failą, didesnį nei {{fileMax}}; iš jo nieko neimportuota.",
+    "empty": "{{name}} viduje nėra profilių failų.",
+    "tooManyKeys": "Jis keičia daugiau nei {{max}} parametrų.",
+    "tooLarge": "Jo parametrai viršija {{max}}.",
+    "fileN": "failas {{n}}",
+    "unreadable": "Tai ne profilis, kurį Orca gali perskaityti: {{error}}.",
+    "noName": "Jis neturi tinkamo pavadinimo.",
+    "anotherPrinter": "kitas spausdintuvas",
+    "otherPrinter": "Jis skirtas {{made}}, kurio ši programa neturi. Spausdintuvo parametrai priklauso nuo konkrečios mašinos, todėl jo negalima perkelti į kitą spausdintuvą.",
+    "noPrinterBase": "Jis nėra pagrįstas spausdintuvu, kurį turi ši programa.",
+    "noFilamentBase": "Nėra gijos profilio, kuriam jį priskirti.",
+    "noProcessBase": "Nėra proceso profilio, kuriam jį priskirti."
+  }
+}

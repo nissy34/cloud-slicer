@@ -1,0 +1,30 @@
+{
+  "simplifyTool": {
+    "title": "Simplificar",
+    "done": "Concluído",
+    "hint": "Menos triângulos fazem um modelo grande abrir, fatiar e pré-visualizar mais rápido. Detalhes finos podem ficar mais suaves; Desfazer traz a malha antiga de volta.",
+    "trianglesLabel": "Triângulos",
+    "triangles_one": "{{n}} triângulo",
+    "triangles_many": "{{n}} triângulos",
+    "triangles_other": "{{n}} triângulos",
+    "trianglesUnknown": "… triângulos",
+    "workingOut": "(calculando…)",
+    "by": "Simplificar por",
+    "detailLevel": "Nível de detalhe",
+    "ratio": "Taxa de redução",
+    "detail": "Detalhe",
+    "removeTip": "Parte dos triângulos a remover",
+    "remove": "Remover",
+    "paintKept": "A pintura deste objeto (cores, suportes, costuras, textura difusa) é mantida na malha simplificada.",
+    "apply": "Aplicar",
+    "extraHigh": "Altíssimo",
+    "high": "Alto",
+    "medium": "Médio",
+    "low": "Baixo",
+    "extraLow": "Baixíssimo",
+    "million": "{{n}} milhões",
+    "heavyPlates": "{{n}} placas têm mais de {{limit}} triângulos (até {{most}}), o que pode ser mais do que este dispositivo aguenta. Simplificar cada uma para cerca de {{light}} mantém bastante detalhe para a impressão.",
+    "heavyPlate": "A placa {{n}} tem {{triangles}} triângulos, o que pode ser mais do que este dispositivo aguenta. Simplificá-la para cerca de {{light}} mantém bastante detalhe para a impressão.",
+    "heavyModel": "Este modelo tem {{triangles}} triângulos, o que pode ser mais do que este dispositivo aguenta. Simplificá-lo para cerca de {{light}} mantém bastante detalhe para a impressão."
+  }
+}

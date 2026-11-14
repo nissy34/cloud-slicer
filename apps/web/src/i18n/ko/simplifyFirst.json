@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "먼저 이 모델을 단순화할까요?",
+    "openAsIs": "그대로 열기",
+    "simplify": "단순화",
+    "paintKept": "칠한 내용은 단순화한 메시에도 유지됩니다.",
+    "dontAsk": "이 기기에서 다시 묻지 않기"
+  }
+}

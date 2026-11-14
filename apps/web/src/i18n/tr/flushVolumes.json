@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Yıkama hacimleri",
+    "ownAmounts": "kendi miktarlarınız",
+    "fromColours": "renklerden",
+    "leftNozzle": "Sol nozul",
+    "rightNozzle": "Sağ nozul",
+    "nozzleN": "Nozul {{n}}",
+    "filamentN": "Filament {{n}}",
+    "recalculate": "Yeniden hesapla",
+    "done": "Bitti",
+    "explain": "Yazıcının soldaki filamentten üstteki filamente geçerken mm³ cinsinden ne kadar dışarı ittiği. Renklerden hesaplanır: koyudan açığa geçiş daha fazlasını gerektirir.",
+    "nozzle": "Nozul",
+    "tableLabel": "Yıkama hacimleri (mm³)",
+    "from": "şuradan",
+    "to": "şuraya",
+    "toFilament": "{{name}} filamentine",
+    "fromFilament": "{{name}} filamentinden",
+    "purgeLabel": "{{from}} filamentinden {{to}} filamentine temizleme, mm³",
+    "suggested": "Önerilen: {{min}} - {{max}} mm³ (dışına çıkarsa kırmızı görünür).",
+    "multiplier": "Çarpan",
+    "scales": "Her miktarı ölçekler ({{min}} - {{max}}).",
+    "towerOff": "Bu yazıcının ayarlarında (Çoklu malzeme sayfası) \"Prime kulesinde temizle\" kapalı, bu yüzden her filament değişiminde bu miktarlar yerine prime hacmi ({{volume}} mm³) temizlenir. Bunlar yine de yazıcının değişim G-code'una verilen yıkama uzunluğunu belirler."
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Không thể lưu bố cục thẻ. Nó được giữ cho đến khi bạn tải lại trang.",
+    "pageCard": "Thẻ trang {{n}}",
+    "cameraCard": "Thẻ camera {{n}}",
+    "arrangingFor": "Đang sắp xếp thẻ cho {{name}}.",
+    "helpPhone": "Giữ thẻ ở tay nắm và kéo lên hoặc xuống.",
+    "helpDesktop": "Kéo thẻ ở tay nắm vào một cột, hoặc ngang phía trên hoặc dưới.",
+    "helpRest": "Thẻ đã ẩn ở lại đây, mờ đi. Các máy in khác giữ bố cục riêng.",
+    "columns": "Cột",
+    "addCameraCard": "Thêm thẻ camera",
+    "addPageCard": "Thêm thẻ trang",
+    "backToDefault": "Về mặc định",
+    "acrossTop": "Ngang phía trên",
+    "column": "Cột {{n}}",
+    "acrossBottom": "Ngang phía dưới",
+    "small": "Nhỏ",
+    "medium": "Vừa",
+    "large": "Lớn",
+    "moveCard": "Di chuyển {{name}}",
+    "halfWidthTip": "Nửa chiều rộng: hai thẻ nửa nằm cạnh nhau",
+    "halfWidth": "Nửa chiều rộng",
+    "cameraSize": "Cỡ camera",
+    "remove": "Xóa"
+  }
+}

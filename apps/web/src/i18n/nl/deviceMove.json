@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Uitgeschakeld tijdens het printen",
+    "disabledPaused": "Uitgeschakeld tijdens pauze",
+    "position": "Positie",
+    "speed": "Snelheid",
+    "flow": "Flow",
+    "head": "Kop",
+    "moveHead": "De kop verplaatsen",
+    "headBack": "Kop naar achteren",
+    "headLeft": "Kop naar links",
+    "homeHead": "De kop naar huis sturen",
+    "headRight": "Kop naar rechts",
+    "headToward": "Kop naar u toe",
+    "bed": "Printbed",
+    "headHeight": "Kophoogte",
+    "moveBed": "Het printbed verplaatsen",
+    "moveHeadZ": "De kop omhoog en omlaag bewegen",
+    "bedUp": "Printbed omhoog",
+    "headUp": "Kop omhoog",
+    "homeBed": "Het printbed naar huis sturen",
+    "homeHeight": "De hoogte naar huis sturen",
+    "bedDown": "Printbed omlaag",
+    "headDown": "Kop omlaag",
+    "step": "Stap",
+    "homeAll": "Alles naar huis",
+    "motorsOff": "Motoren uit",
+    "heatFirst": "Verwarm eerst het mondstuk",
+    "extrude10": "10 mm extruderen",
+    "retract": "Terugtrekken",
+    "homeFirst": "Stuur de printer naar huis voordat u hem verplaatst."
+  }
+}

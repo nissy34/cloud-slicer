@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "旋轉文字",
+    "rotateSvg": "旋轉 SVG",
+    "moveText": "調整文字與表面的距離",
+    "moveSvg": "調整 SVG 與表面的距離",
+    "rotationTip": "沿自身軸心順時針轉動（3D 檢視中的圓環作用相同）",
+    "rotation": "旋轉",
+    "fromSurfaceTip": "離表面凸出的距離",
+    "fromSurface": "離表面距離",
+    "keepUpTip": "在表面上滑動或朝向攝影機時保持直立",
+    "keepUp": "保持直立",
+    "faceCameraTip": "轉向您，也就是您觀看它的方向",
+    "faceCamera": "朝向攝影機",
+    "moveToolsText": "請使用那些工具移動或旋轉文字。",
+    "moveToolsShape": "請使用那些工具移動或旋轉形狀。",
+    "dragText": "拖曳文字或其藍色外框，即可在物件上滑動。圓環可轉動它。",
+    "dragShape": "拖曳形狀或其藍色外框，即可在物件上滑動。圓環可轉動它。"
+  }
+}

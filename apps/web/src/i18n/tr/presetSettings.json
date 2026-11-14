@@ -1,0 +1,33 @@
+{
+  "presetSettings": {
+    "editPrinter": "Yazıcı ayarlarını düzenle",
+    "editFilament": "Filament {{n}} ayarlarını düzenle",
+    "savedInProject": "{{name}} projesine kaydedildi.",
+    "savedIn3mf": "İndirilen proje 3MF dosyasına kaydedildi.",
+    "nameTaken": "Bu adda bir ön ayar zaten var.",
+    "savedAs": "{{name}} olarak kaydedildi.",
+    "whereAccount": "Hesabınıza kaydedildi.",
+    "whereBrowser": "Oturum açana kadar bu tarayıcıya kaydedildi.",
+    "printerTitle": "Yazıcı ayarları",
+    "filamentNTitle": "Filament {{n}} ayarları",
+    "filamentTitle": "Filament ayarları",
+    "newPrinterName": "Yeni yazıcı ön ayarı adı",
+    "newFilamentName": "Yeni filament ön ayarı adı",
+    "back": "Geri",
+    "saving": "Kaydediliyor…",
+    "save": "Kaydet",
+    "unsaved_one": "{{count}} kaydedilmemiş değişiklik",
+    "unsaved_other": "{{count}} kaydedilmemiş değişiklik",
+    "noChanges": "Değişiklik yok",
+    "discard": "Değişiklikleri at",
+    "saveAsNew": "Yeni ön ayar olarak kaydet…",
+    "savedName": "{{name}} kaydedildi.",
+    "saveToPreset": "Ön ayara kaydet",
+    "saveToProjectTip": "Bu değişiklikleri yalnızca bu projede tutar ve projeyi kaydeder",
+    "saveToProject": "Projeye kaydet",
+    "modified": "(değiştirildi)",
+    "yours": "Sizin ön ayarınız, {{parent}} tabanlı.",
+    "system": "Sistem ön ayarı: değişikliklerinizi korumak için Farklı kaydet'i kullanın.",
+    "footHint": "Projeye kaydet, bu değişiklikleri yalnızca bu projede tutar ve projeyi açtığınızda geri gelirler. Ön ayar onları her proje için tutar. {{where}} Dışa aktarma, içe aktarma, yeniden adlandırma ve silme ⋯ menüsünde."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Taškas",
+    "edge": "Briauna",
+    "circle": "Apskritimas",
+    "plane": "Plokštuma",
+    "position": "Padėtis",
+    "length": "Ilgis",
+    "from": "Iš",
+    "to": "Į",
+    "diameter": "Skersmuo",
+    "radius": "Spindulys",
+    "centre": "Centras",
+    "normal": "Normalė",
+    "angle": "Kampas",
+    "distance": "Atstumas",
+    "perpendicular": "Statmenas atstumas",
+    "along": "Išilgai {{axis}}"
+  }
+}

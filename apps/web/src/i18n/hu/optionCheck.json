@@ -1,0 +1,12 @@
+{
+  "optionCheck": {
+    "allowed": "Megengedett: {{min}} és {{max}} között",
+    "lowest": "A legkisebb megengedett: {{min}}",
+    "highest": "A legnagyobb megengedett: {{max}}",
+    "setTo": "{{allowed}}, beállítva: {{value}}.",
+    "needed": "Értékre van szükség.",
+    "noPercent": "Ez a beállítás nem lehet százalék.",
+    "notWhole": "A(z) „{{text}}” nem egész szám.",
+    "notNumber": "A(z) „{{text}}” nem szám."
+  }
+}

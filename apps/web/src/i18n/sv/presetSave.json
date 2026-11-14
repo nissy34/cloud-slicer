@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Använd 1–128 tecken, utan / \\ : * ? \" < > |",
+    "notAvailable": "Förinställningen {{name}} är inte tillgänglig.",
+    "onlyOwn": "Bara dina egna förinställningar kan sparas; använd Spara som.",
+    "noneSelected": "Ingen förinställning är vald.",
+    "sameName": "Två förinställningar kan inte ha samma namn.",
+    "nameTaken": "Det finns redan en förinställning som heter ”{{name}}”.",
+    "notYours": "Den här förinställningen är inte en av dina."
+  }
+}

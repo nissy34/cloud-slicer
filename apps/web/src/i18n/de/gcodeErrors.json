@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "„{{variable}}“ ist keine Einstellung, die dieser Slicer kennt (sie stammt vielleicht von einem anderen Slicer oder einer neueren Version).",
+    "unknownName": "es verwendet einen Namen, den dieser Slicer nicht kennt.",
+    "negativeIndex": "„{{variable}}“ wird gelesen, bevor das erste Filament geladen ist (sein Index ist dort -1); prüfen Sie diesen Index zuerst mit {if ...}.",
+    "negativeIndexList": "eine Liste wird gelesen, bevor das erste Filament geladen ist (ihr Index ist dort -1); prüfen Sie diesen Index zuerst mit {if ...}.",
+    "reasonAt": "{{reason}} bei „{{variable}}“.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, Zeile {{line}}: {{why}}",
+    "filamentSettings": "Filamenteinstellungen",
+    "printerSettings": "Druckereinstellungen",
+    "or": " oder ",
+    "stoppedOne": "Das Slicen wurde gestoppt: Ein eigener G-code kann nicht ausgefüllt werden.",
+    "stoppedSome": "Das Slicen wurde gestoppt: Einige eigene G-codes können nicht ausgefüllt werden.",
+    "fix": "Korrigieren Sie das in den {{where}} oder setzen Sie es auf den G-code des Profils zurück."
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Während des Drucks deaktiviert",
+    "disabledPaused": "Während der Pause deaktiviert",
+    "position": "Position",
+    "speed": "Geschwindigkeit",
+    "flow": "Fluss",
+    "head": "Kopf",
+    "moveHead": "Kopf bewegen",
+    "headBack": "Kopf nach hinten",
+    "headLeft": "Kopf nach links",
+    "homeHead": "Kopf referenzieren",
+    "headRight": "Kopf nach rechts",
+    "headToward": "Kopf zu Ihnen",
+    "bed": "Druckbett",
+    "headHeight": "Kopfhöhe",
+    "moveBed": "Druckbett bewegen",
+    "moveHeadZ": "Kopf nach oben und unten bewegen",
+    "bedUp": "Druckbett hoch",
+    "headUp": "Kopf hoch",
+    "homeBed": "Druckbett referenzieren",
+    "homeHeight": "Höhe referenzieren",
+    "bedDown": "Druckbett runter",
+    "headDown": "Kopf runter",
+    "step": "Schritt",
+    "homeAll": "Alle referenzieren",
+    "motorsOff": "Motoren aus",
+    "heatFirst": "Düse zuerst aufheizen",
+    "extrude10": "10 mm extrudieren",
+    "retract": "Rückzug",
+    "homeFirst": "Referenzieren Sie den Drucker, bevor Sie ihn bewegen."
+  }
+}

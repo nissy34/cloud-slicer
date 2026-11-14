@@ -1,0 +1,7 @@
+{
+  "time": {
+    "justNow": "épp most",
+    "minAgo": "{{n}} perccel ezelőtt",
+    "hoursAgo": "{{n}} órával ezelőtt"
+  }
+}

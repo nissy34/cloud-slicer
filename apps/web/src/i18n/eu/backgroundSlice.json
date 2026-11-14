@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "%{{pct}} · Xerratzen · {{title}}",
+    "doneTitle": "Xerratzea amaituta",
+    "plateSliced": "{{plate}}. plaka xerratuta dago. Ukitu ikusteko.",
+    "tapToSee": "Ukitu ikusteko.",
+    "questionTitle": "Xerratzeak zu behar zaitu",
+    "questionBody": "Galdera bat dauka amaitu aurretik. Ukitu erantzuteko.",
+    "failedTitle": "Xerratzeak huts egin du",
+    "tapToSeeWhy": "Ukitu zergatia ikusteko."
+  }
+}

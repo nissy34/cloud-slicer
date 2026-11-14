@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Mozgatás",
+    "rotate": "Forgatás",
+    "scale": "Átméretezés",
+    "rotateText": "Szöveg forgatása",
+    "moveSvgSurface": "SVG mozgatása a felületen",
+    "moveTextSurface": "Szöveg mozgatása a felületen",
+    "movePart": "Tárgy mozgatása",
+    "rotatePart": "Tárgy forgatása",
+    "scalePart": "Tárgy átméretezése",
+    "plates": "Tálcák",
+    "ownSettingsTip": "Ennek a tálcának saját beállításai vannak",
+    "ownSettings": "saját beállításai vannak",
+    "plateSettings": "Tálcabeállítások",
+    "plateNSettings": "{{n}}. tálca beállításai"
+  }
+}

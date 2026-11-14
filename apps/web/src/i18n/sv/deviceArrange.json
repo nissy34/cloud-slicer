@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Kunde inte spara kortlayouten. Den behålls tills du laddar om sidan.",
+    "pageCard": "Sidkort {{n}}",
+    "cameraCard": "Kamerakort {{n}}",
+    "arrangingFor": "Arrangerar kort för {{name}}.",
+    "helpPhone": "Håll ett kort i dess handtag och dra det uppåt eller nedåt.",
+    "helpDesktop": "Dra ett kort i dess handtag till en kolumn, eller över hela toppen eller botten.",
+    "helpRest": "Dolda kort stannar här, bleka. Andra skrivare behåller sin egen layout.",
+    "columns": "Kolumner",
+    "addCameraCard": "Lägg till ett kamerakort",
+    "addPageCard": "Lägg till ett sidkort",
+    "backToDefault": "Tillbaka till standard",
+    "acrossTop": "Över toppen",
+    "column": "Kolumn {{n}}",
+    "acrossBottom": "Över botten",
+    "small": "Liten",
+    "medium": "Medel",
+    "large": "Stor",
+    "moveCard": "Flytta {{name}}",
+    "halfWidthTip": "Halv bredd: två halva kort ligger sida vid sida",
+    "halfWidth": "Halv bredd",
+    "cameraSize": "Kamerastorlek",
+    "remove": "Ta bort"
+  }
+}

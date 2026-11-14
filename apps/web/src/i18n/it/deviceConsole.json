@@ -1,0 +1,27 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Temperature",
+    "filterTimelapse": "Timelapse",
+    "filterTimelapseExample": "messaggi dei fotogrammi timelapse",
+    "filterProgress": "Avanzamento della stampa",
+    "filterOk": "\"ok\" semplice",
+    "done": "Fatto",
+    "filtersN": "Filtri ({{n}})",
+    "filters": "Filtri",
+    "hideThese": "Nascondi queste righe",
+    "hideLike": "Nascondi righe come: {{example}}",
+    "hideContaining": "Nascondi le righe che contengono “{{text}}”",
+    "removeFilter": "Rimuovi il filtro “{{text}}”",
+    "remove": "Rimuovi",
+    "hideContainingPlaceholder": "Nascondi le righe che contengono…",
+    "hideContainingLabel": "Nascondi le righe che contengono",
+    "add": "Aggiungi",
+    "filtersHelp": "Tocca un chip per attivarlo o disattivarlo. Ciò che invii e gli errori si vedono sempre.",
+    "linesHidden_one": "1 riga nascosta dai filtri",
+    "linesHidden_other": "{{count}} righe nascoste dai filtri",
+    "sendPlaceholder": "Invia G-code, es. M115",
+    "commandLabel": "Comando G-code",
+    "send": "Invia",
+    "linesHidden_many": "{{count}} righe nascoste dai filtri"
+  }
+}

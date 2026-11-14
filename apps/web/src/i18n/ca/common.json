@@ -1,0 +1,14 @@
+{
+  "common": {
+    "cancel": "Cancel·la",
+    "copied": "Copiat",
+    "copyError": "Copia l'error",
+    "hide": "Amaga",
+    "show": "Mostra",
+    "close": "Tanca",
+    "closeMessage": "Tanca el missatge",
+    "done": "Fet",
+    "notNow": "Ara no",
+    "next": "Següent"
+  }
+}

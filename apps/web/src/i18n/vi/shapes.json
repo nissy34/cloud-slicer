@@ -1,0 +1,10 @@
+{
+  "shapes": {
+    "cube": "Khối lập phương",
+    "cylinder": "Hình trụ",
+    "sphere": "Hình cầu",
+    "cone": "Hình nón",
+    "disc": "Đĩa",
+    "torus": "Hình xuyến"
+  }
+}

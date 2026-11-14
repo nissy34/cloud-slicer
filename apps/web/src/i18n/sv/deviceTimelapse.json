@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} av {{size}} MB",
+    "arrivingRelay": "{{got}} av {{size}} MB via reläet",
+    "cannotFetch": "Den här skrivaranslutningen kan inte hämta videor.",
+    "fetchFailed": "Videon kunde inte hämtas.",
+    "delete": "Ta bort",
+    "download": "Ladda ner",
+    "cantPlay": "Den här sortens video spelas inte upp i webbläsaren. Ladda ner den för att titta på den.",
+    "none": "Inga timelapse-filmer än. Slå på Timelapse när du startar en utskrift.",
+    "watch": "Titta",
+    "pages": "Timelapse-sidor",
+    "refresh": "Uppdatera",
+    "deleteTitle": "Ta bort timelapse"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "zure {{device}}",
+    "another": "beste gailu bat",
+    "iPad": "iPad",
+    "phone": "telefonoa",
+    "tablet": "tableta",
+    "windows": "Windows ordenagailua",
+    "mac": "Mac",
+    "chromebook": "Chromebook",
+    "linux": "Linux ordenagailua",
+    "other": "beste gailu bat"
+  }
+}

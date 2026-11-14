@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Objekteinstellungen",
+    "modifierSettings": "Modifizierer-Einstellungen",
+    "partSettings": "Teileinstellungen",
+    "addToObject": "Diesem Objekt eine Einstellung hinzufügen",
+    "addToModifier": "Diesem Modifizierer eine Einstellung hinzufügen",
+    "addToPart": "Diesem Teil eine Einstellung hinzufügen",
+    "addSetting": "+ Einstellung hinzufügen",
+    "modifierEmpty": "Fügen Sie eine Einstellung hinzu, um sie dort zu ändern, wo der Modifizierer das Objekt überlappt, zum Beispiel mehr Füllung an einer Stelle.",
+    "partEmpty": "Verwendet die Einstellungen des Objekts. Fügen Sie eine hinzu, um sie nur für dieses Teil zu ändern.",
+    "objectEmpty": "Verwendet die Prozesseinstellungen. Fügen Sie eine hinzu, um sie nur für dieses Objekt zu ändern.",
+    "others": "Sonstige",
+    "removeFromObject": "Von diesem Objekt entfernen",
+    "removeFromModifier": "Von diesem Modifizierer entfernen",
+    "removeFromPart": "Von diesem Teil entfernen"
+  }
+}

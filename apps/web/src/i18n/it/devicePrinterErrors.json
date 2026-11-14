@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "Problema del sistema di movimento",
+    "mainboardProblem": "Problema della scheda madre",
+    "amsProblem": "Problema dell'AMS",
+    "toolheadProblem": "Problema della testina",
+    "cameraProblem": "Problema della telecamera",
+    "printerProblem": "Problema della stampante",
+    "bambuUnknown": "La stampante ha segnalato questo problema. Controlla il suo schermo per i dettagli.",
+    "printerError": "Errore della stampante",
+    "u1Unknown": "La stampante ha segnalato un errore. Controlla il suo schermo per i dettagli."
+  }
+}

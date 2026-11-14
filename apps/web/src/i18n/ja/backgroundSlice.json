@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · スライス中 · {{title}}",
+    "doneTitle": "スライス完了",
+    "plateSliced": "プレート {{plate}} をスライスしました。タップして確認できます。",
+    "tapToSee": "タップして確認できます。",
+    "questionTitle": "スライスに確認が必要です",
+    "questionBody": "終わる前に質問があります。タップして答えてください。",
+    "failedTitle": "スライスに失敗しました",
+    "tapToSeeWhy": "タップして理由を確認できます。"
+  }
+}
