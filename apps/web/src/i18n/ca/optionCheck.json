@@ -1,0 +1,12 @@
+{
+  "optionCheck": {
+    "allowed": "Permès de {{min}} a {{max}}",
+    "lowest": "El mínim permès és {{min}}",
+    "highest": "El màxim permès és {{max}}",
+    "setTo": "{{allowed}}, definit a {{value}}.",
+    "needed": "Cal un valor.",
+    "noPercent": "Aquest paràmetre no pot ser un percentatge.",
+    "notWhole": "«{{text}}» no és un nombre enter.",
+    "notNumber": "«{{text}}» no és un nombre."
+  }
+}

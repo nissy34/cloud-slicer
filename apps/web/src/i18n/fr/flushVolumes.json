@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Volumes de purge",
+    "ownAmounts": "vos propres quantités",
+    "fromColours": "d’après les couleurs",
+    "leftNozzle": "Buse gauche",
+    "rightNozzle": "Buse droite",
+    "nozzleN": "Buse {{n}}",
+    "filamentN": "Filament {{n}}",
+    "recalculate": "Recalculer",
+    "done": "Terminé",
+    "explain": "Quantité que l’imprimante expulse, en mm³, quand elle passe du filament de gauche à celui du haut. Calculée d’après les couleurs : du foncé au clair, il en faut plus.",
+    "nozzle": "Buse",
+    "tableLabel": "Volumes de purge en mm³",
+    "from": "de",
+    "to": "vers",
+    "toFilament": "Vers {{name}}",
+    "fromFilament": "Depuis {{name}}",
+    "purgeLabel": "Purge de {{from}} vers {{to}}, mm³",
+    "suggested": "Suggéré : {{min}} à {{max}} mm³ (en dehors, c’est affiché en rouge).",
+    "multiplier": "Multiplicateur",
+    "scales": "Met à l’échelle chaque quantité ({{min}} à {{max}}).",
+    "towerOff": "« Purger dans la tour d’amorçage » est désactivé dans les réglages de cette imprimante (page Multi-matériaux), donc chaque changement de filament purge le volume d’amorçage ({{volume}} mm³) au lieu de ces quantités. Elles fixent tout de même la longueur de purge que reçoit le G-code de changement de l’imprimante."
+  }
+}

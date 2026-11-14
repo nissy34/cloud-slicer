@@ -1,0 +1,17 @@
+{
+  "chooseBar": {
+    "chosenModels": "已選取的模型",
+    "tapToChoose": "點選模型即可選取",
+    "chosen_other": "已選取 {{count}} 個",
+    "selectAll": "全選",
+    "all": "全部",
+    "assemble": "組裝",
+    "assembleTip": "將它們合併為一個物件，各零件保持原位",
+    "menuTip": "對它們全部執行的操作（或在已選取的模型上按右鍵／長按）",
+    "menu": "可執行的操作",
+    "doneTip": "點選時再次只選一個模型",
+    "clearTip": "取消所有選取 (Esc)",
+    "done": "完成",
+    "clear": "清除"
+  }
+}

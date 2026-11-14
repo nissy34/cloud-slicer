@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "슬라이싱 엔진 다운로드 중",
+    "setup": "슬라이싱 엔진 시작 중",
+    "printers": "프린터와 사전 설정 불러오는 중",
+    "downloadingProject": "“{{name}}” 다운로드 중",
+    "opening": "{{name}} 여는 중"
+  }
+}

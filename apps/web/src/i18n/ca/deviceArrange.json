@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "No s'ha pogut desar la disposició de les targetes. Es conserva fins que torneu a carregar la pàgina.",
+    "pageCard": "Targeta de pàgina {{n}}",
+    "cameraCard": "Targeta de càmera {{n}}",
+    "arrangingFor": "Ordenant les targetes de {{name}}.",
+    "helpPhone": "Manteniu una targeta per la nansa i arrossegueu-la amunt o avall.",
+    "helpDesktop": "Arrossegueu una targeta per la nansa a una columna, o a dalt o a baix de tot.",
+    "helpRest": "Les targetes amagades es queden aquí, atenuades. Les altres impressores mantenen la seva pròpia disposició.",
+    "columns": "Columnes",
+    "addCameraCard": "Afegeix una targeta de càmera",
+    "addPageCard": "Afegeix una targeta de pàgina",
+    "backToDefault": "Torna al valor per defecte",
+    "acrossTop": "A tot l'ample a dalt",
+    "column": "Columna {{n}}",
+    "acrossBottom": "A tot l'ample a baix",
+    "small": "Petita",
+    "medium": "Mitjana",
+    "large": "Gran",
+    "moveCard": "Mou {{name}}",
+    "halfWidthTip": "Mitja amplada: dues targetes de mitja amplada van l'una al costat de l'altra",
+    "halfWidth": "Mitja amplada",
+    "cameraSize": "Mida de la càmera",
+    "remove": "Treu"
+  }
+}

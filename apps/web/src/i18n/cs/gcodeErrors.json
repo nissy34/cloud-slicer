@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "„{{variable}}“ není nastavení, které tento slicer zná (může pocházet z jiného slicru nebo novější verze).",
+    "unknownName": "používá název, který tento slicer nezná.",
+    "negativeIndex": "„{{variable}}“ se čte před zavedením prvního filamentu (jeho index je tam -1); nejprve tento index ověřte pomocí {if ...}.",
+    "negativeIndexList": "seznam se čte před zavedením prvního filamentu (jeho index je tam -1); nejprve tento index ověřte pomocí {if ...}.",
+    "reasonAt": "{{reason}} u „{{variable}}“.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, řádek {{line}}: {{why}}",
+    "filamentSettings": "nastavení filamentu",
+    "printerSettings": "nastavení tiskárny",
+    "or": " nebo ",
+    "stoppedOne": "Slicování se zastavilo: vlastní G-code nelze vyplnit.",
+    "stoppedSome": "Slicování se zastavilo: některý vlastní G-code nelze vyplnit.",
+    "fix": "Opravte to v části {{where}} nebo ho obnovte na G-code předvolby."
+  }
+}

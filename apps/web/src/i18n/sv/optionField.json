@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Återställ till förinställningens värde",
+    "keptOld": "Behöll det gamla värdet.",
+    "kept": "Behöll {{value}}.",
+    "plateUses": "Platta {{n}} använder",
+    "on": "på",
+    "off": "av",
+    "itsOwn": "(sin egen inställning).",
+    "plateSettings": "Plattinställningar",
+    "default": "Standard",
+    "percentOrMm": "Procent eller mm?",
+    "isItPercent": "{{label}}: är det {{number}}% eller {{number}} {{unit}}?",
+    "filamentN": "Filament {{n}}",
+    "mix": "Blandning",
+    "mixes": "Blandningar"
+  }
+}

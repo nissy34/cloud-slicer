@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Mugitu",
+    "rotate": "Biratu",
+    "scale": "Eskalatu",
+    "rotateText": "Biratu testua",
+    "moveSvgSurface": "Mugitu SVG gainazalean zehar",
+    "moveTextSurface": "Mugitu testua gainazalean zehar",
+    "movePart": "Mugitu pieza",
+    "rotatePart": "Biratu pieza",
+    "scalePart": "Eskalatu pieza",
+    "plates": "Plakak",
+    "ownSettingsTip": "Plaka honek bere ezarpen propioak ditu",
+    "ownSettings": "bere ezarpen propioak ditu",
+    "plateSettings": "Plakaren ezarpenak",
+    "plateNSettings": "{{n}}. plakaren ezarpenak"
+  }
+}

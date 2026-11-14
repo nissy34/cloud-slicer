@@ -1,0 +1,8 @@
+{
+  "fontList": {
+    "hebrew": "İbranice",
+    "pickScriptFont": "{{script}} için bir yazı tipi seçin, örneğin {{fonts}}.",
+    "pickAnyFont": "Bunlara sahip bir yazı tipi seçin: bir yazı tipi dosyası veya bu bilgisayarın yazı tiplerinden biri.",
+    "noLetters": "Bu yazı tipinde {{letters}} için harf yok, bu yüzden dışarıda bırakıldılar."
+  }
+}

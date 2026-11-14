@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "未命名",
+    "nothingYet": "此盘上还没有内容",
+    "locked": "此盘已锁定",
+    "deleteTip": "移除此盘及其上的内容（最后一盘除外）",
+    "orientTip": "自动朝向此盘上的对象",
+    "arrangeTip": "自动摆放此盘上的对象（Shift+A）",
+    "unlockTip": "解锁此盘",
+    "lockTip": "锁定此盘：自动摆放和自动朝向不会改动它",
+    "settingsOwnTip": "盘设置：此盘有自己的设置",
+    "settingsTip": "盘设置：盘类型、打印顺序、旋转花瓶、耗材顺序",
+    "renameTip": "重命名此盘"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} із {{total}}",
+    "engineNoStart": "{{engine}} не вдалося запустити",
+    "openedWith": "Відкрито через {{engine}}, рушій, яким створено цей проєкт.",
+    "somethingWrong": "Щось пішло не так",
+    "files_one": "{{count}} файл",
+    "files_few": "{{count}} файли",
+    "files_many": "{{count}} файлів",
+    "files_other": "{{count}} файлу",
+    "saving": "Збереження…",
+    "savingAfterSlice": "Збереження… після нарізки",
+    "savingMaking": "Збереження… створення 3MF",
+    "savingSent": "Збереження… {{progress}}",
+    "savingFinishing": "Збереження… завершення",
+    "saved": "«{{name}}» збережено у ваші проєкти",
+    "notSaved": "Не збережено: {{error}}",
+    "preparing": "Підготовка 3MF…",
+    "makeFailed": "Не вдалося створити 3MF: {{error}}",
+    "opening": "Відкривається «{{name}}»…",
+    "openFailed": "Не вдалося відкрити «{{name}}»: {{error}}",
+    "saveCancelled": "Збереження скасовано",
+    "viewOnly": "Цей проєкт тут лише для перегляду. Скористайтеся «Редагувати тут», щоб змінити його.",
+    "openDriveFailed": "Не вдалося відкрити «{{name}}» з Google Drive: {{error}}",
+    "quoted": "«{{name}}»",
+    "cantOpen": "Cloud Slicer не може відкрити {{names}}.",
+    "cantOpenShared": "Cloud Slicer не може відкрити {{names}}",
+    "openedDriveFile": "Відкрито «{{name}}» з вашого Google Drive. «Зберегти» тримає копію у вашій теці Cloud Slicer. Файл на Drive залишається як є.",
+    "openedDriveFiles": "Відкрито {{name}} з вашого Google Drive. «Зберегти» тримає копію у вашій теці Cloud Slicer. Файли на Drive залишаються як є.",
+    "myProject": "Мій проєкт",
+    "removed": "«{{name}}» прибрано з ваших проєктів"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "我的打印机",
+    "otherPrinters": "其他",
+    "printer": "打印机",
+    "manage": "管理",
+    "printerPreset": "打印机预设",
+    "addRemovePrinters": "添加或移除打印机…",
+    "sendsFromDevice": "可从“设备”标签页向其发送打印。",
+    "noDirectPrint": "此打印机不支持直接打印（不是 Klipper、Prusa 或 Centauri Carbon）：下载 G-code 进行打印，或在由 OctoPrint 运行打印机时从“设备”标签页发送。",
+    "plateType": "盘类型",
+    "filament": "耗材",
+    "addFilament": "添加耗材",
+    "add": "+ 添加",
+    "filamentColour": "耗材颜色",
+    "filamentNColour": "耗材 {{n}} 颜色",
+    "filamentNPreset": "耗材 {{n}} 预设",
+    "addRemoveFilaments": "添加或移除耗材…",
+    "removeFilament": "移除此耗材",
+    "removeFilamentN": "移除耗材 {{n}}",
+    "process": "工艺",
+    "processPreset": "工艺预设",
+    "readingFilaments": "正在读取打印机的耗材…",
+    "myPresets": "我的预设",
+    "systemPresets": "系统预设",
+    "show": "显示侧栏（Shift+Tab）",
+    "hide": "隐藏侧栏（Shift+Tab）",
+    "width": "侧栏宽度"
+  }
+}

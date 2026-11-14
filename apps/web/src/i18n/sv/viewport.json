@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Flytta",
+    "rotate": "Rotera",
+    "scale": "Skala",
+    "rotateText": "Rotera text",
+    "moveSvgSurface": "Flytta SVG över ytan",
+    "moveTextSurface": "Flytta text över ytan",
+    "movePart": "Flytta del",
+    "rotatePart": "Rotera del",
+    "scalePart": "Skala del",
+    "plates": "Plattor",
+    "ownSettingsTip": "Den här plattan har egna inställningar",
+    "ownSettings": "har egna inställningar",
+    "plateSettings": "Plattinställningar",
+    "plateNSettings": "Inställningar för platta {{n}}"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Be pavadinimo",
+    "nothingYet": "Šioje plokštėje dar nieko nėra",
+    "locked": "Ši plokštė užrakinta",
+    "deleteTip": "Pašalinti šią plokštę ir tai, kas joje yra (ne paskutinę)",
+    "orientTip": "Automatiškai orientuoti šios plokštės objektus",
+    "arrangeTip": "Išdėstyti šios plokštės objektus (Shift+A)",
+    "unlockTip": "Atrakinti šią plokštę",
+    "lockTip": "Užrakinti šią plokštę: Išdėstyti ir Automatinė orientacija jos nekeičia",
+    "settingsOwnTip": "Plokštės parametrai: ši plokštė turi savo parametrus",
+    "settingsTip": "Plokštės parametrai: plokštės tipas, spausdinimo seka, spiralinė vaza, gijų tvarka",
+    "renameTip": "Pervardyti šią plokštę"
+  }
+}

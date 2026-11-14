@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Diese Datei",
+    "title": "Als Projekt öffnen?",
+    "geometryOnly": "Nur Geometrie importieren",
+    "open": "Projekt öffnen",
+    "body": "<b>{{name}}</b> ist ein Projekt mit eigenen Platten und Einstellungen. Beim Öffnen wird ersetzt, was jetzt auf Ihren Platten liegt. Beim Importieren der Geometrie werden die Objekte zu Ihrer Platte hinzugefügt, und Ihre Einstellungen bleiben erhalten."
+  }
+}

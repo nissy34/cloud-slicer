@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Mou",
+    "rotate": "Gira",
+    "scale": "Escala",
+    "rotateText": "Gira el text",
+    "moveSvgSurface": "Mou l'SVG sobre la superfície",
+    "moveTextSurface": "Mou el text sobre la superfície",
+    "movePart": "Mou la peça",
+    "rotatePart": "Gira la peça",
+    "scalePart": "Escala la peça",
+    "plates": "Safates",
+    "ownSettingsTip": "Aquesta safata té paràmetres propis",
+    "ownSettings": "té paràmetres propis",
+    "plateSettings": "Paràmetres de la safata",
+    "plateNSettings": "Paràmetres de la safata {{n}}"
+  }
+}

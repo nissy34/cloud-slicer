@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "Venster sluiten",
+    "moreAboutThis": "Meer hierover",
+    "plannedForPhase": "Gepland voor fase {{phase}}.",
+    "saving": "Bewaren",
+    "loadedOf": "{{loaded}} van {{total}}"
+  }
+}

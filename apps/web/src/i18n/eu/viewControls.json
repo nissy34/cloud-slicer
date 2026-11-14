@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "Iso",
+    "top": "Goikoa",
+    "bottom": "Behekoa",
+    "front": "Aurrekoa",
+    "back": "Atzekoa",
+    "left": "Ezkerra",
+    "right": "Eskuina",
+    "views": "Ikuspegiak",
+    "viewsTip": "Ikuspegiak: goikoa, aurrekoa, alboa...",
+    "viewTip": "{{view}} ikuspegia ({{key}})",
+    "fitAll": "Doitu denari",
+    "fitAllTip": "Doitu denari: erakutsi dena (Z)"
+  }
+}

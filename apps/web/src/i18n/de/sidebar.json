@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Meine Drucker",
+    "otherPrinters": "Andere",
+    "printer": "Drucker",
+    "manage": "Verwalten",
+    "printerPreset": "Druckerprofil",
+    "addRemovePrinters": "Drucker hinzufügen oder entfernen…",
+    "sendsFromDevice": "Senden Sie Drucke von dort aus im Tab Gerät.",
+    "noDirectPrint": "Kein direkter Druck für diesen Drucker (weder Klipper noch Prusa noch Centauri Carbon): Laden Sie den G-code zum Drucken herunter oder senden Sie ihn im Tab Gerät, falls OctoPrint den Drucker steuert.",
+    "plateType": "Plattentyp",
+    "filament": "Filament",
+    "addFilament": "Filament hinzufügen",
+    "add": "+ Hinzufügen",
+    "filamentColour": "Filamentfarbe",
+    "filamentNColour": "Farbe von Filament {{n}}",
+    "filamentNPreset": "Profil von Filament {{n}}",
+    "addRemoveFilaments": "Filamente hinzufügen oder entfernen…",
+    "removeFilament": "Dieses Filament entfernen",
+    "removeFilamentN": "Filament {{n}} entfernen",
+    "process": "Prozess",
+    "processPreset": "Prozessprofil",
+    "readingFilaments": "Filamente des Druckers werden gelesen…",
+    "myPresets": "Meine Profile",
+    "systemPresets": "Systemprofile",
+    "show": "Seitenleiste anzeigen (Shift+Tab)",
+    "hide": "Seitenleiste ausblenden (Shift+Tab)",
+    "width": "Breite der Seitenleiste"
+  }
+}

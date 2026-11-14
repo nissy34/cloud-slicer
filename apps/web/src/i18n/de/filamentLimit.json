@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} Filamente auf {{heads}} Köpfen: Welcher Kopf welches Filament druckt, wählen Sie beim Senden des Drucks.",
+    "warn": "{{n}} Filamente auf einem Drucker mit {{heads}} Köpfen."
+  }
+}

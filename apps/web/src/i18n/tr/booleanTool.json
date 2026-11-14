@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Birleşim",
+    "difference": "Fark",
+    "intersection": "Kesişim",
+    "subtractFrom": "Şundan çıkar",
+    "subtractWith": "Şununla çıkar",
+    "part": "Parça {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Ağ boolean işlemi",
+    "done": "Bitti",
+    "operation": "İşlem",
+    "needTwo": "Bu, bir nesnenin iki parçası üzerinde çalışır. Nesnenin menüsünden (sağ tıklayın veya nesne listesindeki ⋯ düğmesi) bir parça, negatif parça veya değiştirici ekleyin, yerleştirin, sonra buraya dönün.",
+    "unionHint": "İkisini tek parçada birleştirir.",
+    "differenceHint": "İkinciyi birinciden keser.",
+    "intersectionHint": "Yalnızca ikisinin çakıştığı yeri tutar.",
+    "resultHint": "Sonuç, birincinin yerini, türünü ve ayarlarını alır. Geri al, ikisini de geri getirir.",
+    "pickDifferent": "İki farklı parça seçin.",
+    "deleteInput": "Girdiyi sil (ikinciyi de kaldır)",
+    "working": "Çalışıyor…"
+  }
+}

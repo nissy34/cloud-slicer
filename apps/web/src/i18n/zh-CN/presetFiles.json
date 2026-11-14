@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} 大小为 {{size}}；预设文件最大为 {{max}}。",
+    "notJson": "{{label}} 不是预设文件（不是 JSON）。",
+    "tooMany": "一次最多只能导入 {{max}} 个预设；{{label}} 被忽略了。",
+    "bundleTooBig": "{{name}} 大小为 {{size}}；压缩包最大为 {{max}}。",
+    "badZip": "无法将 {{name}} 作为 zip 打开。",
+    "unpacksTooBig": "{{name}} 解压后超过 {{max}}，或包含超过 {{fileMax}} 的文件；未从中导入任何内容。",
+    "empty": "{{name}} 中没有预设文件。",
+    "tooManyKeys": "它更改了超过 {{max}} 项设置。",
+    "tooLarge": "其设置超过 {{max}}。",
+    "fileN": "文件 {{n}}",
+    "unreadable": "不是 Orca 可读取的预设：{{error}}。",
+    "noName": "它没有可用的名称。",
+    "anotherPrinter": "另一台打印机",
+    "otherPrinter": "它是为 {{made}} 制作的，本应用没有该打印机。打印机设置因机器而异，因此无法移到另一台打印机上。",
+    "noPrinterBase": "它不是基于本应用已有的打印机。",
+    "noFilamentBase": "没有可放置它的耗材预设。",
+    "noProcessBase": "没有可放置它的工艺预设。"
+  }
+}

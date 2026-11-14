@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Kamerak",
+    "climate": "Ohea eta ganbera",
+    "move": "Mugitu",
+    "console": "Kontsola",
+    "print": "Inprimatu",
+    "toolHeads": "Erreminta-buruak",
+    "alerts": "Alertak",
+    "files": "Fitxategiak",
+    "unfold": "Zabaldu txartel hau",
+    "fold": "Tolestu txartel hau",
+    "targetOf": "{{label}} helburua",
+    "turnOff": "Itzali {{label}}",
+    "off": "Itzalita",
+    "keepGoing": "Jarraitu",
+    "chamberLight": "Ganberaren argia",
+    "purifierExhaust": "Araztailearen irteera",
+    "purifierFilter": "Araztailearen iragazkia",
+    "fanAuto": "Inprimagailuak berak kontrolatzen du haizagailu hau"
+  }
+}

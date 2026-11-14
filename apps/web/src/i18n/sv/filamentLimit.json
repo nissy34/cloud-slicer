@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} filament på {{heads}} huvuden: du väljer vilket huvud som skriver ut vart och ett när du skickar utskriften.",
+    "warn": "{{n}} filament på en skrivare med {{heads}} huvuden."
+  }
+}

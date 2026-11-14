@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "Nastavení k přidání k tomuto objektu",
+    "forPart": "Nastavení k přidání k tomuto dílu",
+    "forModifier": "Nastavení k přidání k tomuto modifikátoru",
+    "search": "Hledat nastavení",
+    "done": "Hotovo",
+    "noMatch": "Žádné nastavení neodpovídá „{{query}}“.",
+    "more": "Další nastavení"
+  }
+}

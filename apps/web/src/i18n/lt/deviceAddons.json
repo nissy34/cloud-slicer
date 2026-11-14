@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint neprijungtas prie spausdintuvo.",
+    "octoprintRestart": "Prijungti iš naujo",
+    "octoprintRestarting": "Prijungiamas OctoPrint prie spausdintuvo",
+    "bambuStopped": "Spausdintuvas nustojo atsakyti: patikrinkite, ar jis įjungtas ir ar yra tinkle.",
+    "bambuCameraMissing": "Savo kamerą čia rodo tik P1 ir A1 spausdintuvai: X1, H2 ir P2S siunčia vaizdą, kurį groja tik pačios Bambu programos.",
+    "bambuSlotNoun": "AMS lizdas",
+    "bambuSlotUnset": "Įdėkite ten giją arba nustatykite ją spausdintuvo ekrane.",
+    "bambuSlotNote": "Kaip ir Bambu Studio, gija gali būti tik lizde su tokio paties tipo gija. Prekės ženklas ir spalva gali skirtis.",
+    "outsideSpool": "Išorinė ritė",
+    "u1Heads": "Įrankių galvutės",
+    "u1HeadNoun": "įrankio galvutė",
+    "u1HeadUnset": "Įdėkite giją arba nustatykite jos tipą Įrankių galvučių kortelėje.",
+    "u1HeadNote": "Kaip ir pačioje Snapmaker programoje, gija gali būti tik galvutėje su tokio paties tipo gija ir tokio paties dydžio purkštuku. Prekės ženklas ir spalva gali skirtis.",
+    "nozzleStandard": "Standartinis",
+    "nozzleHighFlow": "Didelio srauto",
+    "calibratingOffsets": "Kalibruojami įrankių poslinkiai",
+    "levellingBed": "Lyginamas pagrindas",
+    "calibratingFlow": "Kalibruojamas srautas",
+    "calibratingShaper": "Kalibruojamas input shaping",
+    "updatingFirmware": "Atnaujinama programinė įranga",
+    "needsAttention": "Reikia dėmesio spausdintuvo ekrane",
+    "adjustingScrews": "Reguliuojami pagrindo varžtai",
+    "loadingFilament": "Įkeliama gija",
+    "unloadingFilament": "Iškeliama gija",
+    "calibratingPark": "Kalibruojama parkavimo padėtis",
+    "calibratingHome": "Kalibruojama pradinė padėtis",
+    "hotendFan": "Kaitinimo bloko ventiliatorius T{{n}}"
+  }
+}

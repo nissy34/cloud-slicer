@@ -1,0 +1,30 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} trên {{total}}",
+    "engineNoStart": "{{engine}} không thể khởi động",
+    "openedWith": "Đã mở bằng {{engine}}, công cụ mà dự án này được tạo ra.",
+    "somethingWrong": "Đã xảy ra lỗi",
+    "files_other": "{{count}} tệp",
+    "saving": "Đang lưu…",
+    "savingAfterSlice": "Đang lưu… sau khi slice",
+    "savingMaking": "Đang lưu… tạo 3MF",
+    "savingSent": "Đang lưu… {{progress}}",
+    "savingFinishing": "Đang lưu… hoàn tất",
+    "saved": "Đã lưu “{{name}}” vào các dự án của bạn",
+    "notSaved": "Chưa lưu: {{error}}",
+    "preparing": "Đang chuẩn bị 3MF…",
+    "makeFailed": "Không thể tạo 3MF: {{error}}",
+    "opening": "Đang mở “{{name}}”…",
+    "openFailed": "Không thể mở “{{name}}”: {{error}}",
+    "saveCancelled": "Đã hủy lưu",
+    "viewOnly": "Dự án này ở đây chỉ để xem. Dùng “Sửa ở đây thay vào đó” để thay đổi.",
+    "openDriveFailed": "Không thể mở “{{name}}” từ Google Drive: {{error}}",
+    "quoted": "“{{name}}”",
+    "cantOpen": "Cloud Slicer không thể mở {{names}}.",
+    "cantOpenShared": "Cloud Slicer không thể mở {{names}}",
+    "openedDriveFile": "Đã mở “{{name}}” từ Google Drive của bạn. Lưu giữ một bản sao trong thư mục Cloud Slicer của bạn. Tệp trong Drive giữ nguyên.",
+    "openedDriveFiles": "Đã mở {{name}} từ Google Drive của bạn. Lưu giữ một bản sao trong thư mục Cloud Slicer của bạn. Các tệp trong Drive giữ nguyên.",
+    "myProject": "Dự án của tôi",
+    "removed": "Đã xóa “{{name}}” khỏi các dự án của bạn"
+  }
+}

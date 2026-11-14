@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Pont",
+    "edge": "Él",
+    "circle": "Kör",
+    "plane": "Sík",
+    "position": "Pozíció",
+    "length": "Hossz",
+    "from": "Innen",
+    "to": "Ide",
+    "diameter": "Átmérő",
+    "radius": "Sugár",
+    "centre": "Középpont",
+    "normal": "Normálvektor",
+    "angle": "Szög",
+    "distance": "Távolság",
+    "perpendicular": "Merőleges távolság",
+    "along": "{{axis}} mentén"
+  }
+}

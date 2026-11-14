@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Deixeu anar aquí fitxers STL, 3MF, OBJ, STEP o SVG",
+    "openModel": "Obre un model",
+    "fromDrive": "Obre des de Google Drive",
+    "deletePlateTip": "Suprimeix aquesta safata i el que hi ha",
+    "deletePlate": "Suprimeix la safata",
+    "clearAsk": "Voleu netejar la safata?",
+    "unsavedChanges": "«{{name}}» té canvis que encara no s'han desat.",
+    "clearAll": "Neteja-ho tot",
+    "dropToAdd": "Deixeu anar per afegir"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Spaziatura",
+    "spacingMm": "Spaziatura in mm",
+    "autoNote": "0 significa spaziatura automatica.",
+    "rotate": "Rotazione automatica per la disposizione",
+    "multiMaterial": "Consenti più materiali sullo stesso piatto",
+    "alignYOff": "Disattiva la rotazione automatica per usarlo",
+    "alignYTip": "Ruota ogni oggetto in modo che il lato lungo vada dal fronte al retro",
+    "alignY": "Allinea all'asse Y",
+    "arrange": "Disponi",
+    "reset": "Ripristina"
+  }
+}

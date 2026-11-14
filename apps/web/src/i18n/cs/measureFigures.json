@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Bod",
+    "edge": "Hrana",
+    "circle": "Kruh",
+    "plane": "Rovina",
+    "position": "Pozice",
+    "length": "Délka",
+    "from": "Od",
+    "to": "Do",
+    "diameter": "Průměr",
+    "radius": "Poloměr",
+    "centre": "Střed",
+    "normal": "Normála",
+    "angle": "Úhel",
+    "distance": "Vzdálenost",
+    "perpendicular": "Kolmá vzdálenost",
+    "along": "Podél {{axis}}"
+  }
+}

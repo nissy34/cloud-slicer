@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "間距",
+    "spacingMm": "間距 (mm)",
+    "autoNote": "0 表示自動間距。",
+    "rotate": "擺放時自動旋轉",
+    "multiMaterial": "允許同一列印板使用多種材料",
+    "alignYOff": "請先關閉自動旋轉才能使用",
+    "alignYTip": "旋轉每個物件，讓長邊朝向前後方向",
+    "alignY": "對齊 Y 軸",
+    "arrange": "自動擺放",
+    "reset": "重設"
+  }
+}

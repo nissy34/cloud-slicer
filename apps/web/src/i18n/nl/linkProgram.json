@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Deze code is verlopen. Vraag uw AI-app om opnieuw aan te melden voor een nieuwe.",
+    "invalid": "Deze code is niet geldig. Vergelijk hem met de code die uw AI-app toont, of vraag om opnieuw aan te melden.",
+    "siteAnswered": "De site antwoordde {{status}}",
+    "checkingAccount": "Uw account wordt gecontroleerd…",
+    "signInFirst": "Meld u eerst aan bij Cloud Slicer. Dan vraagt dit venster u om uw AI-app te verbinden.",
+    "noSignIn": "Aanmelden is op deze site niet ingesteld.",
+    "codeLabel": "De code die uw AI-app toont",
+    "checkingCode": "De code wordt gecontroleerd…",
+    "connected": "Verbonden. Ga terug naar uw AI-app: die is aangemeld als {{name}}.",
+    "turnedDown": "Geweigerd. Uw AI-app is niet aangemeld.",
+    "asks": "Een AI-app op uw computer (de Cloud Slicer-add-on) vraagt om uw account <b>{{email}}</b> te gebruiken. Controleer of hij deze code toont:",
+    "willSee": "Hij ziet uw bewaarde voorinstellingen en printers en kan uw printers controleren en er bestanden naartoe uploaden. Hij vraagt het u elke keer voordat hij een print start. U kunt hem afmelden vanuit de AI-app.",
+    "continueGoogle": "Doorgaan met Google",
+    "dontConnect": "Niet verbinden",
+    "connect": "Verbinden",
+    "title": "Een AI-app verbinden"
+  }
+}

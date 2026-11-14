@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "Problema en el sistema de movimiento",
+    "mainboardProblem": "Problema en la placa base",
+    "amsProblem": "Problema en el AMS",
+    "toolheadProblem": "Problema en el cabezal",
+    "cameraProblem": "Problema en la cámara",
+    "printerProblem": "Problema en la impresora",
+    "bambuUnknown": "La impresora ha informado de este problema. Consulte su pantalla para más detalles.",
+    "printerError": "Error de la impresora",
+    "u1Unknown": "La impresora ha informado de un error. Consulte su pantalla para más detalles."
+  }
+}

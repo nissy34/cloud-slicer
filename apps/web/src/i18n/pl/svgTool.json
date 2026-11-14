@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "Kształt SVG",
+    "done": "Gotowe",
+    "pickHint": "Wybierz kształt SVG na liście obiektów lub w widoku 3D, aby go zmienić, albo dodaj nowy z pliku .svg: do zaznaczonego obiektu lub jako osobny obiekt, gdy nic nie jest zaznaczone. Otwarcie lub upuszczenie pliku .svg też go dodaje.",
+    "addSvg": "Dodaj SVG…",
+    "depth": "Głębokość",
+    "depthCutTip": "Jak głęboko kształt wcina się w obiekt",
+    "depthTip": "Jak mocno kształt wystaje",
+    "width": "Szerokość",
+    "widthTip": "Rozmiar w poprzek kształtu",
+    "height": "Wysokość",
+    "heightTip": "Rozmiar w górę kształtu",
+    "keepProportions": "Zachowaj proporcje",
+    "useSurfaceTip": "Kształt wygina się razem z powierzchnią obiektu, zamiast leżeć na niej płasko",
+    "useSurface": "Użyj powierzchni",
+    "svgType": "Typ SVG",
+    "changeType": "Zmień typ",
+    "engraved": "Grawerowany",
+    "making": "Tworzenie kształtu…",
+    "undoHint": "Cofnij przywraca ostatni kształt."
+  }
+}

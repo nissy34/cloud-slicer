@@ -1,0 +1,29 @@
+{
+  "simplifyTool": {
+    "title": "Basitleştir",
+    "done": "Bitti",
+    "hint": "Daha az üçgen, büyük bir modelin daha hızlı açılmasını, dilimlenmesini ve önizlenmesini sağlar. İnce ayrıntılar yumuşayabilir; Geri al eski ağı geri getirir.",
+    "trianglesLabel": "Üçgenler",
+    "triangles_one": "{{n}} üçgen",
+    "triangles_other": "{{n}} üçgen",
+    "trianglesUnknown": "… üçgen",
+    "workingOut": "(hesaplanıyor…)",
+    "by": "Şuna göre basitleştir",
+    "detailLevel": "Ayrıntı düzeyi",
+    "ratio": "Azaltma oranı",
+    "detail": "Ayrıntı",
+    "removeTip": "Kaldırılacak üçgenlerin payı",
+    "remove": "Kaldır",
+    "paintKept": "Bu nesnenin boyaması (renkler, destekler, dikişler, pütürlü yüzey) basitleştirilmiş ağda korunur.",
+    "apply": "Uygula",
+    "extraHigh": "Çok yüksek",
+    "high": "Yüksek",
+    "medium": "Orta",
+    "low": "Düşük",
+    "extraLow": "Çok düşük",
+    "million": "{{n}} milyon",
+    "heavyPlates": "{{n}} plakada {{limit}} üçgenden fazla var (en çok {{most}}); bu, bu cihazın taşıyabileceğinden fazla olabilir. Her birini yaklaşık {{light}} değerine basitleştirmek baskı için yeterince ayrıntı korur.",
+    "heavyPlate": "{{n}}. plakada {{triangles}} üçgen var; bu, bu cihazın taşıyabileceğinden fazla olabilir. Onu yaklaşık {{light}} değerine basitleştirmek baskı için yeterince ayrıntı korur.",
+    "heavyModel": "Bu modelde {{triangles}} üçgen var; bu, bu cihazın taşıyabileceğinden fazla olabilir. Onu yaklaşık {{light}} değerine basitleştirmek baskı için yeterince ayrıntı korur."
+  }
+}

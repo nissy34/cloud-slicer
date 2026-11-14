@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Munkaterület",
+    "prepare": "Előkészítés",
+    "preview": "Előnézet",
+    "device": "Eszköz",
+    "calibration": "Kalibrálás",
+    "slicingWith": "Szeletelés ezzel: {{name}} {{version}}"
+  }
+}

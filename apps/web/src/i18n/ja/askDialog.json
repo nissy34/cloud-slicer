@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "「{{name}}」を保存しますか？",
+    "saveText": "まだオンラインプロジェクトにありません。「保存しない」を選ぶと破棄されます。",
+    "save": "保存",
+    "dontSave": "保存しない",
+    "discardTitle": "未保存の変更を破棄しますか？",
+    "discard": "変更を破棄",
+    "openTitle": "{{what}} を開く",
+    "addToText": "「{{project}}」で作業中でした。そこに追加しますか？それとも新しいプロジェクトで開きますか？",
+    "newProject": "新規プロジェクト",
+    "addTo": "{{project}} に追加"
+  }
+}

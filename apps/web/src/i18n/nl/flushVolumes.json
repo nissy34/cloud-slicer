@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Spoelvolumes",
+    "ownAmounts": "uw eigen hoeveelheden",
+    "fromColours": "uit de kleuren",
+    "leftNozzle": "Linker mondstuk",
+    "rightNozzle": "Rechter mondstuk",
+    "nozzleN": "Mondstuk {{n}}",
+    "filamentN": "Filament {{n}}",
+    "recalculate": "Opnieuw berekenen",
+    "done": "Klaar",
+    "explain": "Hoeveel de printer uitduwt, in mm³, bij het wisselen van het filament links naar dat bovenaan. Berekend uit de kleuren: donker naar licht vraagt meer.",
+    "nozzle": "Mondstuk",
+    "tableLabel": "Spoelvolumes in mm³",
+    "from": "van",
+    "to": "naar",
+    "toFilament": "Naar {{name}}",
+    "fromFilament": "Van {{name}}",
+    "purgeLabel": "Spoelen van {{from}} naar {{to}}, mm³",
+    "suggested": "Voorgesteld: {{min}} tot {{max}} mm³ (daarbuiten wordt het rood).",
+    "multiplier": "Vermenigvuldiger",
+    "scales": "Schaalt elke hoeveelheid ({{min}} tot {{max}}).",
+    "towerOff": "\"Spoelen in de prime toren\" staat uit in de instellingen van deze printer (pagina Multimateriaal), dus elke filamentwissel spoelt het primevolume ({{volume}} mm³) in plaats van deze hoeveelheden. Ze bepalen nog steeds de spoellengte die de wissel-G-code van de printer krijgt."
+  }
+}

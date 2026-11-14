@@ -1,0 +1,33 @@
+{
+  "objectList": {
+    "notPrinted": "Non imprimé",
+    "someNotPrinted": "Certaines copies ne sont pas imprimées",
+    "object": "Objet",
+    "sameAsObject": "Comme l’objet",
+    "objects": "Objets",
+    "skippedTip": "{{name}} : {{why}}. La découpe l’omet ; cochez Imprimable dans son menu ⋯ pour l’imprimer.",
+    "objectN": "Objet {{n}}",
+    "filamentFor": "Filament pour {{name}}",
+    "more": "Plus",
+    "moreFor": "Plus pour {{name}}",
+    "moreTip": "Plus : cloner, renommer, symétrie, exporter… (ou clic droit sur l’objet)",
+    "painted": "(peint)",
+    "moreForPart": "Plus pour la pièce {{name}}",
+    "partMoreTip": "Renommer, changer le type, réglages, supprimer",
+    "chosen_one": "{{count}} objet choisi",
+    "chosen_many": "{{count}} objets choisis",
+    "chosen_other": "{{count}} objets choisis",
+    "groupHint": "Déplacer, pivoter et redimensionner agissent sur tous. Clic droit sur un modèle choisi, ou appui long sur téléphone, pour le reste.",
+    "deleteAllTip": "Tous les supprimer (Suppr)",
+    "delete": "Supprimer",
+    "blockerHint": "{{kind}} : les supports ne poussent pas là où il recouvre l’objet, quand les supports sont activés. Déplacez-le avec l’outil Déplacer.",
+    "enforcerHint": "{{kind}} : les supports poussent là où il recouvre l’objet, quand les supports sont activés. Déplacez-le avec l’outil Déplacer.",
+    "addInstance": "Ajouter une instance",
+    "addInstanceTip": "Une copie de plus, à côté (+). Ctrl+C et Ctrl+V la collent comme nouvel objet.",
+    "removeInstance": "Retirer une instance",
+    "removeInstanceTip": "Retirer cette copie, en gardant les autres (-)",
+    "simplify": "Simplifier",
+    "simplifyTip": "Moins de triangles, comme Simplifier le modèle sur le bureau",
+    "deleteTip": "L’objet avec toutes ses copies (Suppr ne retire que la copie choisie)"
+  }
+}

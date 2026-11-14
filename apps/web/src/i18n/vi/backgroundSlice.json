@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · Đang slice · {{title}}",
+    "doneTitle": "Slice xong",
+    "plateSliced": "Plate {{plate}} đã được slice. Chạm để xem.",
+    "tapToSee": "Chạm để xem.",
+    "questionTitle": "Slice cần bạn",
+    "questionBody": "Có một câu hỏi trước khi hoàn tất. Chạm để trả lời.",
+    "failedTitle": "Slice thất bại",
+    "tapToSeeWhy": "Chạm để xem lý do."
+  }
+}

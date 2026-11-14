@@ -1,0 +1,7 @@
+{
+  "time": {
+    "justNow": "przed chwilą",
+    "minAgo": "{{n}} min temu",
+    "hoursAgo": "{{n}} godz. temu"
+  }
+}

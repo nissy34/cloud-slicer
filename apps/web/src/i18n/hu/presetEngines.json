@@ -1,0 +1,8 @@
+{
+  "presetEngines": {
+    "split_one": "{{count}} beállítás már nem azonos a két motorban; a(z) „{{name}}” mindkettőben megtartja az értékeit.",
+    "split_other": "{{count}} beállítás már nem azonos a két motorban; a(z) „{{name}}” mindkettőben megtartja az értékeit.",
+    "separate_one": "A(z) „{{name}}” {{count}} beállítása mostantól lehetne azonos a két motorban, de eltér; a menüjében az „Ugyanazok az értékek mindkét motorban” egyezővé teszi őket.",
+    "separate_other": "A(z) „{{name}}” {{count}} beállítása mostantól lehetne azonos a két motorban, de eltér; a menüjében az „Ugyanazok az értékek mindkét motorban” egyezővé teszi őket."
+  }
+}

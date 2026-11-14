@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}} % · Slicen · {{title}}",
+    "doneTitle": "Slicen abgeschlossen",
+    "plateSliced": "Platte {{plate}} ist geslict. Tippen zum Ansehen.",
+    "tapToSee": "Tippen zum Ansehen.",
+    "questionTitle": "Das Slicen braucht Sie",
+    "questionBody": "Es hat eine Frage, bevor es fertig werden kann. Zum Antworten tippen.",
+    "failedTitle": "Slicen fehlgeschlagen",
+    "tapToSeeWhy": "Tippen, um den Grund zu sehen."
+  }
+}

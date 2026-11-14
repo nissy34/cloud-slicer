@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} ist {{size}} groß; eine Profildatei darf bis zu {{max}} groß sein.",
+    "notJson": "{{label}} ist keine Profildatei (kein JSON).",
+    "tooMany": "Es können nur {{max}} Profile auf einmal importiert werden; {{label}} wurde ausgelassen.",
+    "bundleTooBig": "{{name}} ist {{size}} groß; ein Bündel darf bis zu {{max}} groß sein.",
+    "badZip": "{{name}} konnte nicht als ZIP geöffnet werden.",
+    "unpacksTooBig": "{{name}} wird zu mehr als {{max}} entpackt oder enthält eine Datei über {{fileMax}}; daraus wurde nichts importiert.",
+    "empty": "{{name}} enthält keine Profildateien.",
+    "tooManyKeys": "Es ändert mehr als {{max}} Einstellungen.",
+    "tooLarge": "Seine Einstellungen sind größer als {{max}}.",
+    "fileN": "Datei {{n}}",
+    "unreadable": "Kein Profil, das Orca lesen kann: {{error}}.",
+    "noName": "Es hat keinen verwendbaren Namen.",
+    "anotherPrinter": "einen anderen Drucker",
+    "otherPrinter": "Es ist für {{made}}, den diese App nicht hat. Druckereinstellungen gelten nur für die jeweilige Maschine und lassen sich nicht auf einen anderen Drucker übertragen.",
+    "noPrinterBase": "Es basiert nicht auf einem Drucker, den diese App hat.",
+    "noFilamentBase": "Es gibt kein Filamentprofil, auf dem es aufbauen kann.",
+    "noProcessBase": "Es gibt kein Prozessprofil, auf dem es aufbauen kann."
+  }
+}

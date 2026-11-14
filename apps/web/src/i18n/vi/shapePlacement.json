@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Xoay văn bản",
+    "rotateSvg": "Xoay SVG",
+    "moveText": "Dời văn bản khỏi bề mặt",
+    "moveSvg": "Dời SVG khỏi bề mặt",
+    "rotationTip": "Xoay quanh trục của chính nó, theo chiều kim đồng hồ (vòng tròn trong khung nhìn 3D cũng làm như vậy)",
+    "rotation": "Góc xoay",
+    "fromSurfaceTip": "Nó nhô ra khỏi bề mặt bao xa",
+    "fromSurface": "Cách bề mặt",
+    "keepUpTip": "Giữ nó thẳng đứng khi bạn trượt nó trên bề mặt hoặc quay nó về phía camera",
+    "keepUp": "Giữ thẳng",
+    "faceCameraTip": "Xoay nó về phía bạn, nơi bạn nhìn nó",
+    "faceCamera": "Hướng về camera",
+    "moveToolsText": "Di chuyển hoặc xoay văn bản bằng các công cụ đó.",
+    "moveToolsShape": "Di chuyển hoặc xoay hình bằng các công cụ đó.",
+    "dragText": "Kéo văn bản hoặc khung xanh của nó để trượt trên vật thể. Vòng tròn dùng để xoay.",
+    "dragShape": "Kéo hình hoặc khung xanh của nó để trượt trên vật thể. Vòng tròn dùng để xoay."
+  }
+}

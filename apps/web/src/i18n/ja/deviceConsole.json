@@ -1,0 +1,25 @@
+{
+  "deviceConsole": {
+    "filterTemps": "温度",
+    "filterTimelapse": "タイムラプス",
+    "filterTimelapseExample": "タイムラプスのフレームメッセージ",
+    "filterProgress": "印刷の進捗",
+    "filterOk": "単なる「ok」",
+    "done": "完了",
+    "filtersN": "フィルター（{{n}}）",
+    "filters": "フィルター",
+    "hideThese": "これらの行を隠す",
+    "hideLike": "次のような行を隠す: {{example}}",
+    "hideContaining": "「{{text}}」を含む行を隠す",
+    "removeFilter": "「{{text}}」のフィルターを削除",
+    "remove": "削除",
+    "hideContainingPlaceholder": "次を含む行を隠す…",
+    "hideContainingLabel": "次を含む行を隠す",
+    "add": "追加",
+    "filtersHelp": "チップをタップして切り替えます。送信した内容とエラーは常に表示されます。",
+    "linesHidden_other": "フィルターで {{count}} 行を非表示",
+    "sendPlaceholder": "G-code を送信（例: M115）",
+    "commandLabel": "G-code コマンド",
+    "send": "送信"
+  }
+}

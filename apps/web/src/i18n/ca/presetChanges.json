@@ -1,0 +1,24 @@
+{
+  "presetChanges": {
+    "filamentN": "Filament {{n}}",
+    "process": "Procés",
+    "printer": "Impressora",
+    "changes_one": "{{count}} canvi",
+    "changes_many": "{{count}} canvis",
+    "changes_other": "{{count}} canvis",
+    "saveTitle": "Desa els paràmetres canviats",
+    "back": "Enrere",
+    "saving": "Desant…",
+    "save": "Desa",
+    "namesText": "Els vostres propis perfils conserven el nom i prenen els canvis. Poseu un nom nou per desar una còpia.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Voleu conservar els paràmetres canviats?",
+    "discard": "Descarta",
+    "saveMenu": "Desa…",
+    "keep": "Conserva",
+    "text": "Alguns perfils tenen paràmetres canviats. Conserveu-los al projecte nou, descarteu-los o deseu-los en perfils.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Recorda la meva elecció (Conserva o Descarta)"
+  }
+}

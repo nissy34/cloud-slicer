@@ -1,0 +1,12 @@
+{
+  "optionCheck": {
+    "allowed": "允许 {{min}} 到 {{max}}",
+    "lowest": "允许的最小值为 {{min}}",
+    "highest": "允许的最大值为 {{max}}",
+    "setTo": "{{allowed}}，已设为 {{value}}。",
+    "needed": "需要填写一个值。",
+    "noPercent": "此设置不能是百分比。",
+    "notWhole": "“{{text}}”不是整数。",
+    "notNumber": "“{{text}}”不是数字。"
+  }
+}

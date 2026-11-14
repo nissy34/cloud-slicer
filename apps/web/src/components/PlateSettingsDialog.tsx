@@ -3,6 +3,7 @@ import { arrayMove, horizontalListSortingStrategy, SortableContext, sortableKeyb
 import { CSS } from '@dnd-kit/utilities';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { settingText } from '../i18n';
 import {
   defaultOrder,
   FIRST_OTHER_LAYER,
@@ -54,7 +55,7 @@ function PlateSettingsWindow() {
   // "Project (its value)", then the option's own choices, as the sidebar lists them.
   const choices = (key: string) => {
     const def = options[key];
-    return (def?.enumValues ?? []).map((v, i) => ({ value: v, label: def?.enumLabels?.[i] || v }));
+    return (def?.enumValues ?? []).map((v, i) => ({ value: v, label: settingText(def?.enumLabels?.[i] ?? '') || v }));
   };
   const labelOf = (key: string, value: string | undefined) => choices(key).find((c) => c.value === value)?.label ?? value ?? '';
   const projectSpiral = project.spiral_mode === '1';
@@ -113,7 +114,7 @@ function PlateSettingsWindow() {
         <span>{t('plateSettings.printSequence')}</span>
         {segmented(t('plateSettings.printSequence'), draft.sequence, [{ value: null, label: t('plateSettings.project') }, ...choices('print_sequence')], (sequence) => change({ sequence }))}
         <span className="muted small">
-          {draft.sequence === null ? t('plateSettings.projectPrints', { sequence: labelOf('print_sequence', project.print_sequence).toLowerCase() }) : options.print_sequence?.tooltip}
+          {draft.sequence === null ? t('plateSettings.projectPrints', { sequence: labelOf('print_sequence', project.print_sequence).toLowerCase() }) : settingText(options.print_sequence?.tooltip ?? '')}
         </span>
       </div>
       <div className="field">

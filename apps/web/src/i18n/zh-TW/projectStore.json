@@ -1,0 +1,30 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} / {{total}}",
+    "engineNoStart": "{{engine}} 無法啟動",
+    "openedWith": "已用 {{engine}} 開啟，這是製作此專案所用的引擎。",
+    "somethingWrong": "發生錯誤",
+    "files_other": "{{count}} 個檔案",
+    "saving": "儲存中…",
+    "savingAfterSlice": "儲存中…等切片完成後",
+    "savingMaking": "儲存中…正在製作 3MF",
+    "savingSent": "儲存中… {{progress}}",
+    "savingFinishing": "儲存中…即將完成",
+    "saved": "已將「{{name}}」儲存到您的專案",
+    "notSaved": "未儲存：{{error}}",
+    "preparing": "正在準備 3MF…",
+    "makeFailed": "無法製作 3MF：{{error}}",
+    "opening": "正在開啟「{{name}}」…",
+    "openFailed": "無法開啟「{{name}}」：{{error}}",
+    "saveCancelled": "已取消儲存",
+    "viewOnly": "此專案在這裡僅供檢視。請使用「改為在這裡編輯」來進行變更。",
+    "openDriveFailed": "無法從 Google Drive 開啟「{{name}}」：{{error}}",
+    "quoted": "「{{name}}」",
+    "cantOpen": "Cloud Slicer 無法開啟 {{names}}。",
+    "cantOpenShared": "Cloud Slicer 無法開啟 {{names}}",
+    "openedDriveFile": "已從您的 Google Drive 開啟「{{name}}」。儲存會在您的 Cloud Slicer 資料夾中保留一份副本。Drive 中的檔案維持原狀。",
+    "openedDriveFiles": "已從您的 Google Drive 開啟 {{name}}。儲存會在您的 Cloud Slicer 資料夾中保留一份副本。Drive 中的檔案維持原狀。",
+    "myProject": "我的專案",
+    "removed": "已從您的專案中移除「{{name}}」"
+  }
+}

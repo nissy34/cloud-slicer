@@ -1,0 +1,33 @@
+{
+  "settingsPanel": {
+    "simple": "簡易",
+    "advanced": "進階",
+    "expert": "專家",
+    "levelsShown": "顯示的設定",
+    "expertTip": "也包含桌面版保留給開發者模式的調校設定",
+    "greyedTip": "瀏覽器中無法使用",
+    "searchProcess": "搜尋列印參數設定",
+    "searchFilament": "搜尋線材設定",
+    "searchPrinter": "搜尋列印裝置設定",
+    "noProcessMatch": "沒有符合「{{query}}」的列印參數設定。",
+    "noFilamentMatch": "沒有符合「{{query}}」的線材設定。",
+    "noPrinterMatch": "沒有符合「{{query}}」的列印裝置設定。",
+    "pages": "設定頁面",
+    "normalMode": "{{label}}（一般）",
+    "silentMode": "{{label}}（靜音）",
+    "overridesHint": "勾選設定即可使用此線材自己的值。未勾選的使用列印裝置的值，以灰色顯示。",
+    "flushLater": "當專案有一種以上的線材時，清理選項（清理到填充、物件或支撐中）會顯示在這裡。",
+    "noFlush": "沒有清理選項：此列印裝置每種線材都有各自的噴嘴，因此換線材時不需要清理。多種線材共用一個噴嘴的列印裝置（AMS、MMU 或 CFS）會在這裡顯示這些選項，並在線材區段中提供「清理體積」視窗。",
+    "useOwnNamed": "使用此線材自己的{{label}}",
+    "usePrinters": "使用列印裝置的值",
+    "useOwn": "使用此線材自己的值",
+    "yes": "是",
+    "no": "否",
+    "title": "列印參數設定",
+    "changed_other": "有 {{count}} 項設定與預設不同。可從預設的 ⋯ 選單或其設定視窗將它們儲存到預設中。",
+    "resetAll": "全部重設",
+    "newKeeps": "新專案會直接保留它們，不再詢問。",
+    "newDiscards": "新專案會直接捨棄它們，不再詢問。",
+    "askAgain": "再次詢問"
+  }
+}

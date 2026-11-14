@@ -1,0 +1,31 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} / {{total}}",
+    "engineNoStart": "A(z) {{engine}} nem tudott elindulni",
+    "openedWith": "Megnyitva ezzel: {{engine}}, azzal a motorral, amellyel a projekt készült.",
+    "somethingWrong": "Valami hiba történt",
+    "files_one": "{{count}} fájl",
+    "files_other": "{{count}} fájl",
+    "saving": "Mentés…",
+    "savingAfterSlice": "Mentés… a szeletelés után",
+    "savingMaking": "Mentés… a 3MF elkészítése",
+    "savingSent": "Mentés… {{progress}}",
+    "savingFinishing": "Mentés… befejezés",
+    "saved": "„{{name}}” elmentve a projektjei közé",
+    "notSaved": "Nincs mentve: {{error}}",
+    "preparing": "A 3MF előkészítése…",
+    "makeFailed": "Nem sikerült elkészíteni a 3MF-et: {{error}}",
+    "opening": "„{{name}}” megnyitása…",
+    "openFailed": "Nem sikerült megnyitni: „{{name}}”: {{error}}",
+    "saveCancelled": "A mentés megszakítva",
+    "viewOnly": "Ez a projekt itt csak megtekintésre szolgál. A módosításhoz használja az „Inkább szerkesztés itt” gombot.",
+    "openDriveFailed": "Nem sikerült megnyitni a(z) „{{name}}” fájlt a Google Drive-ról: {{error}}",
+    "quoted": "„{{name}}”",
+    "cantOpen": "A Cloud Slicer nem tudja megnyitni: {{names}}.",
+    "cantOpenShared": "A Cloud Slicer nem tudja megnyitni: {{names}}",
+    "openedDriveFile": "A(z) „{{name}}” megnyitva a Google Drive-járól. A Mentés másolatot tart a Cloud Slicer mappájában. A Drive-on lévő fájl változatlan marad.",
+    "openedDriveFiles": "A(z) {{name}} megnyitva a Google Drive-járól. A Mentés másolatot tart a Cloud Slicer mappájában. A Drive-on lévő fájlok változatlanok maradnak.",
+    "myProject": "Projektem",
+    "removed": "„{{name}}” eltávolítva a projektjei közül"
+  }
+}

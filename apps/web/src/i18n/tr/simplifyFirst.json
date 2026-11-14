@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "Bu model önce basitleştirilsin mi?",
+    "openAsIs": "Olduğu gibi aç",
+    "simplify": "Basitleştir",
+    "paintKept": "Boyaması basitleştirilmiş ağda korunacak.",
+    "dontAsk": "Bu cihazda bir daha sorma"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "presetSettings": {
+    "editPrinter": "Druckereinstellungen bearbeiten",
+    "editFilament": "Einstellungen von Filament {{n}} bearbeiten",
+    "savedInProject": "Im Projekt {{name}} gespeichert.",
+    "savedIn3mf": "In der heruntergeladenen Projekt-3MF gespeichert.",
+    "nameTaken": "Ein Profil mit diesem Namen gibt es bereits.",
+    "savedAs": "Gespeichert als {{name}}.",
+    "whereAccount": "In Ihrem Konto gespeichert.",
+    "whereBrowser": "In diesem Browser gespeichert, bis Sie sich anmelden.",
+    "printerTitle": "Druckereinstellungen",
+    "filamentNTitle": "Einstellungen von Filament {{n}}",
+    "filamentTitle": "Filamenteinstellungen",
+    "newPrinterName": "Name des neuen Druckerprofils",
+    "newFilamentName": "Name des neuen Filamentprofils",
+    "back": "Zurück",
+    "saving": "Wird gespeichert…",
+    "save": "Speichern",
+    "unsaved_one": "{{count}} nicht gespeicherte Änderung",
+    "unsaved_other": "{{count}} nicht gespeicherte Änderungen",
+    "noChanges": "Keine Änderungen",
+    "discard": "Änderungen verwerfen",
+    "saveAsNew": "Als neues Profil speichern…",
+    "savedName": "{{name}} gespeichert.",
+    "saveToPreset": "Im Profil speichern",
+    "saveToProjectTip": "Behält diese Änderungen nur in diesem Projekt und speichert das Projekt",
+    "saveToProject": "Im Projekt speichern",
+    "modified": "(geändert)",
+    "yours": "Ihr Profil, basierend auf {{parent}}.",
+    "system": "Systemprofil: Verwenden Sie Speichern unter, um Ihre Änderungen zu behalten.",
+    "footHint": "Im Projekt speichern behält diese Änderungen nur in diesem Projekt, und sie kehren beim Öffnen zurück. Ein Profil behält sie für jedes Projekt. {{where}} Exportieren, Importieren, Umbenennen und Löschen finden Sie im Menü ⋯."
+  }
+}

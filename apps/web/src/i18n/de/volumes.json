@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "Teil hinzufügen",
+    "addNegative": "Negatives Teil hinzufügen",
+    "addModifier": "Modifizierer hinzufügen",
+    "addBlocker": "Stützenblocker hinzufügen",
+    "addEnforcer": "Stützenerzwinger hinzufügen",
+    "part": "Teil",
+    "negative": "Negatives Teil",
+    "modifier": "Modifizierer",
+    "enforcer": "Stützenerzwinger",
+    "blocker": "Stützenblocker",
+    "other": "Sonstiges"
+  }
+}

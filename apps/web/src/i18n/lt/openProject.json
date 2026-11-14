@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Šis failas",
+    "title": "Atidaryti kaip projektą?",
+    "geometryOnly": "Importuoti tik geometriją",
+    "open": "Atidaryti projektą",
+    "body": "<b>{{name}}</b> yra projektas su savo plokštėmis ir parametrais. Jį atidarius, pakeičiama tai, kas dabar yra jūsų plokštėse. Importavus jo geometriją, jo objektai pridedami prie jūsų plokštės, o jūsų parametrai išlieka."
+  }
+}

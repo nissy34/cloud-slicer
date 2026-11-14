@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "een passend filament",
+    "noSlot": "Geen {{noun}} heeft {{material}}. Laad het, of wijzig het filament in de slicer en slice opnieuw.",
+    "noSlotNozzle": "Geen {{noun}} heeft {{material}} met een mondstuk van {{nozzle}} mm. Laad het, of wijzig het filament in de slicer en slice opnieuw.",
+    "noType": "Bij {{slot}} is geen filamenttype ingesteld. {{unset}}",
+    "otherMaterial": "{{slot}} heeft {{has}}, maar dit filament is geslicet als {{material}}.",
+    "otherNozzle": "{{slot}} heeft een mondstuk van {{has}} mm, maar het bestand is geslicet voor {{nozzle}} mm.",
+    "highFlow": "Het bestand is geslicet voor een mondstuk met hoge flow, maar {{slot}} heeft een standaard mondstuk."
+  }
+}

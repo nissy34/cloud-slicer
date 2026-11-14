@@ -1,0 +1,26 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Tenperaturak",
+    "filterTimelapse": "Denbora-igarotzea",
+    "filterTimelapseExample": "denbora-igarotzeko fotograma-mezuak",
+    "filterProgress": "Inprimaketaren aurrerapena",
+    "filterOk": "“ok” soila",
+    "done": "Eginda",
+    "filtersN": "Iragazkiak ({{n}})",
+    "filters": "Iragazkiak",
+    "hideThese": "Ezkutatu lerro hauek",
+    "hideLike": "Ezkutatu honen antzeko lerroak: {{example}}",
+    "hideContaining": "Ezkutatu “{{text}}” duten lerroak",
+    "removeFilter": "Kendu “{{text}}” iragazkia",
+    "remove": "Kendu",
+    "hideContainingPlaceholder": "Ezkutatu hau duten lerroak…",
+    "hideContainingLabel": "Ezkutatu hau duten lerroak",
+    "add": "Gehitu",
+    "filtersHelp": "Ukitu txip bat aktibatzeko edo desaktibatzeko. Zuk bidaltzen duzuna eta erroreak beti erakusten dira.",
+    "linesHidden_one": "Lerro 1 ezkutatuta iragazkiengatik",
+    "linesHidden_other": "{{count}} lerro ezkutatuta iragazkiengatik",
+    "sendPlaceholder": "Bidali G-code, adib. M115",
+    "commandLabel": "G-code komandoa",
+    "send": "Bidali"
+  }
+}

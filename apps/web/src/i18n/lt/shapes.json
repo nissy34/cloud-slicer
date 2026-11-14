@@ -1,0 +1,10 @@
+{
+  "shapes": {
+    "cube": "Kubas",
+    "cylinder": "Cilindras",
+    "sphere": "Sfera",
+    "cone": "Kūgis",
+    "disc": "Diskas",
+    "torus": "Toras"
+  }
+}

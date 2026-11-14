@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "„{{name}}“ speichern?",
+    "saveText": "Es ist noch nicht in Ihren Online-Projekten. Wenn Sie nicht speichern, geht es verloren.",
+    "save": "Speichern",
+    "dontSave": "Nicht speichern",
+    "discardTitle": "Nicht gespeicherte Änderungen verwerfen?",
+    "discard": "Änderungen verwerfen",
+    "openTitle": "{{what}} öffnen",
+    "addToText": "Sie haben an „{{project}}“ gearbeitet. Dort hinzufügen oder ein neues Projekt damit beginnen?",
+    "newProject": "Neues Projekt",
+    "addTo": "Zu {{project}} hinzufügen"
+  }
+}

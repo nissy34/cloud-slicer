@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "ปัญหาระบบการเคลื่อนที่",
+    "mainboardProblem": "ปัญหาเมนบอร์ด",
+    "amsProblem": "ปัญหา AMS",
+    "toolheadProblem": "ปัญหาหัวพิมพ์",
+    "cameraProblem": "ปัญหากล้อง",
+    "printerProblem": "ปัญหาเครื่องพิมพ์",
+    "bambuUnknown": "เครื่องพิมพ์รายงานปัญหานี้ ดูรายละเอียดบนหน้าจอของเครื่อง",
+    "printerError": "เครื่องพิมพ์ผิดพลาด",
+    "u1Unknown": "เครื่องพิมพ์รายงานข้อผิดพลาด ดูรายละเอียดบนหน้าจอของเครื่อง"
+  }
+}

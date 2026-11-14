@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Ứng dụng chat khác",
+    "title": "Dùng với ứng dụng AI",
+    "more": "Tìm hiểu thêm",
+    "intro": "Nhờ ứng dụng AI của bạn slice giúp: “Slice Benchy này cho U1 của tôi bằng PETG với 4 wall và cho tôi biết thời gian.” Cài đặt trong Claude Desktop dưới dạng tiện ích mở rộng, hoặc trong các ứng dụng chat khác trên máy tính như LM Studio và Msty. Nó slice ngay trên máy tính của bạn với cùng công cụ và cài đặt sẵn như trang này, và mô hình của bạn vẫn ở đó.",
+    "whichApp": "Ứng dụng nào",
+    "step1": "Tải tiện ích mở rộng Cloud Slicer.",
+    "download": "Tải cho Claude Desktop",
+    "size": "khoảng 11 MB. Đã cài rồi? Hãy tải lại để cập nhật.",
+    "step2": "Mở tệp. Claude Desktop sẽ hỏi cài đặt: nhấp <b>Install</b>.",
+    "step3": "Nhờ Claude slice một tệp trên máy tính của bạn.",
+    "otherStep1": "Trong cài đặt của ứng dụng chat, thêm một máy chủ MCP với nội dung này (hầu hết ứng dụng nhận nguyên văn):",
+    "otherStep2": "Cần Node 20 trở lên trên máy tính của bạn (<a>nodejs.org</a>).",
+    "canDo": "Nó có thể mở mô hình và dự án, chọn máy in, process và filament, đặt màu và filament nào in vật thể nào, đổi cài đặt, sắp xếp plate và slice. Khi máy tính của bạn đang bật, Claude trên điện thoại cũng dùng được. Khi đã đăng nhập, nó cũng dùng cài đặt sẵn và máy in của bạn, và hỏi bạn trước khi bắt đầu in.",
+    "version": "Phiên bản {{version}}"
+  }
+}

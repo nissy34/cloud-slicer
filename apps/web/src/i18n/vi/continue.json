@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Tiếp tục từ chỗ bạn đã dừng?",
+    "local": "{{name}}, đã thay đổi {{when}}. Được giữ trong trình duyệt này, chưa lưu.",
+    "discard": "Bỏ",
+    "continue": "Tiếp tục",
+    "projectAsk": "Tiếp tục {{name}}?",
+    "project": "Tiếp tục {{name}}",
+    "openHere": "Bạn đã mở nó ở đây, sửa {{when}}",
+    "editedOn": "Đã sửa {{when}} trên {{device}}",
+    "notNow": "Để sau",
+    "editedElsewhere": "{{name}} đang được sửa trên {{device}}",
+    "viewOnly": "Thẻ này chỉ để xem.",
+    "viewOnlyUnsaved": "Thẻ này chỉ để xem. Các thay đổi bạn làm ở đây không có trong đó.",
+    "saveMineAsCopy": "Lưu bản của tôi thành bản sao",
+    "editHere": "Sửa ở đây thay vào đó",
+    "gone": "“{{name}}” đã bị xóa trên {{device}}. Nó vẫn đang mở ở đây, chưa lưu."
+  }
+}

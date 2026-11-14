@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Laddar ner beredningsmotorn",
+    "setup": "Startar beredningsmotorn",
+    "printers": "Läser in dina skrivare och förinställningar",
+    "downloadingProject": "Laddar ner ”{{name}}”",
+    "opening": "Öppnar {{name}}"
+  }
+}

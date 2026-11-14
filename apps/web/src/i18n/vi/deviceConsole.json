@@ -1,0 +1,25 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Nhiệt độ",
+    "filterTimelapse": "Timelapse",
+    "filterTimelapseExample": "thông báo khung hình timelapse",
+    "filterProgress": "Tiến độ in",
+    "filterOk": "\"ok\" thuần",
+    "done": "Xong",
+    "filtersN": "Bộ lọc ({{n}})",
+    "filters": "Bộ lọc",
+    "hideThese": "Ẩn các dòng này",
+    "hideLike": "Ẩn các dòng như: {{example}}",
+    "hideContaining": "Ẩn các dòng chứa “{{text}}”",
+    "removeFilter": "Xóa bộ lọc “{{text}}”",
+    "remove": "Xóa",
+    "hideContainingPlaceholder": "Ẩn các dòng chứa…",
+    "hideContainingLabel": "Ẩn các dòng chứa",
+    "add": "Thêm",
+    "filtersHelp": "Chạm vào một nhãn để bật/tắt. Những gì bạn gửi và các lỗi luôn được hiện.",
+    "linesHidden_other": "{{count}} dòng bị bộ lọc ẩn",
+    "sendPlaceholder": "Gửi G-code, ví dụ M115",
+    "commandLabel": "Lệnh G-code",
+    "send": "Gửi"
+  }
+}

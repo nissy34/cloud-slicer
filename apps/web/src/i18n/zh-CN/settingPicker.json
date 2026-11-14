@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "要添加到此对象的设置",
+    "forPart": "要添加到此零件的设置",
+    "forModifier": "要添加到此修改器的设置",
+    "search": "搜索设置",
+    "done": "完成",
+    "noMatch": "没有与“{{query}}”匹配的设置。",
+    "more": "更多设置"
+  }
+}

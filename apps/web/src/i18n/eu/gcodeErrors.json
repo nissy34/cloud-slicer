@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "“{{variable}}” ez da xerratzaile honek ezagutzen duen ezarpen bat (beste xerratzaile batetik edo bertsio berriago batetik etorri daiteke).",
+    "unknownName": "xerratzaile honek ezagutzen ez duen izen bat erabiltzen du.",
+    "negativeIndex": "“{{variable}}” lehen filamentua kargatu aurretik irakurtzen da (bertan indizea -1 da); egiaztatu indize hori {if ...} erabiliz lehenik.",
+    "negativeIndexList": "zerrenda bat lehen filamentua kargatu aurretik irakurtzen da (bertan indizea -1 da); egiaztatu indize hori {if ...} erabiliz lehenik.",
+    "reasonAt": "{{reason}} “{{variable}}” aldagaiaren barruan.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, {{line}}. lerroa: {{why}}",
+    "filamentSettings": "filamentu-ezarpenak",
+    "printerSettings": "inprimagailu-ezarpenak",
+    "or": " edo ",
+    "stoppedOne": "Xerratzea gelditu da: G-code pertsonalizatu bat ezin da bete.",
+    "stoppedSome": "Xerratzea gelditu da: G-code pertsonalizatu batzuk ezin dira bete.",
+    "fix": "Zuzendu {{where}} atalean, edo berrezarri aurrezarpenaren G-code-ra."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} má {{size}}; soubor předvolby může mít nejvýše {{max}}.",
+    "notJson": "{{label}} není soubor předvolby (není JSON).",
+    "tooMany": "Najednou lze importovat jen {{max}} předvoleb; {{label}} byl vynechán.",
+    "bundleTooBig": "{{name}} má {{size}}; balíček může mít nejvýše {{max}}.",
+    "badZip": "{{name}} se nepodařilo otevřít jako zip.",
+    "unpacksTooBig": "{{name}} se rozbalí na víc než {{max}} nebo obsahuje soubor větší než {{fileMax}}; nic z něj nebylo importováno.",
+    "empty": "{{name}} neobsahuje žádné soubory předvoleb.",
+    "tooManyKeys": "Mění víc než {{max}} nastavení.",
+    "tooLarge": "Jeho nastavení přesahují {{max}}.",
+    "fileN": "soubor {{n}}",
+    "unreadable": "Není to předvolba, kterou Orca umí přečíst: {{error}}.",
+    "noName": "Nemá použitelný název.",
+    "anotherPrinter": "jiná tiskárna",
+    "otherPrinter": "Je pro {{made}}, kterou tato aplikace nemá. Nastavení tiskárny jsou specifická pro stroj, takže ji nelze přenést na jinou tiskárnu.",
+    "noPrinterBase": "Nevychází z tiskárny, kterou tato aplikace má.",
+    "noFilamentBase": "Není žádná předvolba filamentu, na kterou ji dát.",
+    "noProcessBase": "Není žádná předvolba procesu, na kterou ji dát."
+  }
+}

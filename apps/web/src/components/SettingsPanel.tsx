@@ -10,6 +10,7 @@ import { saveUserSetting, useUserSetting } from '../state/account';
 import { useOption, useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
+import { settingText } from '../i18n';
 import { forgetChoice, useRememberedChoice } from './PresetChangesDialog';
 import { useOptionStates } from './SettingsPrompt';
 
@@ -125,8 +126,8 @@ export function SettingsPages({ kind, slot }: { kind: SettingsKind; slot?: numbe
     if (at.limits?.includes(k))
       return (
         <Fragment key={k}>
-          <OptionField optKey={k} entry={0} disabled={off} label={silent ? t('settingsPanel.normalMode', { label: options[k].fullLabel || options[k].label }) : options[k].fullLabel || undefined} />
-          {silent && <OptionField optKey={k} entry={1} disabled={off} label={t('settingsPanel.silentMode', { label: options[k].fullLabel || options[k].label })} />}
+          <OptionField optKey={k} entry={0} disabled={off} label={silent ? t('settingsPanel.normalMode', { label: settingText(options[k].fullLabel || options[k].label) }) : settingText(options[k].fullLabel) || undefined} />
+          {silent && <OptionField optKey={k} entry={1} disabled={off} label={t('settingsPanel.silentMode', { label: settingText(options[k].fullLabel || options[k].label) })} />}
         </Fragment>
       );
     return <OptionField key={`${k}:${slot ?? ''}:${at.index ?? ''}`} optKey={k} slot={slot} entry={at.index} disabled={off} why={why} choices={choices} />;
@@ -146,7 +147,7 @@ export function SettingsPages({ kind, slot }: { kind: SettingsKind; slot?: numbe
         <div className="line-tabs" role="tablist" aria-label={t('settingsPanel.pages')}>
           {pages.map((p, i) => (
             <button key={p.page} role="tab" aria-selected={p === current} className={p === current ? 'active' : undefined} onClick={() => setPage(i)}>
-              {p.page}
+              {settingText(p.page)}
             </button>
           ))}
         </div>
@@ -160,7 +161,7 @@ export function SettingsPages({ kind, slot }: { kind: SettingsKind; slot?: numbe
         if (!g.keys.length) return null;
         return (
           <fieldset key={g.title} className="optgroup">
-            <legend>{g.title}</legend>
+            <legend>{found ? g.title : settingText(g.title)}</legend>
             {g.keys.map((k) => field(k, g.page))}
           </fieldset>
         );
@@ -207,7 +208,7 @@ function OverrideField({ optKey, slot }: { optKey: string; slot: number }) {
   const on = valueAt(value, index) !== 'nil';
   // The printer's value for the extruder this filament prints with (filament n on extruder n).
   const fallback = printerValue === undefined ? '' : valueAt(printerValue, slot);
-  const label = def.label || def.fullLabel || optKey;
+  const label = settingText(def.label || def.fullLabel) || optKey;
   const toggle = (checked: boolean) => {
     const next = withValueAt(value, index, checked ? fallback : 'nil');
     setOverride(optKey, next === base ? null : next);
@@ -224,16 +225,16 @@ function OverrideField({ optKey, slot }: { optKey: string; slot: number }) {
   );
   if (on) return <OptionField optKey={optKey} slot={slot} before={box} />;
   const enumAt = printerDef?.enumValues?.indexOf(fallback) ?? -1;
-  const shown = printerDef?.type === 'bools' ? (fallback === '1' ? t('settingsPanel.yes') : t('settingsPanel.no')) : enumAt >= 0 ? printerDef?.enumLabels?.[enumAt] || fallback : fallback;
+  const shown = printerDef?.type === 'bools' ? (fallback === '1' ? t('settingsPanel.yes') : t('settingsPanel.no')) : enumAt >= 0 ? settingText(printerDef?.enumLabels?.[enumAt] ?? '') || fallback : fallback;
   return (
-    <div className="option unset" title={def.tooltip || undefined}>
+    <div className="option unset" title={settingText(def.tooltip) || undefined}>
       <span className="option-label">
         {box}
         {label}
       </span>
       <span className="input-unit">
         <input aria-label={label} value={shown} disabled />
-        {def.sidetext && <span className="unit">{def.sidetext}</span>}
+        {def.sidetext && <span className="unit">{settingText(def.sidetext)}</span>}
       </span>
     </div>
   );
@@ -241,7 +242,8 @@ function OverrideField({ optKey, slot }: { optKey: string; slot: number }) {
 
 /**
  * Settings whose name (or key, for people who know Orca's) has every word of
- * the query, grouped by page and group like desktop's settings search.
+ * the query, grouped by page and group like desktop's settings search. Names match in
+ * English and in the current language (desktop Orca's translation, settingText).
  */
 export function searchSettings(pages: ShownPage[], options: Record<string, OptionDef>, query: string, developer = false) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -251,10 +253,11 @@ export function searchSettings(pages: ShownPage[], options: Record<string, Optio
       const keys = g.options.filter((k) => {
         const def = options[k];
         if (!def || (def.mode === 'develop' && !developer)) return false;
-        const text = `${def.label} ${def.fullLabel} ${k} ${k.replace(/_/g, ' ')} ${g.title}`.toLowerCase();
+        const shown = [def.label, def.fullLabel, g.title].map(settingText).join(' ');
+        const text = `${def.label} ${def.fullLabel} ${k} ${k.replace(/_/g, ' ')} ${g.title} ${shown}`.toLowerCase();
         return words.every((w) => text.includes(w));
       });
-      if (keys.length) groups.push({ title: `${p.page} › ${g.title}`, page: p, keys });
+      if (keys.length) groups.push({ title: `${settingText(p.page)} › ${settingText(g.title)}`, page: p, keys });
     }
   return groups;
 }

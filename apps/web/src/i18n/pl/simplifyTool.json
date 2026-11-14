@@ -1,0 +1,31 @@
+{
+  "simplifyTool": {
+    "title": "Uprość",
+    "done": "Gotowe",
+    "hint": "Mniej trójkątów sprawia, że duży model otwiera się, tnie i pokazuje w podglądzie szybciej. Drobne szczegóły mogą się zatrzeć; Cofnij przywraca starą siatkę.",
+    "trianglesLabel": "Trójkąty",
+    "triangles_one": "{{n}} trójkąt",
+    "triangles_few": "{{n}} trójkąty",
+    "triangles_many": "{{n}} trójkątów",
+    "triangles_other": "{{n}} trójkąta",
+    "trianglesUnknown": "… trójkątów",
+    "workingOut": "(obliczanie…)",
+    "by": "Uprość według",
+    "detailLevel": "Poziom szczegółów",
+    "ratio": "Współczynnik redukcji",
+    "detail": "Szczegółowość",
+    "removeTip": "Jaki odsetek trójkątów usunąć",
+    "remove": "Usuń",
+    "paintKept": "Malowanie tego obiektu (kolory, podpory, szwy, skóra fuzzy) zostaje zachowane na uproszczonej siatce.",
+    "apply": "Zastosuj",
+    "extraHigh": "Bardzo wysoki",
+    "high": "Wysoki",
+    "medium": "Średni",
+    "low": "Niski",
+    "extraLow": "Bardzo niski",
+    "million": "{{n}} mln",
+    "heavyPlates": "Liczba płyt mających więcej niż {{limit}} trójkątów: {{n}} (do {{most}}), a to może być więcej, niż to urządzenie jest w stanie udźwignąć. Uproszczenie każdej do około {{light}} zachowuje mnóstwo szczegółów do druku.",
+    "heavyPlate": "Płyta {{n}} ma {{triangles}} trójkątów, a to może być więcej, niż to urządzenie jest w stanie udźwignąć. Uproszczenie jej do około {{light}} zachowuje mnóstwo szczegółów do druku.",
+    "heavyModel": "Ten model ma {{triangles}} trójkątów, a to może być więcej, niż to urządzenie jest w stanie udźwignąć. Uproszczenie go do około {{light}} zachowuje mnóstwo szczegółów do druku."
+  }
+}

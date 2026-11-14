@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "SVG forma",
+    "done": "Eginda",
+    "pickHint": "Aukeratu SVG forma bat objektu-zerrendan edo 3D ikuspegian aldatzeko, edo gehitu bat .svg fitxategi batetik: hautatutako objektuan, edo bere kabuz objektu gisa ezer hautatuta ez dagoenean. .svg fitxategi bat irekitzeak edo jaregiteak ere bat gehitzen du.",
+    "addSvg": "Gehitu SVG…",
+    "depth": "Sakonera",
+    "depthCutTip": "Formak zenbat sakontzen duen",
+    "depthTip": "Formak zenbat irteten den",
+    "width": "Zabalera",
+    "widthTip": "Formaren zabalera",
+    "height": "Altuera",
+    "heightTip": "Formaren altuera",
+    "keepProportions": "Mantendu proportzioak",
+    "useSurfaceTip": "Forma objektuaren gainazalarekin kurbatzen da, gainean lau egon beharrean",
+    "useSurface": "Erabili gainazala",
+    "svgType": "SVG mota",
+    "changeType": "Aldatu mota",
+    "engraved": "Grabatua",
+    "making": "Forma egiten…",
+    "undoHint": "Desegiteak azken forma itzultzen du."
+  }
+}

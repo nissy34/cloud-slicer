@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Tartea",
+    "spacingMm": "Tartea mm-tan",
+    "autoNote": "0 esan nahi du tarte automatikoa.",
+    "rotate": "Biratze automatikoa antolatzeko",
+    "multiMaterial": "Onartu material anitz plaka berean",
+    "alignYOff": "Desaktibatu Biratze automatikoa hau erabiltzeko",
+    "alignYTip": "Objektu bakoitza biratzen du alde luzea aurretik atzera joan dadin",
+    "alignY": "Lerrokatu Y ardatzean",
+    "arrange": "Antolatu",
+    "reset": "Berrezarri"
+  }
+}

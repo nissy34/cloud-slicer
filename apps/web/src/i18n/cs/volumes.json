@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "Přidat díl",
+    "addNegative": "Přidat negativní díl",
+    "addModifier": "Přidat modifikátor",
+    "addBlocker": "Přidat blokátor podpor",
+    "addEnforcer": "Přidat vynucovač podpor",
+    "part": "Díl",
+    "negative": "Negativní díl",
+    "modifier": "Modifikátor",
+    "enforcer": "Vynucovač podpor",
+    "blocker": "Blokátor podpor",
+    "other": "Ostatní"
+  }
+}

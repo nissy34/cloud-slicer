@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint nie jest połączony z drukarką.",
+    "octoprintRestart": "Połącz ponownie",
+    "octoprintRestarting": "Łączenie OctoPrint z drukarką",
+    "bambuStopped": "Drukarka przestała odpowiadać: sprawdź, czy jest włączona i w sieci.",
+    "bambuCameraMissing": "Tylko drukarki P1 i A1 pokazują tu swoją kamerę: X1, H2 i P2S wysyłają obraz, który odtwarzają tylko własne aplikacje Bambu.",
+    "bambuSlotNoun": "gniazdo AMS",
+    "bambuSlotUnset": "Załaduj tam filament lub ustaw go na ekranie drukarki.",
+    "bambuSlotNote": "Tak jak w Bambu Studio, filament może trafić tylko do gniazda z takim samym typem filamentu. Marka i kolor mogą się różnić.",
+    "outsideSpool": "Zewnętrzna szpula",
+    "u1Heads": "Głowice",
+    "u1HeadNoun": "głowica",
+    "u1HeadUnset": "Załaduj filament lub ustaw jego typ na karcie Głowice.",
+    "u1HeadNote": "Tak jak w aplikacji Snapmaker, filament może trafić tylko do głowicy z takim samym typem filamentu i rozmiarem dyszy. Marka i kolor mogą się różnić.",
+    "nozzleStandard": "Standardowa",
+    "nozzleHighFlow": "Wysoki przepływ",
+    "calibratingOffsets": "Kalibracja przesunięć głowic",
+    "levellingBed": "Poziomowanie stołu",
+    "calibratingFlow": "Kalibracja przepływu",
+    "calibratingShaper": "Kalibracja kształtowania wejścia",
+    "updatingFirmware": "Aktualizacja oprogramowania",
+    "needsAttention": "Wymaga uwagi na ekranie drukarki",
+    "adjustingScrews": "Regulacja śrub stołu",
+    "loadingFilament": "Ładowanie filamentu",
+    "unloadingFilament": "Wyładowywanie filamentu",
+    "calibratingPark": "Kalibracja pozycji parkowania",
+    "calibratingHome": "Kalibracja pozycji bazowej",
+    "hotendFan": "Wentylator hotendu T{{n}}"
+  }
+}

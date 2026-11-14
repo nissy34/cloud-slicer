@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Baskı sırasında kapalı",
+    "disabledPaused": "Duraklatılmışken kapalı",
+    "position": "Konum",
+    "speed": "Hız",
+    "flow": "Akış",
+    "head": "Kafa",
+    "moveHead": "Kafayı taşı",
+    "headBack": "Kafa arkaya",
+    "headLeft": "Kafa sola",
+    "homeHead": "Kafayı başlangıca götür",
+    "headRight": "Kafa sağa",
+    "headToward": "Kafa size doğru",
+    "bed": "Yatak",
+    "headHeight": "Kafa yüksekliği",
+    "moveBed": "Yatağı taşı",
+    "moveHeadZ": "Kafayı yukarı aşağı taşı",
+    "bedUp": "Yatak yukarı",
+    "headUp": "Kafa yukarı",
+    "homeBed": "Yatağı başlangıca götür",
+    "homeHeight": "Yüksekliği başlangıca götür",
+    "bedDown": "Yatak aşağı",
+    "headDown": "Kafa aşağı",
+    "step": "Adım",
+    "homeAll": "Tümünü başlangıca götür",
+    "motorsOff": "Motorları kapat",
+    "heatFirst": "Önce nozulu ısıtın",
+    "extrude10": "10 mm ekstrüde et",
+    "retract": "Geri çek",
+    "homeFirst": "Yazıcıyı taşımadan önce başlangıca götürün."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Không gian làm việc",
+    "prepare": "Chuẩn bị",
+    "preview": "Xem trước",
+    "device": "Thiết bị",
+    "calibration": "Hiệu chỉnh",
+    "slicingWith": "Slice bằng {{name}} {{version}}"
+  }
+}

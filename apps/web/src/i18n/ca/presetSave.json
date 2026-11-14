@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Useu d'1 a 128 caràcters, sense / \\ : * ? \" < > |",
+    "notAvailable": "El perfil {{name}} no està disponible.",
+    "onlyOwn": "Només es poden desar els vostres propis perfils; useu Desa com a.",
+    "noneSelected": "No hi ha cap perfil seleccionat.",
+    "sameName": "Dos perfils no poden tenir el mateix nom.",
+    "nameTaken": "Ja existeix un perfil anomenat «{{name}}».",
+    "notYours": "Aquest perfil no és un dels vostres."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "common": {
+    "cancel": "Abbrechen",
+    "copied": "Kopiert",
+    "copyError": "Fehler kopieren",
+    "hide": "Ausblenden",
+    "show": "Anzeigen",
+    "close": "Schließen",
+    "closeMessage": "Meldung schließen",
+    "done": "Fertig",
+    "notNow": "Nicht jetzt",
+    "next": "Weiter"
+  }
+}

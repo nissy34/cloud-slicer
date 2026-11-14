@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Chuyển đổi dự án này?",
+    "convert": "Chuyển đổi",
+    "setUpFor": "Nó được thiết lập cho <b>{{printer}}</b>. Hãy chọn một máy in của bạn để in.",
+    "printer": "Máy in",
+    "convertTo": "Chuyển sang máy in",
+    "keep": "Giữ các cài đặt mô hình mà dự án đã thay đổi: lớp, wall, infill, support, đường nối, brim",
+    "remember": "Tự động làm vậy lần sau",
+    "note": "Các cài đặt dự án để ở mặc định của máy in cũ, cùng tốc độ, gia tốc, jerk, độ rộng đường, hiệu chỉnh lưu lượng và prime tower, lấy từ {{printer}}. Filament được ghép theo vật liệu và loại (mờ, lụa, lưu lượng cao...) và giữ nguyên màu của dự án.",
+    "yourPrinter": "máy in của bạn"
+  }
+}

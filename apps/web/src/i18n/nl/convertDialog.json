@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Dit project omzetten?",
+    "convert": "Omzetten",
+    "setUpFor": "Het was ingesteld voor <b>{{printer}}</b>. Kies een van uw printers om het op te printen.",
+    "printer": "Printer",
+    "convertTo": "Omzetten naar printer",
+    "keep": "De modelinstellingen die het project heeft gewijzigd behouden: lagen, wanden, vulling, ondersteuning, naden, rand",
+    "remember": "Dit de volgende keer automatisch doen",
+    "note": "Instellingen die het project op de standaardwaarden van de oude printer liet staan, en snelheden, versnelling, jerk, lijnbreedtes, flowkalibratie en de prime toren, komen van {{printer}}. Filamenten worden gekoppeld op materiaal en soort (mat, zijde, hoge flow...) en behouden de kleuren van het project.",
+    "yourPrinter": "uw printer"
+  }
+}

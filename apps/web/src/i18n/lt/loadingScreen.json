@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Atsisiunčiamas sluoksniavimo variklis",
+    "setup": "Paleidžiamas sluoksniavimo variklis",
+    "printers": "Įkeliami jūsų spausdintuvai ir profiliai",
+    "downloadingProject": "Atsisiunčiama „{{name}}“",
+    "opening": "Atidaroma {{name}}"
+  }
+}

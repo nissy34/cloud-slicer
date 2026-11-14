@@ -1,0 +1,21 @@
+{
+  "deviceFiles": {
+    "print": "列印…",
+    "deleteName": "刪除 {{name}}",
+    "delete": "刪除",
+    "title": "列印裝置上的檔案",
+    "upload": "上傳 G-code…",
+    "timelapses": "縮時攝影",
+    "none": "還沒有 G-code 檔案。",
+    "searchN_other": "搜尋 {{count}} 個檔案",
+    "search": "搜尋檔案",
+    "noMatch": "沒有符合「{{query}}」的檔案。",
+    "deleteFile": "刪除檔案",
+    "deleteText": "要從列印裝置刪除 {{name}} 嗎？",
+    "deleted": "已刪除",
+    "pages": "檔案頁面",
+    "newer": "較新",
+    "older": "較舊",
+    "range": "{{from}}–{{to}} / {{total}}"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "deviceConsole": {
+    "filterTemps": "อุณหภูมิ",
+    "filterTimelapse": "ไทม์แลปส์",
+    "filterTimelapseExample": "ข้อความเฟรมไทม์แลปส์",
+    "filterProgress": "ความคืบหน้าการพิมพ์",
+    "filterOk": "\"ok\" ธรรมดา",
+    "done": "เสร็จแล้ว",
+    "filtersN": "ตัวกรอง ({{n}})",
+    "filters": "ตัวกรอง",
+    "hideThese": "ซ่อนบรรทัดเหล่านี้",
+    "hideLike": "ซ่อนบรรทัดแบบ: {{example}}",
+    "hideContaining": "ซ่อนบรรทัดที่มี “{{text}}”",
+    "removeFilter": "ลบตัวกรอง “{{text}}”",
+    "remove": "ลบ",
+    "hideContainingPlaceholder": "ซ่อนบรรทัดที่มี…",
+    "hideContainingLabel": "ซ่อนบรรทัดที่มี",
+    "add": "เพิ่ม",
+    "filtersHelp": "แตะชิปเพื่อสลับ สิ่งที่คุณส่งและข้อผิดพลาดจะแสดงเสมอ",
+    "linesHidden_other": "ตัวกรองซ่อนอยู่ {{count}} บรรทัด",
+    "sendPlaceholder": "ส่ง G-code เช่น M115",
+    "commandLabel": "คำสั่ง G-code",
+    "send": "ส่ง"
+  }
+}

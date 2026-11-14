@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "Usar o G-code de início e de troca de filamento do {{engine}}?",
+    "yes": "Sim, fatiar",
+    "body": "O G-code de início e de troca de filamento deste arquivo foi escrito para {{app}}, e o {{engine}} não consegue usá-lo. O {{engine}} tem o próprio para <b>{{printer}}</b>, que funciona. Esta escolha é salva com este projeto."
+  }
+}

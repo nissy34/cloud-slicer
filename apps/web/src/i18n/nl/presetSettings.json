@@ -1,0 +1,33 @@
+{
+  "presetSettings": {
+    "editPrinter": "Printerinstellingen bewerken",
+    "editFilament": "Instellingen van filament {{n}} bewerken",
+    "savedInProject": "Bewaard in het project {{name}}.",
+    "savedIn3mf": "Bewaard in het gedownloade project-3MF.",
+    "nameTaken": "Er bestaat al een voorinstelling met deze naam.",
+    "savedAs": "Bewaard als {{name}}.",
+    "whereAccount": "Bewaard in uw account.",
+    "whereBrowser": "Bewaard in deze browser tot u zich aanmeldt.",
+    "printerTitle": "Printerinstellingen",
+    "filamentNTitle": "Instellingen van filament {{n}}",
+    "filamentTitle": "Filamentinstellingen",
+    "newPrinterName": "Naam van nieuwe printervoorinstelling",
+    "newFilamentName": "Naam van nieuwe filamentvoorinstelling",
+    "back": "Terug",
+    "saving": "Bewaren…",
+    "save": "Bewaren",
+    "unsaved_one": "{{count}} niet-bewaarde wijziging",
+    "unsaved_other": "{{count}} niet-bewaarde wijzigingen",
+    "noChanges": "Geen wijzigingen",
+    "discard": "Wijzigingen verwerpen",
+    "saveAsNew": "Bewaren als nieuwe voorinstelling…",
+    "savedName": "{{name}} bewaard.",
+    "saveToPreset": "Bewaren in voorinstelling",
+    "saveToProjectTip": "Bewaart deze wijzigingen alleen in dit project en bewaart het project",
+    "saveToProject": "Bewaren in project",
+    "modified": "(gewijzigd)",
+    "yours": "Uw voorinstelling, gebaseerd op {{parent}}.",
+    "system": "Systeemvoorinstelling: gebruik Bewaren als om uw wijzigingen te behouden.",
+    "footHint": "Bewaren in project houdt deze wijzigingen alleen in dit project, en ze komen terug als u het opent. Een voorinstelling houdt ze voor elk project. {{where}} Exporteren, importeren, hernoemen en verwijderen staan in het ⋯-menu."
+  }
+}

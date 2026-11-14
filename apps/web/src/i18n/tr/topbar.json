@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Çalışma alanı",
+    "prepare": "Hazırla",
+    "preview": "Önizleme",
+    "device": "Cihaz",
+    "calibration": "Kalibrasyon",
+    "slicingWith": "{{name}} {{version}} ile dilimleniyor"
+  }
+}

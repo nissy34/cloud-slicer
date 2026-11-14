@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Tento soubor",
+    "title": "Otevřít jako projekt?",
+    "geometryOnly": "Importovat jen geometrii",
+    "open": "Otevřít projekt",
+    "body": "<b>{{name}}</b> je projekt s vlastními deskami a nastavením. Jeho otevřením se nahradí to, co je nyní na vašich deskách. Import jeho geometrie přidá jeho objekty na vaši desku a ponechá vaše nastavení."
+  }
+}

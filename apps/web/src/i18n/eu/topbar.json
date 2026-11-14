@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Lan-eremua",
+    "prepare": "Prestatu",
+    "preview": "Aurrebista",
+    "device": "Gailua",
+    "calibration": "Kalibrazioa",
+    "slicingWith": "{{name}} {{version}} erabiliz xerratzen"
+  }
+}

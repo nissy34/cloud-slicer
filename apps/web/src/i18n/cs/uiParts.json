@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "Zavřít okno",
+    "moreAboutThis": "Více o tom",
+    "plannedForPhase": "Plánováno pro fázi {{phase}}.",
+    "saving": "Ukládání",
+    "loadedOf": "{{loaded}} z {{total}}"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Den här filen",
+    "title": "Öppna som ett projekt?",
+    "geometryOnly": "Importera bara geometri",
+    "open": "Öppna projekt",
+    "body": "<b>{{name}}</b> är ett projekt med egna plattor och inställningar. Om du öppnar det ersätts det som finns på dina plattor nu. Om du importerar dess geometri läggs dess objekt till på din platta och dina inställningar behålls."
+  }
+}

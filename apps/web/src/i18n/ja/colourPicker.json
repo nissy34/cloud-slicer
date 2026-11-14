@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "白",
+    "yellow": "黄",
+    "lime": "ライム",
+    "green": "緑",
+    "darkGreen": "濃い緑",
+    "teal": "ティール",
+    "mint": "ミント",
+    "skyBlue": "空色",
+    "lightBlue": "水色",
+    "blue": "青",
+    "indigo": "藍色",
+    "purple": "紫",
+    "magenta": "マゼンタ",
+    "lavender": "ラベンダー",
+    "pink": "ピンク",
+    "red": "赤",
+    "brown": "茶",
+    "orange": "オレンジ",
+    "cream": "クリーム",
+    "beige": "ベージュ",
+    "tan": "タン",
+    "grey": "グレー",
+    "lightGrey": "薄いグレー",
+    "black": "黒",
+    "colours": "色",
+    "recent": "最近",
+    "recentColours": "最近使った色",
+    "hex": "16 進コード",
+    "custom": "カスタム"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "Paràmetres per afegir a aquest objecte",
+    "forPart": "Paràmetres per afegir a aquesta peça",
+    "forModifier": "Paràmetres per afegir a aquest modificador",
+    "search": "Cerca paràmetres",
+    "done": "Fet",
+    "noMatch": "Cap paràmetre coincideix amb «{{query}}».",
+    "more": "Més paràmetres"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "common": {
+    "cancel": "Annuleren",
+    "copied": "Gekopieerd",
+    "copyError": "Fout kopiëren",
+    "hide": "Verbergen",
+    "show": "Tonen",
+    "close": "Sluiten",
+    "closeMessage": "Bericht sluiten",
+    "done": "Klaar",
+    "notNow": "Nu niet",
+    "next": "Volgende"
+  }
+}

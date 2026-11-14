@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Nepavyko išsaugoti kortelių išdėstymo. Jis išlaikomas, kol iš naujo įkelsite puslapį.",
+    "pageCard": "Puslapio kortelė {{n}}",
+    "cameraCard": "Kameros kortelė {{n}}",
+    "arrangingFor": "Išdėstomos {{name}} kortelės.",
+    "helpPhone": "Palaikykite kortelę už rankenėlės ir vilkite aukštyn arba žemyn.",
+    "helpDesktop": "Vilkite kortelę už rankenėlės į stulpelį arba per viršų ar apačią.",
+    "helpRest": "Paslėptos kortelės lieka čia, išblukusios. Kiti spausdintuvai išlaiko savo išdėstymą.",
+    "columns": "Stulpeliai",
+    "addCameraCard": "Pridėti kameros kortelę",
+    "addPageCard": "Pridėti puslapio kortelę",
+    "backToDefault": "Grįžti prie numatytųjų",
+    "acrossTop": "Per viršų",
+    "column": "Stulpelis {{n}}",
+    "acrossBottom": "Per apačią",
+    "small": "Mažas",
+    "medium": "Vidutinis",
+    "large": "Didelis",
+    "moveCard": "Perkelti {{name}}",
+    "halfWidthTip": "Pusė pločio: dvi pusės kortelės telpa viena šalia kitos",
+    "halfWidth": "Pusė pločio",
+    "cameraSize": "Kameros dydis",
+    "remove": "Pašalinti"
+  }
+}

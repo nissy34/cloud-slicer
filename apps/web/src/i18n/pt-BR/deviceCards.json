@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Câmeras",
+    "climate": "Mesa e câmara",
+    "move": "Mover",
+    "console": "Console",
+    "print": "Impressão",
+    "toolHeads": "Cabeçotes",
+    "alerts": "Alertas",
+    "files": "Arquivos",
+    "unfold": "Expandir este cartão",
+    "fold": "Recolher este cartão",
+    "targetOf": "Alvo de {{label}}",
+    "turnOff": "Desligar {{label}}",
+    "off": "Desligado",
+    "keepGoing": "Continuar",
+    "chamberLight": "Luz da câmara",
+    "purifierExhaust": "Exaustão do purificador",
+    "purifierFilter": "Filtro do purificador",
+    "fanAuto": "A impressora controla esta ventoinha sozinha"
+  }
+}

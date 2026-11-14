@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Mina skrivare",
+    "otherPrinters": "Övriga",
+    "printer": "Skrivare",
+    "manage": "Hantera",
+    "printerPreset": "Skrivarförinställning",
+    "addRemovePrinters": "Lägg till eller ta bort skrivare…",
+    "sendsFromDevice": "Skicka utskrifter till den från fliken Enhet.",
+    "noDirectPrint": "Ingen direktutskrift för den här skrivaren (inte Klipper, en Prusa eller en Centauri Carbon): ladda ner G-code för att skriva ut den, eller skicka den från fliken Enhet om OctoPrint kör skrivaren.",
+    "plateType": "Plattyp",
+    "filament": "Filament",
+    "addFilament": "Lägg till filament",
+    "add": "+ Lägg till",
+    "filamentColour": "Filamentfärg",
+    "filamentNColour": "Färg för filament {{n}}",
+    "filamentNPreset": "Förinställning för filament {{n}}",
+    "addRemoveFilaments": "Lägg till eller ta bort filament…",
+    "removeFilament": "Ta bort det här filamentet",
+    "removeFilamentN": "Ta bort filament {{n}}",
+    "process": "Process",
+    "processPreset": "Processförinställning",
+    "readingFilaments": "Läser skrivarens filament…",
+    "myPresets": "Mina förinställningar",
+    "systemPresets": "Systemförinställningar",
+    "show": "Visa sidofältet (Shift+Tab)",
+    "hide": "Dölj sidofältet (Shift+Tab)",
+    "width": "Sidofältets bredd"
+  }
+}

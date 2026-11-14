@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "Đóng cửa sổ",
+    "moreAboutThis": "Tìm hiểu thêm",
+    "plannedForPhase": "Dự kiến cho giai đoạn {{phase}}.",
+    "saving": "Đang lưu",
+    "loadedOf": "{{loaded}} trên {{total}}"
+  }
+}

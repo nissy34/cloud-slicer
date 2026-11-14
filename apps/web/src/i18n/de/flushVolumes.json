@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Reinigungsvolumen",
+    "ownAmounts": "eigene Mengen",
+    "fromColours": "aus den Farben",
+    "leftNozzle": "Linke Düse",
+    "rightNozzle": "Rechte Düse",
+    "nozzleN": "Düse {{n}}",
+    "filamentN": "Filament {{n}}",
+    "recalculate": "Neu berechnen",
+    "done": "Fertig",
+    "explain": "Wie viel der Drucker in mm³ ausschiebt, wenn er vom Filament links zu dem oben wechselt. Aus den Farben berechnet: Von dunkel zu hell wird mehr gebraucht.",
+    "nozzle": "Düse",
+    "tableLabel": "Reinigungsvolumen in mm³",
+    "from": "von",
+    "to": "nach",
+    "toFilament": "Zu {{name}}",
+    "fromFilament": "Von {{name}}",
+    "purgeLabel": "Reinigung von {{from}} zu {{to}}, mm³",
+    "suggested": "Empfohlen: {{min}} bis {{max}} mm³ (außerhalb wird es rot angezeigt).",
+    "multiplier": "Multiplikator",
+    "scales": "Skaliert jede Menge ({{min}} bis {{max}}).",
+    "towerOff": "„Im Reinigungsturm reinigen“ ist in den Einstellungen dieses Druckers (Seite Multimaterial) aus, daher reinigt jeder Filamentwechsel das Grundvolumen ({{volume}} mm³) statt dieser Mengen. Sie bestimmen trotzdem die Spüllänge, die der Wechsel-G-code des Druckers erhält."
+  }
+}

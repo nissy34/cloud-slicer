@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Aquest fitxer",
+    "title": "Voleu obrir-lo com a projecte?",
+    "geometryOnly": "Importa només la geometria",
+    "open": "Obre el projecte",
+    "body": "<b>{{name}}</b> és un projecte amb les seves pròpies safates i paràmetres. Obrir-lo substitueix el que hi ha ara a les safates. Importar-ne la geometria afegeix els seus objectes a la safata i conserva els vostres paràmetres."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Kaldığınız yerden devam edilsin mi?",
+    "local": "{{name}}, {{when}} değiştirildi. Bu tarayıcıda tutuluyor, kaydedilmedi.",
+    "discard": "At",
+    "continue": "Devam et",
+    "projectAsk": "{{name}} ile devam edilsin mi?",
+    "project": "{{name}} ile devam et",
+    "openHere": "Burada açıktı, {{when}} düzenlendi",
+    "editedOn": "{{device}} üzerinde {{when}} düzenlendi",
+    "notNow": "Şimdi değil",
+    "editedElsewhere": "{{name}}, {{device}} üzerinde düzenleniyor",
+    "viewOnly": "Bu sekme salt görüntüleme içindir.",
+    "viewOnlyUnsaved": "Bu sekme salt görüntüleme içindir. Burada yaptığınız değişiklikler onda yok.",
+    "saveMineAsCopy": "Benimkini kopya olarak kaydet",
+    "editHere": "Bunun yerine burada düzenle",
+    "gone": "“{{name}}”, {{device}} üzerinde silindi. Burada hâlâ açık, kaydedilmedi."
+  }
+}

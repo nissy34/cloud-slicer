@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Obnovit na hodnotu předvolby",
+    "keptOld": "Ponechána stará hodnota.",
+    "kept": "Ponecháno {{value}}.",
+    "plateUses": "Deska {{n}} používá",
+    "on": "zapnuto",
+    "off": "vypnuto",
+    "itsOwn": "(vlastní nastavení).",
+    "plateSettings": "Nastavení desky",
+    "default": "Výchozí",
+    "percentOrMm": "Procenta nebo mm?",
+    "isItPercent": "{{label}}: je to {{number}}% nebo {{number}} {{unit}}?",
+    "filamentN": "Filament {{n}}",
+    "mix": "Mix",
+    "mixes": "Mixy"
+  }
+}

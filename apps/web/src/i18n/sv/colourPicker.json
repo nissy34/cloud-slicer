@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "Vit",
+    "yellow": "Gul",
+    "lime": "Limegrön",
+    "green": "Grön",
+    "darkGreen": "Mörkgrön",
+    "teal": "Blågrön",
+    "mint": "Mintgrön",
+    "skyBlue": "Himmelsblå",
+    "lightBlue": "Ljusblå",
+    "blue": "Blå",
+    "indigo": "Indigo",
+    "purple": "Lila",
+    "magenta": "Magenta",
+    "lavender": "Lavendel",
+    "pink": "Rosa",
+    "red": "Röd",
+    "brown": "Brun",
+    "orange": "Orange",
+    "cream": "Gräddvit",
+    "beige": "Beige",
+    "tan": "Sandbrun",
+    "grey": "Grå",
+    "lightGrey": "Ljusgrå",
+    "black": "Svart",
+    "colours": "Färger",
+    "recent": "Senaste",
+    "recentColours": "Senaste färger",
+    "hex": "Hexkod",
+    "custom": "Egen"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Камери",
+    "climate": "Стіл і камера друку",
+    "move": "Рух",
+    "console": "Консоль",
+    "print": "Друк",
+    "toolHeads": "Голівки",
+    "alerts": "Сповіщення",
+    "files": "Файли",
+    "unfold": "Розгорнути цю картку",
+    "fold": "Згорнути цю картку",
+    "targetOf": "Ціль {{label}}",
+    "turnOff": "Вимкнути {{label}}",
+    "off": "Вимк.",
+    "keepGoing": "Продовжити",
+    "chamberLight": "Освітлення камери друку",
+    "purifierExhaust": "Витяжка очищувача",
+    "purifierFilter": "Фільтр очищувача",
+    "fanAuto": "Принтер керує цим вентилятором сам"
+  }
+}

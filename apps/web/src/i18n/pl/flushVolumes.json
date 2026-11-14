@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Objętości płukania",
+    "ownAmounts": "własne ilości",
+    "fromColours": "z kolorów",
+    "leftNozzle": "Lewa dysza",
+    "rightNozzle": "Prawa dysza",
+    "nozzleN": "Dysza {{n}}",
+    "filamentN": "Filament {{n}}",
+    "recalculate": "Przelicz ponownie",
+    "done": "Gotowe",
+    "explain": "Ile drukarka wypycha, w mm³, przy zmianie z filamentu po lewej na ten u góry. Wyliczone z kolorów: z ciemnego na jasny potrzeba więcej.",
+    "nozzle": "Dysza",
+    "tableLabel": "Objętości płukania w mm³",
+    "from": "z",
+    "to": "na",
+    "toFilament": "Na {{name}}",
+    "fromFilament": "Z {{name}}",
+    "purgeLabel": "Czyszczenie z {{from}} na {{to}}, mm³",
+    "suggested": "Sugerowane: od {{min}} do {{max}} mm³ (poza tym zakresem pokazuje się na czerwono).",
+    "multiplier": "Mnożnik",
+    "scales": "Skaluje każdą ilość (od {{min}} do {{max}}).",
+    "towerOff": "„Czyszczenie w wieży czyszczącej” jest wyłączone w ustawieniach tej drukarki (strona Wiele materiałów), więc każda zmiana filamentu czyści objętość podstawową ({{volume}} mm³) zamiast tych ilości. Nadal wyznaczają one długość płukania, którą dostaje G-code zmiany w drukarce."
+  }
+}

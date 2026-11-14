@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} ma {{size}}; plik profilu może mieć do {{max}}.",
+    "notJson": "{{label}} nie jest plikiem profilu (to nie JSON).",
+    "tooMany": "Jednorazowo można zaimportować tylko {{max}} profili; {{label}} pominięto.",
+    "bundleTooBig": "{{name}} ma {{size}}; paczka może mieć do {{max}}.",
+    "badZip": "Nie udało się otworzyć {{name}} jako archiwum zip.",
+    "unpacksTooBig": "{{name}} po rozpakowaniu zajmuje ponad {{max}} lub zawiera plik większy niż {{fileMax}}; nic z niego nie zaimportowano.",
+    "empty": "{{name}} nie zawiera plików profili.",
+    "tooManyKeys": "Zmienia więcej niż {{max}} ustawień.",
+    "tooLarge": "Jego ustawienia zajmują ponad {{max}}.",
+    "fileN": "plik {{n}}",
+    "unreadable": "To nie jest profil, który Orca potrafi odczytać: {{error}}.",
+    "noName": "Nie ma użytecznej nazwy.",
+    "anotherPrinter": "inna drukarka",
+    "otherPrinter": "Jest dla {{made}}, której ta aplikacja nie ma. Ustawienia drukarki są specyficzne dla maszyny, więc nie można ich przenieść na inną drukarkę.",
+    "noPrinterBase": "Nie jest oparty na drukarce, którą ma ta aplikacja.",
+    "noFilamentBase": "Nie ma profilu filamentu, na którym można go oprzeć.",
+    "noProcessBase": "Nie ma profilu procesu, na którym można go oprzeć."
+  }
+}

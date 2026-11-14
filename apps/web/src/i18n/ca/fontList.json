@@ -1,0 +1,8 @@
+{
+  "fontList": {
+    "hebrew": "hebreu",
+    "pickScriptFont": "Trieu una tipografia {{script}}, com {{fonts}}.",
+    "pickAnyFont": "Trieu una tipografia que els tingui: un fitxer de tipografia, o una de les tipografies d'aquest ordinador.",
+    "noLetters": "Aquesta tipografia no té lletres per a {{letters}}, així que s'ometen."
+  }
+}

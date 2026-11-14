@@ -15,7 +15,7 @@ export function isLanguageChoice(v: unknown): v is LanguageChoice {
   return LANGUAGES.some((l) => l.id === v);
 }
 
-export const isRtl = (lang: Language) => !!LANGUAGES.find((l) => l.id === lang)?.rtl;
+export const isRtl = (lang: Language) => LANGUAGES.some((l) => l.id === lang && 'rtl' in l && l.rtl);
 
 function loadChoice(): LanguageChoice {
   try {

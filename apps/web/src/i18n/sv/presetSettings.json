@@ -1,0 +1,33 @@
+{
+  "presetSettings": {
+    "editPrinter": "Redigera skrivarinställningar",
+    "editFilament": "Redigera inställningar för filament {{n}}",
+    "savedInProject": "Sparad i projektet {{name}}.",
+    "savedIn3mf": "Sparad i det nedladdade projektets 3MF.",
+    "nameTaken": "Det finns redan en förinställning med det här namnet.",
+    "savedAs": "Sparad som {{name}}.",
+    "whereAccount": "Sparad i ditt konto.",
+    "whereBrowser": "Sparad i den här webbläsaren tills du loggar in.",
+    "printerTitle": "Skrivarinställningar",
+    "filamentNTitle": "Inställningar för filament {{n}}",
+    "filamentTitle": "Filamentinställningar",
+    "newPrinterName": "Namn på ny skrivarförinställning",
+    "newFilamentName": "Namn på ny filamentförinställning",
+    "back": "Tillbaka",
+    "saving": "Sparar…",
+    "save": "Spara",
+    "unsaved_one": "{{count}} osparad ändring",
+    "unsaved_other": "{{count}} osparade ändringar",
+    "noChanges": "Inga ändringar",
+    "discard": "Förkasta ändringar",
+    "saveAsNew": "Spara som ny förinställning…",
+    "savedName": "Sparade {{name}}.",
+    "saveToPreset": "Spara i förinställning",
+    "saveToProjectTip": "Behåller de här ändringarna bara i det här projektet och sparar projektet",
+    "saveToProject": "Spara i projekt",
+    "modified": "(ändrad)",
+    "yours": "Din förinställning, baserad på {{parent}}.",
+    "system": "Systemförinställning: använd Spara som för att behålla dina ändringar.",
+    "footHint": "Spara i projekt behåller de här ändringarna bara i det här projektet, och de kommer tillbaka när du öppnar det. En förinställning behåller dem för alla projekt. {{where}} Exportera, importera, byta namn och ta bort finns i ⋯-menyn."
+  }
+}

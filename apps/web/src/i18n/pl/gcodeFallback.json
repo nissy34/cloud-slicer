@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "Użyć G-code startu i zmiany filamentu z {{engine}}?",
+    "yes": "Tak, potnij",
+    "body": "G-code startu i zmiany filamentu w tym pliku napisano dla {{app}}, a {{engine}} nie potrafi go użyć. {{engine}} ma własny dla <b>{{printer}}</b> i działa on poprawnie. Ten wybór zostanie zapisany w tym projekcie."
+  }
+}

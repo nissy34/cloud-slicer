@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Pokračovat tam, kde jste skončili?",
+    "local": "{{name}}, změněno {{when}}. Uchováno v tomto prohlížeči, neuloženo.",
+    "discard": "Zahodit",
+    "continue": "Pokračovat",
+    "projectAsk": "Pokračovat v {{name}}?",
+    "project": "Pokračovat v {{name}}",
+    "openHere": "Měli jste ho tady otevřený, upraveno {{when}}",
+    "editedOn": "Upraveno {{when}} na zařízení {{device}}",
+    "notNow": "Teď ne",
+    "editedElsewhere": "{{name}} se upravuje na zařízení {{device}}",
+    "viewOnly": "Tato karta je jen pro čtení.",
+    "viewOnlyUnsaved": "Tato karta je jen pro čtení. Změny, které jste tu provedli, v ní nejsou.",
+    "saveMineAsCopy": "Uložit moji verzi jako kopii",
+    "editHere": "Místo toho upravovat tady",
+    "gone": "„{{name}}“ bylo smazáno na zařízení {{device}}. Tady je stále otevřené, neuloženo."
+  }
+}

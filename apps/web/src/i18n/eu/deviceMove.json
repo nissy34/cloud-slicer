@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Desgaituta inprimatzen ari den bitartean",
+    "disabledPaused": "Desgaituta pausatuta dagoen bitartean",
+    "position": "Posizioa",
+    "speed": "Abiadura",
+    "flow": "Fluxua",
+    "head": "Burua",
+    "moveHead": "Mugitu burua",
+    "headBack": "Burua atzera",
+    "headLeft": "Burua ezkerrera",
+    "homeHead": "Burua jatorrira",
+    "headRight": "Burua eskuinera",
+    "headToward": "Burua zureganantz",
+    "bed": "Ohea",
+    "headHeight": "Buruaren altuera",
+    "moveBed": "Mugitu ohea",
+    "moveHeadZ": "Mugitu burua gora eta behera",
+    "bedUp": "Ohea gora",
+    "headUp": "Burua gora",
+    "homeBed": "Ohea jatorrira",
+    "homeHeight": "Altuera jatorrira",
+    "bedDown": "Ohea behera",
+    "headDown": "Burua behera",
+    "step": "Pausoa",
+    "homeAll": "Dena jatorrira",
+    "motorsOff": "Motorrak itzalita",
+    "heatFirst": "Berotu pita lehenik",
+    "extrude10": "Estrusatu 10 mm",
+    "retract": "Atzera-egin",
+    "homeFirst": "Eraman inprimagailua jatorrira mugitu aurretik."
+  }
+}

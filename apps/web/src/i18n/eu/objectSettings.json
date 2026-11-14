@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Objektuaren ezarpenak",
+    "modifierSettings": "Aldatzailearen ezarpenak",
+    "partSettings": "Piezaren ezarpenak",
+    "addToObject": "Gehitu ezarpen bat objektu honi",
+    "addToModifier": "Gehitu ezarpen bat aldatzaile honi",
+    "addToPart": "Gehitu ezarpen bat pieza honi",
+    "addSetting": "+ Gehitu ezarpena",
+    "modifierEmpty": "Gehitu ezarpen bat aldatzaileak objektuarekin gainjartzen den lekuan aldatzeko, adibidez betegarri gehiago leku batean.",
+    "partEmpty": "Objektuaren ezarpenak erabiltzen ditu. Gehitu bat pieza honetarako soilik aldatzeko.",
+    "objectEmpty": "Prozesuaren ezarpenak erabiltzen ditu. Gehitu bat objektu honetarako soilik aldatzeko.",
+    "others": "Besteak",
+    "removeFromObject": "Kendu objektu honetatik",
+    "removeFromModifier": "Kendu aldatzaile honetatik",
+    "removeFromPart": "Kendu pieza honetatik"
+  }
+}

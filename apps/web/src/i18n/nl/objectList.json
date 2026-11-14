@@ -1,0 +1,32 @@
+{
+  "objectList": {
+    "notPrinted": "Niet geprint",
+    "someNotPrinted": "Sommige kopieën niet geprint",
+    "object": "Voorwerp",
+    "sameAsObject": "Hetzelfde als het voorwerp",
+    "objects": "Voorwerpen",
+    "skippedTip": "{{name}}: {{why}}. Slicen laat het weg; vink Printbaar aan in het ⋯-menu om het te printen.",
+    "objectN": "Voorwerp {{n}}",
+    "filamentFor": "Filament voor {{name}}",
+    "more": "Meer",
+    "moreFor": "Meer voor {{name}}",
+    "moreTip": "Meer: klonen, hernoemen, spiegelen, exporteren… (of klik met rechts op het voorwerp)",
+    "painted": "(geschilderd)",
+    "moreForPart": "Meer voor onderdeel {{name}}",
+    "partMoreTip": "Hernoemen, type wijzigen, instellingen, verwijderen",
+    "chosen_one": "{{count}} voorwerp gekozen",
+    "chosen_other": "{{count}} voorwerpen gekozen",
+    "groupHint": "Verplaatsen, draaien en schalen werken op al deze. Klik met rechts op een gekozen model, of houd het op een telefoon ingedrukt, voor de rest.",
+    "deleteAllTip": "Alles verwijderen (Del)",
+    "delete": "Verwijderen",
+    "blockerHint": "{{kind}}: ondersteuning groeit niet waar die het voorwerp overlapt, als ondersteuning aanstaat. Verplaats het met het gereedschap Verplaatsen.",
+    "enforcerHint": "{{kind}}: ondersteuning groeit wel waar die het voorwerp overlapt, als ondersteuning aanstaat. Verplaats het met het gereedschap Verplaatsen.",
+    "addInstance": "Exemplaar toevoegen",
+    "addInstanceTip": "Nog een kopie ervan, ernaast (+). Ctrl+C en Ctrl+V plakken het als nieuw voorwerp.",
+    "removeInstance": "Exemplaar verwijderen",
+    "removeInstanceTip": "Deze kopie verwijderen en de andere behouden (-)",
+    "simplify": "Vereenvoudigen",
+    "simplifyTip": "Minder driehoeken, zoals Model vereenvoudigen op desktop",
+    "deleteTip": "Het voorwerp met al zijn kopieën (Del verwijdert alleen de gekozen kopie)"
+  }
+}

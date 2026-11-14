@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Rotar texto",
+    "rotateSvg": "Rotar SVG",
+    "moveText": "Separar texto de la superficie",
+    "moveSvg": "Separar SVG de la superficie",
+    "rotationTip": "Gírelo sobre su propio eje, en sentido horario (el anillo de la vista 3D hace lo mismo)",
+    "rotation": "Rotación",
+    "fromSurfaceTip": "A qué distancia queda de la superficie",
+    "fromSurface": "Desde la superficie",
+    "keepUpTip": "Lo mantiene en vertical mientras lo desliza sobre la superficie o lo orienta hacia la cámara",
+    "keepUp": "Mantener arriba",
+    "faceCameraTip": "Lo gira para que mire hacia usted, desde donde lo ve",
+    "faceCamera": "Mirar a la cámara",
+    "moveToolsText": "Mueva o rote el texto con esas herramientas.",
+    "moveToolsShape": "Mueva o rote la forma con esas herramientas.",
+    "dragText": "Arrastre el texto o su marco azul para deslizarlo sobre el objeto. El anillo lo gira.",
+    "dragShape": "Arrastre la forma o su marco azul para deslizarla sobre el objeto. El anillo la gira."
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} van {{total}}",
+    "engineNoStart": "{{engine}} kon niet starten",
+    "openedWith": "Geopend met {{engine}}, de engine waarmee dit project is gemaakt.",
+    "somethingWrong": "Er ging iets mis",
+    "files_one": "{{count}} bestand",
+    "files_other": "{{count}} bestanden",
+    "saving": "Bewaren…",
+    "savingAfterSlice": "Bewaren… na het slicen",
+    "savingMaking": "Bewaren… de 3MF wordt gemaakt",
+    "savingSent": "Bewaren… {{progress}}",
+    "savingFinishing": "Bewaren… afronden",
+    "saved": "“{{name}}” bewaard in uw projecten",
+    "notSaved": "Niet bewaard: {{error}}",
+    "preparing": "De 3MF wordt voorbereid…",
+    "makeFailed": "De 3MF kon niet worden gemaakt: {{error}}",
+    "opening": "“{{name}}” wordt geopend…",
+    "openFailed": "“{{name}}” kon niet worden geopend: {{error}}",
+    "saveCancelled": "Bewaren geannuleerd",
+    "viewOnly": "Dit project is hier alleen om te bekijken. Gebruik “In plaats daarvan hier bewerken” om het te wijzigen.",
+    "openDriveFailed": "“{{name}}” kon niet worden geopend vanuit Google Drive: {{error}}",
+    "quoted": "“{{name}}”",
+    "cantOpen": "Cloud Slicer kan {{names}} niet openen.",
+    "cantOpenShared": "Cloud Slicer kan {{names}} niet openen",
+    "openedDriveFile": "“{{name}}” geopend vanuit uw Google Drive. Bewaren houdt een kopie in uw Cloud Slicer-map. Het bestand in Drive blijft zoals het is.",
+    "openedDriveFiles": "{{name}} geopend vanuit uw Google Drive. Bewaren houdt een kopie in uw Cloud Slicer-map. De bestanden in Drive blijven zoals ze zijn.",
+    "myProject": "Mijn project",
+    "removed": "“{{name}}” verwijderd uit uw projecten"
+  }
+}

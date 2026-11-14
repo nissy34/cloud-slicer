@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "打印时已禁用",
+    "disabledPaused": "暂停时已禁用",
+    "position": "位置",
+    "speed": "速度",
+    "flow": "流量",
+    "head": "工具头",
+    "moveHead": "移动工具头",
+    "headBack": "工具头向后",
+    "headLeft": "工具头向左",
+    "homeHead": "工具头回零",
+    "headRight": "工具头向右",
+    "headToward": "工具头向前",
+    "bed": "热床",
+    "headHeight": "工具头高度",
+    "moveBed": "移动热床",
+    "moveHeadZ": "上下移动工具头",
+    "bedUp": "热床上升",
+    "headUp": "工具头上升",
+    "homeBed": "热床回零",
+    "homeHeight": "高度回零",
+    "bedDown": "热床下降",
+    "headDown": "工具头下降",
+    "step": "步长",
+    "homeAll": "全部回零",
+    "motorsOff": "电机关闭",
+    "heatFirst": "请先加热喷嘴",
+    "extrude10": "挤出 10 mm",
+    "retract": "回抽",
+    "homeFirst": "移动前请先让打印机回零。"
+  }
+}

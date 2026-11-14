@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "A szeletelő motor letöltése",
+    "setup": "A szeletelő motor indítása",
+    "printers": "A nyomtatók és előbeállítások betöltése",
+    "downloadingProject": "Letöltés: „{{name}}”",
+    "opening": "Megnyitás: {{name}}"
+  }
+}

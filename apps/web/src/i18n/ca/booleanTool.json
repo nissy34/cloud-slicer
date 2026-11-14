@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "Unió",
+    "difference": "Diferència",
+    "intersection": "Intersecció",
+    "subtractFrom": "Resta de",
+    "subtractWith": "Resta amb",
+    "part": "Peça {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Booleà de malla",
+    "done": "Fet",
+    "operation": "Operació",
+    "needTwo": "Això funciona amb dues peces d'un objecte. Afegiu una peça, una peça negativa o un modificador des del menú de l'objecte (clic dret, o el botó ⋯ de la llista d'objectes), col·loqueu-la i torneu aquí.",
+    "unionHint": "Uneix les dues en una sola peça.",
+    "differenceHint": "Talla la segona de la primera.",
+    "intersectionHint": "Només conserva on se sobreposen les dues.",
+    "resultHint": "El resultat ocupa el lloc, el tipus i els paràmetres de la primera. Desfer recupera les dues.",
+    "pickDifferent": "Trieu dues peces diferents.",
+    "deleteInput": "Suprimeix l'entrada (treu també la segona)",
+    "working": "Treballant…"
+  }
+}

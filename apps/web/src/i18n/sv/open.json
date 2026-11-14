@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Släpp STL-, 3MF-, OBJ-, STEP- eller SVG-filer här",
+    "openModel": "Öppna modell",
+    "fromDrive": "Öppna från Google Drive",
+    "deletePlateTip": "Ta bort den här plattan och det som finns på den",
+    "deletePlate": "Ta bort platta",
+    "clearAsk": "Rensa plattan?",
+    "unsavedChanges": "”{{name}}” har ändringar som inte är sparade än.",
+    "clearAll": "Rensa allt",
+    "dropToAdd": "Släpp för att lägga till"
+  }
+}

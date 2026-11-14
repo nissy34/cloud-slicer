@@ -1,0 +1,33 @@
+{
+  "settingsPanel": {
+    "simple": "Đơn giản",
+    "advanced": "Nâng cao",
+    "expert": "Chuyên gia",
+    "levelsShown": "Cài đặt hiển thị",
+    "expertTip": "Gồm cả các cài đặt tinh chỉnh mà bản máy tính dành cho chế độ Developer",
+    "greyedTip": "Không khả dụng trong trình duyệt",
+    "searchProcess": "Tìm cài đặt process",
+    "searchFilament": "Tìm cài đặt filament",
+    "searchPrinter": "Tìm cài đặt máy in",
+    "noProcessMatch": "Không có cài đặt process nào khớp “{{query}}”.",
+    "noFilamentMatch": "Không có cài đặt filament nào khớp “{{query}}”.",
+    "noPrinterMatch": "Không có cài đặt máy in nào khớp “{{query}}”.",
+    "pages": "Trang cài đặt",
+    "normalMode": "{{label}} (Bình thường)",
+    "silentMode": "{{label}} (Yên tĩnh)",
+    "overridesHint": "Đánh dấu một cài đặt để dùng giá trị riêng của filament này. Các mục không đánh dấu dùng giá trị của máy in, hiển thị mờ.",
+    "flushLater": "Các tùy chọn xả (xả vào infill, vật thể hoặc support) hiện ở đây khi dự án có nhiều hơn một filament.",
+    "noFlush": "Không có tùy chọn xả: máy in này có một đầu phun cho mỗi filament, nên không bao giờ xả khi đổi filament. Máy in có một đầu phun cho nhiều filament (AMS, MMU hoặc CFS) hiện chúng ở đây và có cửa sổ Thể tích xả trong phần Filament.",
+    "useOwnNamed": "Dùng {{label}} riêng của filament này",
+    "usePrinters": "Dùng giá trị của máy in",
+    "useOwn": "Dùng giá trị riêng của filament này",
+    "yes": "Có",
+    "no": "Không",
+    "title": "Cài đặt process",
+    "changed_other": "{{count}} cài đặt đã thay đổi so với các cài đặt sẵn. Hãy lưu chúng vào một cài đặt sẵn từ menu ⋯ hoặc cửa sổ cài đặt của nó.",
+    "resetAll": "Đặt lại tất cả",
+    "newKeeps": "Dự án mới giữ chúng mà không hỏi.",
+    "newDiscards": "Dự án mới bỏ chúng mà không hỏi.",
+    "askAgain": "Hỏi lại"
+  }
+}

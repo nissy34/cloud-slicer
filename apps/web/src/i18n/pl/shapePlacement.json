@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Obróć tekst",
+    "rotateSvg": "Obróć SVG",
+    "moveText": "Odsuń tekst od powierzchni",
+    "moveSvg": "Odsuń SVG od powierzchni",
+    "rotationTip": "Obróć go wokół własnej osi, zgodnie z ruchem wskazówek zegara (pierścień w widoku 3D robi to samo)",
+    "rotation": "Obrót",
+    "fromSurfaceTip": "Jak daleko odstaje od powierzchni",
+    "fromSurface": "Od powierzchni",
+    "keepUpTip": "Utrzymuje go w pionie, gdy przesuwasz go po powierzchni lub zwracasz do kamery",
+    "keepUp": "Trzymaj w pionie",
+    "faceCameraTip": "Obróć go przodem do siebie, tam skąd na niego patrzysz",
+    "faceCamera": "Zwróć do kamery",
+    "moveToolsText": "Przesuń lub obróć tekst tymi narzędziami.",
+    "moveToolsShape": "Przesuń lub obróć kształt tymi narzędziami.",
+    "dragText": "Przeciągnij tekst lub jego niebieską ramkę, aby przesunąć go po obiekcie. Pierścień go obraca.",
+    "dragShape": "Przeciągnij kształt lub jego niebieską ramkę, aby przesunąć go po obiekcie. Pierścień go obraca."
+  }
+}

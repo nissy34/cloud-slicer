@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Nyomtatás közben letiltva",
+    "disabledPaused": "Szünet alatt letiltva",
+    "position": "Pozíció",
+    "speed": "Sebesség",
+    "flow": "Anyagáramlás",
+    "head": "Fej",
+    "moveHead": "A fej mozgatása",
+    "headBack": "Fej hátra",
+    "headLeft": "Fej balra",
+    "homeHead": "A fej alaphelyzetbe",
+    "headRight": "Fej jobbra",
+    "headToward": "Fej Ön felé",
+    "bed": "Asztal",
+    "headHeight": "Fejmagasság",
+    "moveBed": "Az asztal mozgatása",
+    "moveHeadZ": "A fej mozgatása fel és le",
+    "bedUp": "Asztal fel",
+    "headUp": "Fej fel",
+    "homeBed": "Az asztal alaphelyzetbe",
+    "homeHeight": "A magasság alaphelyzetbe",
+    "bedDown": "Asztal le",
+    "headDown": "Fej le",
+    "step": "Lépés",
+    "homeAll": "Mind alaphelyzetbe",
+    "motorsOff": "Motorok ki",
+    "heatFirst": "Előbb fűtse fel a fúvókát",
+    "extrude10": "10 mm extrudálás",
+    "retract": "Visszahúzás",
+    "homeFirst": "Mozgatás előtt állítsa alaphelyzetbe a nyomtatót."
+  }
+}

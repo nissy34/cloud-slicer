@@ -1,0 +1,20 @@
+{
+  "chooseBar": {
+    "chosenModels": "Vybrané modely",
+    "tapToChoose": "Klepnutím na modely je vyberete",
+    "chosen_one": "{{count}} vybrán",
+    "chosen_few": "{{count}} vybrány",
+    "chosen_many": "{{count}} vybráno",
+    "chosen_other": "{{count}} vybráno",
+    "selectAll": "Vybrat vše",
+    "all": "Vše",
+    "assemble": "Sestavit",
+    "assembleTip": "Spojit je do jednoho objektu, každý díl tam, kde stojí",
+    "menuTip": "Co s nimi všemi dělat (nebo pravé tlačítko / dlouhé stisknutí na vybraném modelu)",
+    "menu": "Co s nimi dělat",
+    "doneTip": "Klepnutí opět vybírá jeden model",
+    "clearTip": "Nic nevybráno (Esc)",
+    "done": "Hotovo",
+    "clear": "Zrušit výběr"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "simplifyTool": {
+    "title": "Đơn giản hóa",
+    "done": "Xong",
+    "hint": "Ít tam giác hơn giúp mô hình lớn mở, slice và xem trước nhanh hơn. Chi tiết nhỏ có thể bị mềm đi; Hoàn tác sẽ khôi phục lưới cũ.",
+    "trianglesLabel": "Tam giác",
+    "triangles_other": "{{n}} tam giác",
+    "trianglesUnknown": "… tam giác",
+    "workingOut": "(đang tính…)",
+    "by": "Đơn giản hóa theo",
+    "detailLevel": "Mức chi tiết",
+    "ratio": "Tỷ lệ giảm",
+    "detail": "Chi tiết",
+    "removeTip": "Phần trăm tam giác cần bỏ",
+    "remove": "Bỏ",
+    "paintKept": "Phần tô màu của vật thể này (màu, support, đường nối, fuzzy skin) được giữ trên lưới đã đơn giản hóa.",
+    "apply": "Áp dụng",
+    "extraHigh": "Rất cao",
+    "high": "Cao",
+    "medium": "Trung bình",
+    "low": "Thấp",
+    "extraLow": "Rất thấp",
+    "million": "{{n}} triệu",
+    "heavyPlates": "{{n}} plate có hơn {{limit}} tam giác (tối đa {{most}}), có thể nhiều hơn thiết bị này chứa được. Đơn giản hóa mỗi plate xuống khoảng {{light}} vẫn giữ đủ chi tiết để in.",
+    "heavyPlate": "Plate {{n}} có {{triangles}} tam giác, có thể nhiều hơn thiết bị này chứa được. Đơn giản hóa nó xuống khoảng {{light}} vẫn giữ đủ chi tiết để in.",
+    "heavyModel": "Mô hình này có {{triangles}} tam giác, có thể nhiều hơn thiết bị này chứa được. Đơn giản hóa nó xuống khoảng {{light}} vẫn giữ đủ chi tiết để in."
+  }
+}

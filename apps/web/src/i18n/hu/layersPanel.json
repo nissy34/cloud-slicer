@@ -1,0 +1,32 @@
+{
+  "layersPanel": {
+    "addDetail": "Részlet hozzáadása",
+    "addDetailTip": "Vékonyabb rétegek (asztali gépen: bal egérgomb)",
+    "removeDetail": "Részlet elvétele",
+    "removeDetailTip": "Vastagabb rétegek (asztali gépen: jobb egérgomb)",
+    "backToBase": "Vissza az alaphoz",
+    "backToBaseTip": "Vissza az egyszerű rétegmagassághoz (asztali gépen: Shift + bal gomb)",
+    "smooth": "Simítás",
+    "smoothTip": "A lépcsők elsimítása (asztali gépen: Shift + jobb gomb)",
+    "profile": "Rétegmagasság-profil",
+    "title": "Változó rétegmagasság",
+    "done": "Kész",
+    "intro": "Vékony rétegek ott, ahol az alak részletet kíván, vastagok ott, ahol nem. Az Adaptív a lejtésekből számolja ki; vagy nyomja hosszan a diagramot, hogy részletet adjon hozzá vagy vegyen el az adott magasság körül.",
+    "heights": "Rétegmagasságok",
+    "variable": "Változó",
+    "plain": "Egyszerű",
+    "layers_one": "{{count}} réteg",
+    "layers_other": "{{count}} réteg",
+    "chartEdits": "Diagramszerkesztés",
+    "band": "Sáv szerkesztése",
+    "adaptive": "Adaptív",
+    "quality": "Minőség",
+    "qualityOrSpeed": "Minőség vagy sebesség",
+    "speed": "Sebesség",
+    "radius": "Sugár",
+    "smoothRadius": "Simítási sugár",
+    "keepMin": "A legvékonyabb rétegek megtartása",
+    "reset": "Visszaállítás",
+    "reading": "A rétegek beolvasása…"
+  }
+}

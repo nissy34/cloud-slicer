@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} / {{size}} MB",
+    "arrivingRelay": "經由中繼 {{got}} / {{size}} MB",
+    "cannotFetch": "此列印裝置連線無法取得影片。",
+    "fetchFailed": "無法取得影片。",
+    "delete": "刪除",
+    "download": "下載",
+    "cantPlay": "瀏覽器無法播放這種影片。請下載後觀看。",
+    "none": "還沒有縮時攝影。開始列印時請開啟縮時攝影。",
+    "watch": "觀看",
+    "pages": "縮時攝影頁面",
+    "refresh": "重新整理",
+    "deleteTitle": "刪除縮時攝影"
+  }
+}

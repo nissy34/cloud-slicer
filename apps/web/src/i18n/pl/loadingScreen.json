@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Pobieranie silnika cięcia",
+    "setup": "Uruchamianie silnika cięcia",
+    "printers": "Wczytywanie drukarek i profili",
+    "downloadingProject": "Pobieranie „{{name}}”",
+    "opening": "Otwieranie {{name}}"
+  }
+}

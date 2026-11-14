@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "«{{variable}}» no és un paràmetre que aquest laminador conegui (pot venir d'un altre laminador o d'una versió més nova).",
+    "unknownName": "usa un nom que aquest laminador no coneix.",
+    "negativeIndex": "«{{variable}}» es llegeix abans de carregar el primer filament (el seu índex hi és -1); comproveu aquest índex abans amb {if ...}.",
+    "negativeIndexList": "una llista es llegeix abans de carregar el primer filament (el seu índex hi és -1); comproveu aquest índex abans amb {if ...}.",
+    "reasonAt": "{{reason}} a «{{variable}}».",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, línia {{line}}: {{why}}",
+    "filamentSettings": "configuració del filament",
+    "printerSettings": "configuració de la impressora",
+    "or": " o ",
+    "stoppedOne": "El laminat s'ha aturat: no es pot completar un G-code personalitzat.",
+    "stoppedSome": "El laminat s'ha aturat: no es poden completar alguns G-codes personalitzats.",
+    "fix": "Corregiu-ho a la {{where}}, o restabliu-lo al G-code del perfil."
+  }
+}

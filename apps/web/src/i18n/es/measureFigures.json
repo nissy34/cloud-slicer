@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Punto",
+    "edge": "Arista",
+    "circle": "Círculo",
+    "plane": "Plano",
+    "position": "Posición",
+    "length": "Longitud",
+    "from": "Desde",
+    "to": "Hasta",
+    "diameter": "Diámetro",
+    "radius": "Radio",
+    "centre": "Centro",
+    "normal": "Normal",
+    "angle": "Ángulo",
+    "distance": "Distancia",
+    "perpendicular": "Distancia perpendicular",
+    "along": "A lo largo de {{axis}}"
+  }
+}

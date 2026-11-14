@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "点",
+    "edge": "边",
+    "circle": "圆",
+    "plane": "平面",
+    "position": "位置",
+    "length": "长度",
+    "from": "从",
+    "to": "到",
+    "diameter": "直径",
+    "radius": "半径",
+    "centre": "中心",
+    "normal": "法线",
+    "angle": "角度",
+    "distance": "距离",
+    "perpendicular": "垂直距离",
+    "along": "沿 {{axis}}"
+  }
+}

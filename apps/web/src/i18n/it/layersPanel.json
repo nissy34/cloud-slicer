@@ -1,0 +1,33 @@
+{
+  "layersPanel": {
+    "addDetail": "Aggiungi dettaglio",
+    "addDetailTip": "Strati più sottili (desktop: pulsante sinistro del mouse)",
+    "removeDetail": "Rimuovi dettaglio",
+    "removeDetailTip": "Strati più spessi (desktop: pulsante destro del mouse)",
+    "backToBase": "Torna alla base",
+    "backToBaseTip": "Torna all'altezza dello strato uniforme (desktop: Maiusc + pulsante sinistro)",
+    "smooth": "Leviga",
+    "smoothTip": "Leviga i gradini (desktop: Maiusc + pulsante destro)",
+    "profile": "Profilo altezza strato",
+    "title": "Altezza strato variabile",
+    "done": "Fatto",
+    "intro": "Strati sottili dove la forma richiede dettaglio, spessi dove non serve. Adattiva lo fa in base alle pendenze; oppure tieni premuto sul grafico per aggiungere o rimuovere dettaglio attorno a quell'altezza.",
+    "heights": "Altezze degli strati",
+    "variable": "Variabile",
+    "plain": "Uniforme",
+    "layers_one": "{{count}} strato",
+    "layers_other": "{{count}} strati",
+    "chartEdits": "Modifiche del grafico",
+    "band": "Modifica fascia",
+    "adaptive": "Adattiva",
+    "quality": "Qualità",
+    "qualityOrSpeed": "Qualità o velocità",
+    "speed": "Velocità",
+    "radius": "Raggio",
+    "smoothRadius": "Raggio di levigatura",
+    "keepMin": "Mantieni gli strati più sottili",
+    "reset": "Ripristina",
+    "reading": "Lettura degli strati…",
+    "layers_many": "{{count}} strati"
+  }
+}

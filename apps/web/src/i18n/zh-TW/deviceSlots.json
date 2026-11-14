@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "相符的線材",
+    "noSlot": "沒有任何{{noun}}裝有 {{material}}。請裝入，或在切片軟體中更換線材後重新切片。",
+    "noSlotNozzle": "沒有任何{{noun}}裝有使用 {{nozzle}} mm 噴嘴的 {{material}}。請裝入，或在切片軟體中更換線材後重新切片。",
+    "noType": "{{slot}} 尚未設定線材類型。{{unset}}",
+    "otherMaterial": "{{slot}} 裝的是 {{has}}，但此線材是以 {{material}} 切片的。",
+    "otherNozzle": "{{slot}} 的噴嘴為 {{has}} mm，但檔案是以 {{nozzle}} mm 切片的。",
+    "highFlow": "檔案是以高流量噴嘴切片的，但 {{slot}} 是標準噴嘴。"
+  }
+}

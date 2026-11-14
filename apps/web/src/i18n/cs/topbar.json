@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Pracovní plocha",
+    "prepare": "Příprava",
+    "preview": "Náhled",
+    "device": "Zařízení",
+    "calibration": "Kalibrace",
+    "slicingWith": "Slicování pomocí {{name}} {{version}}"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "Không phản hồi kịp thời",
+    "noAccounts": "Máy chủ này không hỗ trợ tài khoản",
+    "siteNoAnswer": "Cloud Slicer không phản hồi. Hãy kiểm tra kết nối rồi thử lại.",
+    "driveReconnect": "Cần kết nối lại Google Drive. Mở menu tài khoản (góc trên bên phải) và nhấn Kết nối Google Drive.",
+    "driveNoAnswer": "Google Drive không phản hồi. Hãy kiểm tra kết nối rồi lưu lại.",
+    "driveFull": "Google Drive của bạn đã đầy. Hãy giải phóng dung lượng trong Drive rồi lưu lại.",
+    "driveGone": "Dự án này không còn trong Google Drive của bạn",
+    "driveNoUpload": "Google Drive không bắt đầu tải lên",
+    "pickerBlocked": "Trình duyệt đã chặn cửa sổ Google Drive. Hãy cho phép cửa sổ bật lên cho trang này rồi thử lại.",
+    "driveSignIn": "Đăng nhập bằng Google để mở tệp từ Google Drive của bạn.",
+    "driveConnectFirst": "Hãy kết nối Google Drive trong menu tài khoản trước.",
+    "pickerNotSetUp": "Mở từ Google Drive chưa được thiết lập trên trang này."
+  }
+}

@@ -9,6 +9,7 @@ import type { PresetType, ProviderId } from './api';
 import { Note } from '../components/Note';
 import { Menu } from '../components/Menu';
 import { AiAppsDialog } from '../components/AiAppsDialog';
+import { Check, ChevronDown } from 'lucide-react';
 
 const PROVIDER_LABEL: Record<ProviderId, string> = { google: 'Google' };
 const ALL_PROVIDERS = Object.keys(PROVIDER_LABEL) as ProviderId[];
@@ -253,40 +254,59 @@ function SignedIn({ onDone, onAiApps }: { onDone: () => void; onAiApps: () => vo
 function Legal() {
   const { t } = useTranslation();
   const language = useLanguageStore((s) => s.choice);
+  // The list opens in place, inside the menu: a list floating over the menu would close it.
+  const [open, setOpen] = useState(false);
   const pick = (next: LanguageChoice) => {
     setLocalLanguage(next);
+    setOpen(false);
     // Signed out, it stays in this browser.
     saveUserSetting(LANGUAGE_SETTING, next).catch(() => {});
   };
+  const current = LANGUAGES.find((l) => l.id === language) ?? LANGUAGES[0];
   return (
     <div className="account-legal">
       <div className="account-language">
         <span className="account-muted">{t('language.heading')}</span>
-        <div className="chooser" role="radiogroup" aria-label={t('language.heading')} data-testid="language-picker">
-          {LANGUAGES.map((l) => l.id).map((id) => (
+        <button
+          type="button"
+          className="quiet account-language-current"
+          aria-expanded={open}
+          aria-label={`${t('language.heading')}: ${current.name}`}
+          data-testid="language-picker"
+          lang={current.id}
+          onClick={() => setOpen(!open)}
+        >
+          {current.name}
+          <ChevronDown size={14} aria-hidden />
+        </button>
+      </div>
+      {open && (
+        <div className="account-language-list" role="radiogroup" aria-label={t('language.heading')}>
+          {LANGUAGES.map((l) => (
             <button
-              key={id}
+              key={l.id}
+              type="button"
               role="radio"
-              aria-checked={language === id}
-              className={language === id ? 'active' : ''}
-              data-testid={`language-${id}`}
-              lang={id}
-              onClick={() => pick(id)}
+              aria-checked={language === l.id}
+              data-testid={`language-${l.id}`}
+              lang={l.id}
+              onClick={() => pick(l.id)}
             >
-              {LANGUAGES.find((l) => l.id === id)!.name}
+              <Check size={14} aria-hidden style={{ visibility: language === l.id ? 'visible' : 'hidden' }} />
+              {l.name}
             </button>
           ))}
         </div>
-      </div>
-    <p className="account-muted">
-      <a href="/privacy" target="_blank" rel="noopener">
-        {t('account.privacy')}
-      </a>
-      {' · '}
-      <a href="/terms" target="_blank" rel="noopener">
-        {t('account.terms')}
-      </a>
-    </p>
+      )}
+      <p className="account-muted">
+        <a href="/privacy" target="_blank" rel="noopener">
+          {t('account.privacy')}
+        </a>
+        {' · '}
+        <a href="/terms" target="_blank" rel="noopener">
+          {t('account.terms')}
+        </a>
+      </p>
     </div>
   );
 }

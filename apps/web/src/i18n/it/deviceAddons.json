@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint non è collegato alla stampante.",
+    "octoprintRestart": "Collega di nuovo",
+    "octoprintRestarting": "Collegamento di OctoPrint alla stampante",
+    "bambuStopped": "La stampante non risponde più: controlla che sia accesa e in rete.",
+    "bambuCameraMissing": "Solo le stampanti P1 e A1 mostrano qui la telecamera: X1, H2 e P2S inviano un video che solo le app di Bambu riproducono.",
+    "bambuSlotNoun": "slot AMS",
+    "bambuSlotUnset": "Carica lì il filamento, oppure impostalo sullo schermo della stampante.",
+    "bambuSlotNote": "Come in Bambu Studio, un filamento può andare solo in uno slot con lo stesso tipo di filamento. Marca e colore possono differire.",
+    "outsideSpool": "Bobina esterna",
+    "u1Heads": "Testine",
+    "u1HeadNoun": "testina",
+    "u1HeadUnset": "Carica il filamento, oppure imposta il suo tipo nella scheda Testine.",
+    "u1HeadNote": "Come nell'app di Snapmaker, un filamento può andare solo in una testina con lo stesso tipo di filamento e la stessa dimensione dell'ugello. Marca e colore possono differire.",
+    "nozzleStandard": "Standard",
+    "nozzleHighFlow": "Alto flusso",
+    "calibratingOffsets": "Calibrazione degli offset delle testine",
+    "levellingBed": "Livellamento del piatto",
+    "calibratingFlow": "Calibrazione del flusso",
+    "calibratingShaper": "Calibrazione dell'input shaping",
+    "updatingFirmware": "Aggiornamento del firmware",
+    "needsAttention": "Richiede attenzione sullo schermo della stampante",
+    "adjustingScrews": "Regolazione delle viti del piatto",
+    "loadingFilament": "Caricamento del filamento",
+    "unloadingFilament": "Scaricamento del filamento",
+    "calibratingPark": "Calibrazione della posizione di parcheggio",
+    "calibratingHome": "Calibrazione della posizione di origine",
+    "hotendFan": "Ventola hotend T{{n}}"
+  }
+}

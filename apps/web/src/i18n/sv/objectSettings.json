@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Objektinställningar",
+    "modifierSettings": "Modifierarinställningar",
+    "partSettings": "Delinställningar",
+    "addToObject": "Lägg till en inställning för det här objektet",
+    "addToModifier": "Lägg till en inställning för den här modifieraren",
+    "addToPart": "Lägg till en inställning för den här delen",
+    "addSetting": "+ Lägg till inställning",
+    "modifierEmpty": "Lägg till en inställning för att ändra den där modifieraren överlappar objektet, som mer ifyllnad på ett ställe.",
+    "partEmpty": "Använder objektets inställningar. Lägg till en för att ändra den bara för den här delen.",
+    "objectEmpty": "Använder processinställningarna. Lägg till en för att ändra den bara för det här objektet.",
+    "others": "Övrigt",
+    "removeFromObject": "Ta bort från det här objektet",
+    "removeFromModifier": "Ta bort från den här modifieraren",
+    "removeFromPart": "Ta bort från den här delen"
+  }
+}

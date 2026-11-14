@@ -1,0 +1,24 @@
+{
+  "deviceFiles": {
+    "print": "Печать…",
+    "deleteName": "Удалить {{name}}",
+    "delete": "Удалить",
+    "title": "Файлы на принтере",
+    "upload": "Загрузить G-code…",
+    "timelapses": "Таймлапсы",
+    "none": "Файлов G-code пока нет.",
+    "searchN_one": "Поиск по {{count}} файлу",
+    "searchN_few": "Поиск по {{count}} файлам",
+    "searchN_many": "Поиск по {{count}} файлам",
+    "searchN_other": "Поиск по {{count}} файла",
+    "search": "Поиск файлов",
+    "noMatch": "Нет файлов, подходящих под «{{query}}».",
+    "deleteFile": "Удалить файл",
+    "deleteText": "Удалить {{name}} с принтера?",
+    "deleted": "Удалено",
+    "pages": "Страницы файлов",
+    "newer": "Новее",
+    "older": "Старее",
+    "range": "{{from}}–{{to}} из {{total}}"
+  }
+}

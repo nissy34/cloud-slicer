@@ -1,0 +1,30 @@
+{
+  "sidebar": {
+    "myPrinters": "Mano spausdintuvai",
+    "otherPrinters": "Kiti",
+    "printer": "Spausdintuvas",
+    "manage": "Tvarkyti",
+    "printerPreset": "Spausdintuvo profilis",
+    "addRemovePrinters": "Pridėti ar pašalinti spausdintuvus…",
+    "sendsFromDevice": "Siųskite jam spausdinimus iš skirtuko Įrenginys.",
+    "noDirectPrint": "Šiam spausdintuvui tiesioginio spausdinimo nėra (ne Klipper, Prusa ar Centauri Carbon): atsisiųskite G-code, kad jį atspausdintumėte, arba siųskite jį iš skirtuko Įrenginys, jei spausdintuvą valdo OctoPrint.",
+    "plateType": "Plokštės tipas",
+    "filament": "Gija",
+    "addFilament": "Pridėti giją",
+    "add": "+ Pridėti",
+    "filamentColour": "Gijos spalva",
+    "filamentNColour": "Gijos {{n}} spalva",
+    "filamentNPreset": "Gijos {{n}} profilis",
+    "addRemoveFilaments": "Pridėti ar pašalinti gijas…",
+    "removeFilament": "Pašalinti šią giją",
+    "removeFilamentN": "Pašalinti giją {{n}}",
+    "process": "Procesas",
+    "processPreset": "Proceso profilis",
+    "readingFilaments": "Skaitomos spausdintuvo gijos…",
+    "myPresets": "Mano profiliai",
+    "systemPresets": "Sisteminiai profiliai",
+    "show": "Rodyti šoninę juostą (Shift+Tab)",
+    "hide": "Slėpti šoninę juostą (Shift+Tab)",
+    "width": "Šoninės juostos plotis"
+  }
+}

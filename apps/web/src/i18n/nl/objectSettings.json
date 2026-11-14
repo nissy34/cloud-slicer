@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Voorwerpinstellingen",
+    "modifierSettings": "Instellingen van de aanpasser",
+    "partSettings": "Onderdeelinstellingen",
+    "addToObject": "Een instelling aan dit voorwerp toevoegen",
+    "addToModifier": "Een instelling aan deze aanpasser toevoegen",
+    "addToPart": "Een instelling aan dit onderdeel toevoegen",
+    "addSetting": "+ Instelling toevoegen",
+    "modifierEmpty": "Voeg een instelling toe om die te wijzigen waar de aanpasser het voorwerp overlapt, bijvoorbeeld meer vulling op één plek.",
+    "partEmpty": "Gebruikt de instellingen van het voorwerp. Voeg er een toe om die alleen voor dit onderdeel te wijzigen.",
+    "objectEmpty": "Gebruikt de procesinstellingen. Voeg er een toe om die alleen voor dit voorwerp te wijzigen.",
+    "others": "Overige",
+    "removeFromObject": "Van dit voorwerp verwijderen",
+    "removeFromModifier": "Van deze aanpasser verwijderen",
+    "removeFromPart": "Van dit onderdeel verwijderen"
+  }
+}

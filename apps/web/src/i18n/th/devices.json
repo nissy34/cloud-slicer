@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "{{device}}ของคุณ",
+    "another": "อุปกรณ์อื่น",
+    "iPad": "iPad",
+    "phone": "โทรศัพท์",
+    "tablet": "แท็บเล็ต",
+    "windows": "คอมพิวเตอร์ Windows",
+    "mac": "Mac",
+    "chromebook": "Chromebook",
+    "linux": "คอมพิวเตอร์ Linux",
+    "other": "อุปกรณ์อื่น"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "“{{variable}}”不是此切片器认识的设置（可能来自其他切片器或更新的版本）。",
+    "unknownName": "它使用了此切片器不认识的名称。",
+    "negativeIndex": "“{{variable}}”在装入第一种耗材之前被读取（此时其索引为 -1）；请先用 {if ...} 检查该索引。",
+    "negativeIndexList": "在装入第一种耗材之前读取了一个列表（此时其索引为 -1）；请先用 {if ...} 检查该索引。",
+    "reasonAt": "在“{{variable}}”处：{{reason}}。",
+    "reason": "{{reason}}。",
+    "line": "{{setting}}，第 {{line}} 行：{{why}}",
+    "filamentSettings": "耗材设置",
+    "printerSettings": "打印机设置",
+    "or": "或",
+    "stoppedOne": "切片已停止：有一段自定义 G-code 无法填写。",
+    "stoppedSome": "切片已停止：部分自定义 G-code 无法填写。",
+    "fix": "请在{{where}}中修正，或将其重置为预设的 G-code。"
+  }
+}

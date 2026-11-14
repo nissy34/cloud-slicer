@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} fa {{size}}; un fitxer de perfil pot fer fins a {{max}}.",
+    "notJson": "{{label}} no és un fitxer de perfil (no és JSON).",
+    "tooMany": "Només es poden importar {{max}} perfils alhora; {{label}} s'ha omès.",
+    "bundleTooBig": "{{name}} fa {{size}}; un paquet pot fer fins a {{max}}.",
+    "badZip": "{{name}} no s'ha pogut obrir com a zip.",
+    "unpacksTooBig": "{{name}} es descomprimeix a més de {{max}}, o conté un fitxer de més de {{fileMax}}; no se n'ha importat res.",
+    "empty": "{{name}} no conté cap fitxer de perfil.",
+    "tooManyKeys": "Canvia més de {{max}} paràmetres.",
+    "tooLarge": "Els seus paràmetres superen {{max}}.",
+    "fileN": "fitxer {{n}}",
+    "unreadable": "No és un perfil que Orca pugui llegir: {{error}}.",
+    "noName": "No té cap nom utilitzable.",
+    "anotherPrinter": "una altra impressora",
+    "otherPrinter": "És per a {{made}}, que aquesta aplicació no té. Els paràmetres d'impressora són específics de la màquina, així que no es poden traslladar a una altra impressora.",
+    "noPrinterBase": "No es basa en cap impressora que tingui aquesta aplicació.",
+    "noFilamentBase": "No hi ha cap perfil de filament on posar-lo.",
+    "noProcessBase": "No hi ha cap perfil de procés on posar-lo."
+  }
+}

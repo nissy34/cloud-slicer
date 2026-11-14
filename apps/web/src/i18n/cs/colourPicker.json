@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "Bílá",
+    "yellow": "Žlutá",
+    "lime": "Limetková",
+    "green": "Zelená",
+    "darkGreen": "Tmavě zelená",
+    "teal": "Modrozelená",
+    "mint": "Mátová",
+    "skyBlue": "Nebesky modrá",
+    "lightBlue": "Světle modrá",
+    "blue": "Modrá",
+    "indigo": "Indigo",
+    "purple": "Fialová",
+    "magenta": "Purpurová",
+    "lavender": "Levandulová",
+    "pink": "Růžová",
+    "red": "Červená",
+    "brown": "Hnědá",
+    "orange": "Oranžová",
+    "cream": "Krémová",
+    "beige": "Béžová",
+    "tan": "Pískově hnědá",
+    "grey": "Šedá",
+    "lightGrey": "Světle šedá",
+    "black": "Černá",
+    "colours": "Barvy",
+    "recent": "Nedávné",
+    "recentColours": "Nedávné barvy",
+    "hex": "Hex kód",
+    "custom": "Vlastní"
+  }
+}

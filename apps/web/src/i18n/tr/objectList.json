@@ -1,0 +1,32 @@
+{
+  "objectList": {
+    "notPrinted": "Basılmadı",
+    "someNotPrinted": "Bazı kopyalar basılmadı",
+    "object": "Nesne",
+    "sameAsObject": "Nesneyle aynı",
+    "objects": "Nesneler",
+    "skippedTip": "{{name}}: {{why}}. Dilimleme onu dışarıda bırakır; basmak için ⋯ menüsünde Yazdırılabilir'i işaretleyin.",
+    "objectN": "Nesne {{n}}",
+    "filamentFor": "{{name}} için filament",
+    "more": "Daha fazla",
+    "moreFor": "{{name}} için daha fazlası",
+    "moreTip": "Daha fazla: klonla, yeniden adlandır, yansıt, dışa aktar… (veya nesneye sağ tıklayın)",
+    "painted": "(boyalı)",
+    "moreForPart": "{{name}} parçası için daha fazlası",
+    "partMoreTip": "Yeniden adlandır, türü değiştir, ayarlar, sil",
+    "chosen_one": "{{count}} nesne seçili",
+    "chosen_other": "{{count}} nesne seçili",
+    "groupHint": "Taşıma, döndürme ve ölçekleme hepsinde çalışır. Gerisi için seçili bir modele sağ tıklayın veya telefonda uzun basın.",
+    "deleteAllTip": "Hepsini sil (Del)",
+    "delete": "Sil",
+    "blockerHint": "{{kind}}: destekler açıkken, nesneyle çakıştığı yerde destek oluşmaz. Taşı aracıyla taşıyın.",
+    "enforcerHint": "{{kind}}: destekler açıkken, nesneyle çakıştığı yerde destek oluşur. Taşı aracıyla taşıyın.",
+    "addInstance": "Örnek ekle",
+    "addInstanceTip": "Yanında bir kopya daha (+). Ctrl+C ve Ctrl+V onu yeni bir nesne olarak yapıştırır.",
+    "removeInstance": "Örneği kaldır",
+    "removeInstanceTip": "Bu kopyayı kaldır, diğerlerini tut (-)",
+    "simplify": "Basitleştir",
+    "simplifyTip": "Daha az üçgen, masaüstündeki Modeli basitleştir gibi",
+    "deleteTip": "Nesne tüm kopyalarıyla birlikte (Del yalnızca seçili kopyayı kaldırır)"
+  }
+}

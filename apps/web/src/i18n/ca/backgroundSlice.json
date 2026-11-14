@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · Laminant · {{title}}",
+    "doneTitle": "Laminat acabat",
+    "plateSliced": "La safata {{plate}} està laminada. Toqueu per veure-la.",
+    "tapToSee": "Toqueu per veure-la.",
+    "questionTitle": "El laminat us necessita",
+    "questionBody": "Té una pregunta abans d'acabar. Toqueu per respondre.",
+    "failedTitle": "El laminat ha fallat",
+    "tapToSeeWhy": "Toqueu per veure'n el motiu."
+  }
+}

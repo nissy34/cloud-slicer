@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "请使用 1-128 个字符，不含 / \\ : * ? \" < > |",
+    "notAvailable": "预设 {{name}} 不可用。",
+    "onlyOwn": "只能保存你自己的预设；请使用“另存为”。",
+    "noneSelected": "未选择预设。",
+    "sameName": "两个预设不能同名。",
+    "nameTaken": "已存在名为“{{name}}”的预设。",
+    "notYours": "此预设不是你的。"
+  }
+}

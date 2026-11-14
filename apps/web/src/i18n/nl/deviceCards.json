@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Camera's",
+    "climate": "Bed en kamer",
+    "move": "Verplaatsen",
+    "console": "Console",
+    "print": "Print",
+    "toolHeads": "Printkoppen",
+    "alerts": "Meldingen",
+    "files": "Bestanden",
+    "unfold": "Deze kaart uitklappen",
+    "fold": "Deze kaart inklappen",
+    "targetOf": "Doel van {{label}}",
+    "turnOff": "{{label}} uitzetten",
+    "off": "Uit",
+    "keepGoing": "Doorgaan",
+    "chamberLight": "Kamerlicht",
+    "purifierExhaust": "Afvoer van de luchtreiniger",
+    "purifierFilter": "Filter van de luchtreiniger",
+    "fanAuto": "De printer regelt deze ventilator zelf"
+  }
+}

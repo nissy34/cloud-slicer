@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} tem {{size}}; um arquivo de predefinição pode ter até {{max}}.",
+    "notJson": "{{label}} não é um arquivo de predefinição (não é JSON).",
+    "tooMany": "Só {{max}} predefinições podem ser importadas de uma vez; {{label}} ficou de fora.",
+    "bundleTooBig": "{{name}} tem {{size}}; um pacote pode ter até {{max}}.",
+    "badZip": "Não foi possível abrir {{name}} como zip.",
+    "unpacksTooBig": "{{name}} descompactado passa de {{max}} ou contém um arquivo acima de {{fileMax}}; nada foi importado dele.",
+    "empty": "{{name}} não tem arquivos de predefinição.",
+    "tooManyKeys": "Altera mais de {{max}} configurações.",
+    "tooLarge": "As configurações dela passam de {{max}}.",
+    "fileN": "arquivo {{n}}",
+    "unreadable": "Não é uma predefinição que o Orca consiga ler: {{error}}.",
+    "noName": "Não tem um nome utilizável.",
+    "anotherPrinter": "outra impressora",
+    "otherPrinter": "É para {{made}}, que este app não tem. As configurações de impressora são específicas da máquina, então não podem ser passadas para outra impressora.",
+    "noPrinterBase": "Não é baseada em uma impressora que este app tenha.",
+    "noFilamentBase": "Não há predefinição de filamento onde colocá-la.",
+    "noProcessBase": "Não há predefinição de processo onde colocá-la."
+  }
+}

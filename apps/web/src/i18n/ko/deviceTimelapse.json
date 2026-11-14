@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{size}} MB 중 {{got}} MB",
+    "arrivingRelay": "릴레이를 통해 {{size}} MB 중 {{got}} MB",
+    "cannotFetch": "이 프린터 연결로는 동영상을 가져올 수 없습니다.",
+    "fetchFailed": "동영상을 가져오지 못했습니다.",
+    "delete": "삭제",
+    "download": "다운로드",
+    "cantPlay": "이 종류의 동영상은 브라우저에서 재생되지 않습니다. 다운로드해서 보세요.",
+    "none": "아직 타임랩스가 없습니다. 출력을 시작할 때 타임랩스를 켜세요.",
+    "watch": "보기",
+    "pages": "타임랩스 페이지",
+    "refresh": "새로 고침",
+    "deleteTitle": "타임랩스 삭제"
+  }
+}

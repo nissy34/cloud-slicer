@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "ワークスペース",
+    "prepare": "準備",
+    "preview": "プレビュー",
+    "device": "デバイス",
+    "calibration": "キャリブレーション",
+    "slicingWith": "{{name}} {{version}}でスライス中"
+  }
+}

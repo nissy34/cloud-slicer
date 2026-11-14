@@ -1,0 +1,24 @@
+{
+  "deviceFiles": {
+    "print": "Drukuj…",
+    "deleteName": "Usuń {{name}}",
+    "delete": "Usuń",
+    "title": "Pliki na drukarce",
+    "upload": "Wyślij G-code…",
+    "timelapses": "Timelapse'y",
+    "none": "Nie ma jeszcze plików G-code.",
+    "searchN_one": "Szukaj w {{count}} pliku",
+    "searchN_few": "Szukaj w {{count}} plikach",
+    "searchN_many": "Szukaj w {{count}} plikach",
+    "searchN_other": "Szukaj w {{count}} pliku",
+    "search": "Szukaj plików",
+    "noMatch": "Żaden plik nie pasuje do „{{query}}”.",
+    "deleteFile": "Usuń plik",
+    "deleteText": "Usunąć {{name}} z drukarki?",
+    "deleted": "Usunięto",
+    "pages": "Strony plików",
+    "newer": "Nowsze",
+    "older": "Starsze",
+    "range": "{{from}}–{{to}} z {{total}}"
+  }
+}

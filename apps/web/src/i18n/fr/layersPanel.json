@@ -1,0 +1,33 @@
+{
+  "layersPanel": {
+    "addDetail": "Ajouter du détail",
+    "addDetailTip": "Couches plus fines (bureau : bouton gauche de la souris)",
+    "removeDetail": "Retirer du détail",
+    "removeDetailTip": "Couches plus épaisses (bureau : bouton droit de la souris)",
+    "backToBase": "Retour à la base",
+    "backToBaseTip": "Retour à la hauteur de couche unie (bureau : Shift + bouton gauche)",
+    "smooth": "Lisser",
+    "smoothTip": "Lisse les marches (bureau : Shift + bouton droit)",
+    "profile": "Profil de hauteur de couche",
+    "title": "Hauteur de couche variable",
+    "done": "Terminé",
+    "intro": "Des couches fines là où la forme demande du détail, épaisses là où ce n’est pas nécessaire. Adaptatif le fait d’après les pentes ; ou maintenez appuyé sur le graphique pour ajouter ou retirer du détail autour de cette hauteur.",
+    "heights": "Hauteurs de couche",
+    "variable": "Variable",
+    "plain": "Uniforme",
+    "layers_one": "{{count}} couche",
+    "layers_many": "{{count}} couches",
+    "layers_other": "{{count}} couches",
+    "chartEdits": "Modifications du graphique",
+    "band": "Modifier la bande",
+    "adaptive": "Adaptatif",
+    "quality": "Qualité",
+    "qualityOrSpeed": "Qualité ou vitesse",
+    "speed": "Vitesse",
+    "radius": "Rayon",
+    "smoothRadius": "Rayon de lissage",
+    "keepMin": "Garder les couches les plus fines",
+    "reset": "Réinitialiser",
+    "reading": "Lecture des couches…"
+  }
+}

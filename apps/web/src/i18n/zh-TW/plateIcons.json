@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "未命名",
+    "nothingYet": "此列印板上還沒有任何內容",
+    "locked": "此列印板已鎖定",
+    "deleteTip": "移除此列印板及其上的內容（不能移除最後一個）",
+    "orientTip": "自動定向此列印板上的物件",
+    "arrangeTip": "自動擺放此列印板上的物件 (Shift+A)",
+    "unlockTip": "解鎖此列印板",
+    "lockTip": "鎖定此列印板：自動擺放和自動定向不會更動它",
+    "settingsOwnTip": "列印板設定：此列印板有自己的設定",
+    "settingsTip": "列印板設定：列印板類型、列印順序、螺旋花瓶模式、線材順序",
+    "renameTip": "重新命名此列印板"
+  }
+}

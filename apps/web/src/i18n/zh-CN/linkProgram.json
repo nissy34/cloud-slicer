@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "此代码已过期。请让你的 AI 应用重新登录以获取新的代码。",
+    "invalid": "此代码无效。请与你的 AI 应用显示的代码核对，或让它重新登录。",
+    "siteAnswered": "网站返回了 {{status}}",
+    "checkingAccount": "正在检查你的账户…",
+    "signInFirst": "请先登录 Cloud Slicer。然后此窗口会请你连接你的 AI 应用。",
+    "noSignIn": "此网站尚未设置登录功能。",
+    "codeLabel": "你的 AI 应用显示的代码",
+    "checkingCode": "正在检查代码…",
+    "connected": "已连接。请回到你的 AI 应用：它已以 {{name}} 登录。",
+    "turnedDown": "已拒绝。你的 AI 应用未登录。",
+    "asks": "你电脑上的一个 AI 应用（Cloud Slicer 插件）请求使用你的账户 <b>{{email}}</b>。请确认它显示的是此代码：",
+    "willSee": "它能看到你保存的预设和打印机，可以检查你的打印机并向其上传文件。每次开始打印前它都会询问你。你可以在 AI 应用中将其退出登录。",
+    "continueGoogle": "使用 Google 继续",
+    "dontConnect": "不连接",
+    "connect": "连接",
+    "title": "连接 AI 应用"
+  }
+}

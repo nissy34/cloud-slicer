@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "Beyaz",
+    "yellow": "Sarı",
+    "lime": "Limon yeşili",
+    "green": "Yeşil",
+    "darkGreen": "Koyu yeşil",
+    "teal": "Petrol yeşili",
+    "mint": "Nane yeşili",
+    "skyBlue": "Gök mavisi",
+    "lightBlue": "Açık mavi",
+    "blue": "Mavi",
+    "indigo": "Çivit mavisi",
+    "purple": "Mor",
+    "magenta": "Eflatun",
+    "lavender": "Lavanta",
+    "pink": "Pembe",
+    "red": "Kırmızı",
+    "brown": "Kahverengi",
+    "orange": "Turuncu",
+    "cream": "Krem",
+    "beige": "Bej",
+    "tan": "Ten rengi",
+    "grey": "Gri",
+    "lightGrey": "Açık gri",
+    "black": "Siyah",
+    "colours": "Renkler",
+    "recent": "Son kullanılan",
+    "recentColours": "Son kullanılan renkler",
+    "hex": "Hex kodu",
+    "custom": "Özel"
+  }
+}

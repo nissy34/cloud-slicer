@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Đang tải công cụ slice",
+    "setup": "Đang khởi động công cụ slice",
+    "printers": "Đang tải máy in và cài đặt sẵn của bạn",
+    "downloadingProject": "Đang tải “{{name}}”",
+    "opening": "Đang mở {{name}}"
+  }
+}

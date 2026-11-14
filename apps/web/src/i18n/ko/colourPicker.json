@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "흰색",
+    "yellow": "노랑",
+    "lime": "라임",
+    "green": "초록",
+    "darkGreen": "짙은 초록",
+    "teal": "청록",
+    "mint": "민트",
+    "skyBlue": "하늘색",
+    "lightBlue": "연한 파랑",
+    "blue": "파랑",
+    "indigo": "남색",
+    "purple": "보라",
+    "magenta": "마젠타",
+    "lavender": "라벤더",
+    "pink": "분홍",
+    "red": "빨강",
+    "brown": "갈색",
+    "orange": "주황",
+    "cream": "크림색",
+    "beige": "베이지",
+    "tan": "황갈색",
+    "grey": "회색",
+    "lightGrey": "연한 회색",
+    "black": "검정",
+    "colours": "색상",
+    "recent": "최근",
+    "recentColours": "최근 색상",
+    "hex": "헥스 코드",
+    "custom": "사용자 지정"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Valymo tūriai",
+    "ownAmounts": "jūsų pačių kiekiai",
+    "fromColours": "pagal spalvas",
+    "leftNozzle": "Kairysis purkštukas",
+    "rightNozzle": "Dešinysis purkštukas",
+    "nozzleN": "Purkštukas {{n}}",
+    "filamentN": "Gija {{n}}",
+    "recalculate": "Perskaičiuoti",
+    "done": "Atlikta",
+    "explain": "Kiek spausdintuvas išspaudžia, mm³, pereidamas nuo kairėje esančios gijos prie viršuje esančios. Apskaičiuota pagal spalvas: nuo tamsios prie šviesios reikia daugiau.",
+    "nozzle": "Purkštukas",
+    "tableLabel": "Valymo tūriai mm³",
+    "from": "iš",
+    "to": "į",
+    "toFilament": "Į {{name}}",
+    "fromFilament": "Iš {{name}}",
+    "purgeLabel": "Valymas iš {{from}} į {{to}}, mm³",
+    "suggested": "Siūloma: nuo {{min}} iki {{max}} mm³ (už šios ribos rodoma raudonai).",
+    "multiplier": "Daugiklis",
+    "scales": "Keičia kiekvieno kiekio mastelį (nuo {{min}} iki {{max}}).",
+    "towerOff": "„Valymas valymo bokšte“ šio spausdintuvo parametruose (puslapis Kelios medžiagos) išjungtas, todėl kiekvieną kartą keičiant giją išvalomas pradinis tūris ({{volume}} mm³), o ne šie kiekiai. Jie vis tiek nustato valymo ilgį, kurį gauna spausdintuvo keitimo G-code."
+  }
+}

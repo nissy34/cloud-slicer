@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "Dit model eerst vereenvoudigen?",
+    "openAsIs": "Openen zoals het is",
+    "simplify": "Vereenvoudigen",
+    "paintKept": "De kleuren blijven behouden op het vereenvoudigde raster.",
+    "dontAsk": "Niet meer vragen op dit apparaat"
+  }
+}

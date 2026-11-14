@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Během tisku zakázáno",
+    "disabledPaused": "Při pozastavení zakázáno",
+    "position": "Poloha",
+    "speed": "Rychlost",
+    "flow": "Průtok",
+    "head": "Hlava",
+    "moveHead": "Posunout hlavu",
+    "headBack": "Hlava dozadu",
+    "headLeft": "Hlava doleva",
+    "homeHead": "Domů s hlavou",
+    "headRight": "Hlava doprava",
+    "headToward": "Hlava k vám",
+    "bed": "Podložka",
+    "headHeight": "Výška hlavy",
+    "moveBed": "Posunout podložku",
+    "moveHeadZ": "Posunout hlavu nahoru a dolů",
+    "bedUp": "Podložka nahoru",
+    "headUp": "Hlava nahoru",
+    "homeBed": "Domů s podložkou",
+    "homeHeight": "Domů s výškou",
+    "bedDown": "Podložka dolů",
+    "headDown": "Hlava dolů",
+    "step": "Krok",
+    "homeAll": "Domů se vším",
+    "motorsOff": "Vypnout motory",
+    "heatFirst": "Nejprve zahřejte trysku",
+    "extrude10": "Vytlačit 10 mm",
+    "retract": "Retrakce",
+    "homeFirst": "Před posunem tiskárnu nejprve najeďte do domovské polohy."
+  }
+}

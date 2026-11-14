@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "等轴测",
+    "top": "顶视",
+    "bottom": "底视",
+    "front": "前视",
+    "back": "后视",
+    "left": "左视",
+    "right": "右视",
+    "views": "视图",
+    "viewsTip": "视图：顶视、前视、侧视…",
+    "viewTip": "{{view}}视图（{{key}}）",
+    "fitAll": "全部适应",
+    "fitAllTip": "全部适应：显示所有内容（Z）"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "brimEars": {
+    "title": "Orecchie della tesa",
+    "done": "Fatto",
+    "intro": "Dischetti rotondi di tesa sotto gli angoli ne evitano il sollevamento, con molta meno tesa da rimuovere rispetto a una tesa completa.",
+    "howTouch": "Tocca il modello o il piatto accanto per aggiungere un'orecchia. Tocca un'orecchia per sceglierla, poi Rimuovi scelte.",
+    "howMouse": "Clicca il modello o il piatto accanto per aggiungere un'orecchia. Clicca un'orecchia per sceglierla (Maiusc ne aggiunge altre), o clic destro per rimuoverla.",
+    "reading": "Lettura delle orecchie…",
+    "notPainted": "Le orecchie si stampano solo quando il tipo di tesa di questo oggetto è Dipinta (orecchie della tesa).",
+    "usePainted": "Usa le orecchie della tesa per questo oggetto",
+    "ears": "Orecchie",
+    "count_one": "{{count}} orecchia",
+    "count_other": "{{count}} orecchie",
+    "loose_one": "{{count}} non tocca l'oggetto",
+    "loose_other": "{{count}} non toccano l'oggetto",
+    "picked_one": "{{count}} scelta",
+    "picked_other": "{{count}} scelte",
+    "size": "Dimensione orecchia",
+    "auto": "Aggiungi orecchie sugli angoli",
+    "maxAngle": "Angolo max",
+    "maxAngleTip": "Gli angoli più acuti di questo ricevono un'orecchia",
+    "detection": "Lunghezza di rilevamento",
+    "detectionTip": "Le piccole sporgenze più corte di questo vengono prima smussate, così non ricevono orecchie",
+    "resize": "Ridimensiona scelte",
+    "remove": "Rimuovi scelte",
+    "removeAll": "Rimuovi tutte",
+    "count_many": "{{count}} orecchie",
+    "loose_many": "{{count}} non toccano l'oggetto",
+    "picked_many": "{{count}} scelte"
+  }
+}

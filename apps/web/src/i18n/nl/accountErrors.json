@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "Het antwoordde niet op tijd",
+    "noAccounts": "Accounts zijn niet beschikbaar op deze server",
+    "siteNoAnswer": "Cloud Slicer antwoordde niet. Controleer uw verbinding en probeer het opnieuw.",
+    "driveReconnect": "Google Drive moet opnieuw worden verbonden. Open het accountmenu (rechtsboven) en druk op Google Drive verbinden.",
+    "driveNoAnswer": "Google Drive antwoordde niet. Controleer uw verbinding en bewaar opnieuw.",
+    "driveFull": "Uw Google Drive is vol. Maak ruimte vrij in Drive en bewaar opnieuw.",
+    "driveGone": "Dit project staat niet meer in uw Google Drive",
+    "driveNoUpload": "Google Drive heeft de upload niet gestart",
+    "pickerBlocked": "Uw browser blokkeerde het Google Drive-venster. Sta pop-ups toe voor deze site en probeer het opnieuw.",
+    "driveSignIn": "Meld u aan met Google om bestanden uit uw Google Drive te openen.",
+    "driveConnectFirst": "Verbind eerst Google Drive in het accountmenu.",
+    "pickerNotSetUp": "Openen vanuit Google Drive is op deze site nog niet ingesteld."
+  }
+}

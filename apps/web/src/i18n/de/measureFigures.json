@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Punkt",
+    "edge": "Kante",
+    "circle": "Kreis",
+    "plane": "Ebene",
+    "position": "Position",
+    "length": "Länge",
+    "from": "Von",
+    "to": "Nach",
+    "diameter": "Durchmesser",
+    "radius": "Radius",
+    "centre": "Mittelpunkt",
+    "normal": "Normale",
+    "angle": "Winkel",
+    "distance": "Abstand",
+    "perpendicular": "Senkrechter Abstand",
+    "along": "Entlang {{axis}}"
+  }
+}

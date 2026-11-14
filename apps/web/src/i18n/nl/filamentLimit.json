@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} filamenten op {{heads}} koppen: u kiest welke kop elk filament print wanneer u de print verstuurt.",
+    "warn": "{{n}} filamenten op een printer met {{heads}} koppen."
+  }
+}

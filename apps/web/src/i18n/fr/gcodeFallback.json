@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "Utiliser le G-code de démarrage et de changement de filament de {{engine}} ?",
+    "yes": "Oui, découper",
+    "body": "Le G-code de démarrage et de changement de filament de ce fichier a été écrit pour {{app}}, et {{engine}} ne peut pas l’utiliser. {{engine}} a le sien pour <b>{{printer}}</b>, qui fonctionne. Ce choix est enregistré avec ce projet."
+  }
+}

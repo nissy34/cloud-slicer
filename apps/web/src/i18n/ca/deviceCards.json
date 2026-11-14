@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Càmeres",
+    "climate": "Llit i cambra",
+    "move": "Moviment",
+    "console": "Consola",
+    "print": "Impressió",
+    "toolHeads": "Capçals",
+    "alerts": "Alertes",
+    "files": "Fitxers",
+    "unfold": "Desplega aquesta targeta",
+    "fold": "Plega aquesta targeta",
+    "targetOf": "Objectiu de {{label}}",
+    "turnOff": "Apaga {{label}}",
+    "off": "Apagat",
+    "keepGoing": "Continua",
+    "chamberLight": "Llum de la cambra",
+    "purifierExhaust": "Sortida del purificador",
+    "purifierFilter": "Filtre del purificador",
+    "fanAuto": "La impressora controla aquest ventilador sola"
+  }
+}

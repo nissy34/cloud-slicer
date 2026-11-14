@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} is {{size}}; een voorinstellingsbestand mag maximaal {{max}} zijn.",
+    "notJson": "{{label}} is geen voorinstellingsbestand (geen JSON).",
+    "tooMany": "Er kunnen maximaal {{max}} voorinstellingen tegelijk worden geïmporteerd; {{label}} is weggelaten.",
+    "bundleTooBig": "{{name}} is {{size}}; een bundel mag maximaal {{max}} zijn.",
+    "badZip": "{{name}} kon niet als zip worden geopend.",
+    "unpacksTooBig": "{{name}} wordt uitgepakt tot meer dan {{max}}, of bevat een bestand van meer dan {{fileMax}}; er is niets uit geïmporteerd.",
+    "empty": "{{name}} bevat geen voorinstellingsbestanden.",
+    "tooManyKeys": "Het wijzigt meer dan {{max}} instellingen.",
+    "tooLarge": "De instellingen zijn groter dan {{max}}.",
+    "fileN": "bestand {{n}}",
+    "unreadable": "Geen voorinstelling die Orca kan lezen: {{error}}.",
+    "noName": "Het heeft geen bruikbare naam.",
+    "anotherPrinter": "een andere printer",
+    "otherPrinter": "Het is voor {{made}}, die deze app niet heeft. Printerinstellingen zijn specifiek voor de machine, dus ze kunnen niet naar een andere printer worden verplaatst.",
+    "noPrinterBase": "Het is niet gebaseerd op een printer die deze app heeft.",
+    "noFilamentBase": "Er is geen filamentvoorinstelling om het op te zetten.",
+    "noProcessBase": "Er is geen procesvoorinstelling om het op te zetten."
+  }
+}

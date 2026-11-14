@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Andere Chat-Apps",
+    "title": "Mit einer KI-App verwenden",
+    "more": "Mehr dazu",
+    "intro": "Bitten Sie Ihre KI-App, für Sie zu slicen: „Slice diesen Benchy für meinen U1 in PETG mit 4 Wänden und sag mir die Zeit.“ Installieren Sie sie in Claude Desktop als Erweiterung oder in anderen Chat-Apps auf Ihrem Computer wie LM Studio und Msty. Sie slict auf Ihrem Computer mit denselben Engines und Profilen wie diese Seite, und Ihre Modelle bleiben dort.",
+    "whichApp": "Welche App",
+    "step1": "Laden Sie die Cloud-Slicer-Erweiterung herunter.",
+    "download": "Für Claude Desktop herunterladen",
+    "size": "etwa 11 MB. Schon installiert? Laden Sie sie erneut herunter, um zu aktualisieren.",
+    "step2": "Öffnen Sie die Datei. Claude Desktop fragt, ob es sie installieren soll: Klicken Sie auf <b>Installieren</b>.",
+    "step3": "Bitten Sie Claude, eine Datei auf Ihrem Computer zu slicen.",
+    "otherStep1": "Fügen Sie in den Einstellungen Ihrer Chat-App einen MCP-Server mit diesem Eintrag hinzu (die meisten Apps übernehmen ihn unverändert):",
+    "otherStep2": "Dafür wird Node 20 oder neuer auf Ihrem Computer benötigt (<a>nodejs.org</a>).",
+    "canDo": "Sie kann Modelle und Projekte öffnen, Drucker, Prozess und Filamente wählen, Farben und das Filament pro Objekt festlegen, Einstellungen ändern, Platten anordnen und slicen. Solange Ihr Computer an ist, kann auch Claude auf Ihrem Smartphone sie nutzen. Wenn Sie angemeldet sind, verwendet sie auch Ihre Profile und Drucker und fragt Sie, bevor sie einen Druck startet.",
+    "version": "Version {{version}}"
+  }
+}

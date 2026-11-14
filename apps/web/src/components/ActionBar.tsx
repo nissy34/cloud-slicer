@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { settingText } from '../i18n';
 import { sendToPrinter } from '../device';
 import type { SliceWarning } from '../engine/protocol';
 import { sentence, stageLabel } from '../lib/format';
@@ -109,7 +110,7 @@ function SliceWarnings({ warnings }: { warnings: SliceWarning[] }) {
             <li key={k} className={w.level === 'serious' ? 'serious' : 'warning'}>
               {w.object && !w.text.includes(w.object) && <b>{w.object}: </b>}
               {sentence(w.text)}
-              {w.option && <span className="muted"> {t('actionbar.warningSetting', { setting: options[w.option]?.label || w.option })}</span>}
+              {w.option && <span className="muted"> {t('actionbar.warningSetting', { setting: settingText(options[w.option]?.label ?? '') || w.option })}</span>}
             </li>
           ))}
         </ul>

@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Bu proje dönüştürülsün mü?",
+    "convert": "Dönüştür",
+    "setUpFor": "<b>{{printer}}</b> için ayarlanmış. Basmak için yazıcılarınızdan birini seçin.",
+    "printer": "Yazıcı",
+    "convertTo": "Yazıcıya dönüştür",
+    "keep": "Projenin değiştirdiği model ayarlarını koru: katmanlar, duvarlar, dolgu, destekler, dikişler, kenar",
+    "remember": "Bir dahaki sefere bunu otomatik yap",
+    "note": "Projenin eski yazıcısının varsayılanlarında bıraktığı ayarlar ile hızlar, ivme, jerk, çizgi genişlikleri, akış kalibrasyonu ve prime kulesi {{printer}} yazıcısından gelir. Filamentler malzemeye ve türe (mat, ipek, yüksek akış...) göre eşleştirilir ve projenin renklerini korur.",
+    "yourPrinter": "yazıcınız"
+  }
+}

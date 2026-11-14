@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} / {{size}} MB",
+    "arrivingRelay": "リレー経由で {{got}} / {{size}} MB",
+    "cannotFetch": "このプリンターの接続では動画を取得できません。",
+    "fetchFailed": "動画を取得できませんでした。",
+    "delete": "削除",
+    "download": "ダウンロード",
+    "cantPlay": "この種類の動画はブラウザーで再生できません。ダウンロードして視聴してください。",
+    "none": "タイムラプスはまだありません。印刷を開始するときにタイムラプスをオンにしてください。",
+    "watch": "視聴",
+    "pages": "タイムラプスのページ",
+    "refresh": "更新",
+    "deleteTitle": "タイムラプスを削除"
+  }
+}

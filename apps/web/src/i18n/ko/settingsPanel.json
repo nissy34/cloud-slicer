@@ -1,0 +1,33 @@
+{
+  "settingsPanel": {
+    "simple": "간단",
+    "advanced": "고급",
+    "expert": "전문가",
+    "levelsShown": "표시할 설정",
+    "expertTip": "데스크톱이 개발자 모드용으로 따로 두는 튜닝 설정도 표시합니다",
+    "greyedTip": "브라우저에서는 사용할 수 없습니다",
+    "searchProcess": "프로세스 설정 검색",
+    "searchFilament": "필라멘트 설정 검색",
+    "searchPrinter": "프린터 설정 검색",
+    "noProcessMatch": "“{{query}}”와(과) 일치하는 프로세스 설정이 없습니다.",
+    "noFilamentMatch": "“{{query}}”와(과) 일치하는 필라멘트 설정이 없습니다.",
+    "noPrinterMatch": "“{{query}}”와(과) 일치하는 프린터 설정이 없습니다.",
+    "pages": "설정 페이지",
+    "normalMode": "{{label}} (보통)",
+    "silentMode": "{{label}} (저소음)",
+    "overridesHint": "설정을 선택하면 이 필라멘트 자체의 값을 사용합니다. 선택하지 않은 설정은 회색으로 표시된 프린터의 값을 사용합니다.",
+    "flushLater": "플러시 옵션(채우기, 객체 또는 서포트로 플러시)은 프로젝트에 필라멘트가 둘 이상일 때 여기에 나타납니다.",
+    "noFlush": "플러시 옵션 없음: 이 프린터는 필라멘트마다 노즐이 있어 필라멘트를 바꿀 때 플러시하지 않습니다. 노즐 하나로 여러 필라멘트를 쓰는 프린터(AMS, MMU, CFS)는 여기에 옵션이 표시되고 필라멘트 섹션에 플러시 볼륨 창이 생깁니다.",
+    "useOwnNamed": "이 필라멘트 자체의 {{label}} 사용",
+    "usePrinters": "프린터의 값 사용",
+    "useOwn": "이 필라멘트 자체의 값 사용",
+    "yes": "예",
+    "no": "아니요",
+    "title": "프로세스 설정",
+    "changed_other": "사전 설정에서 설정 {{count}}개가 변경되었습니다. 사전 설정의 ⋯ 메뉴나 설정 창에서 사전 설정에 저장하세요.",
+    "resetAll": "모두 초기화",
+    "newKeeps": "새 프로젝트에서는 묻지 않고 유지합니다.",
+    "newDiscards": "새 프로젝트에서는 묻지 않고 버립니다.",
+    "askAgain": "다시 묻기"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "presetChanges": {
+    "filamentN": "Filament {{n}}",
+    "process": "Process",
+    "printer": "Skrivare",
+    "changes_one": "{{count}} ändring",
+    "changes_other": "{{count}} ändringar",
+    "saveTitle": "Spara ändrade inställningar",
+    "back": "Tillbaka",
+    "saving": "Sparar…",
+    "save": "Spara",
+    "namesText": "Dina egna förinställningar behåller sitt namn och tar emot ändringarna. Ge ett nytt namn för att spara en kopia i stället.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Behålla dina ändrade inställningar?",
+    "discard": "Förkasta",
+    "saveMenu": "Spara…",
+    "keep": "Behåll",
+    "text": "Vissa förinställningar har ändrade inställningar. Behåll dem i det nya projektet, förkasta dem eller spara dem i förinställningar.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Kom ihåg mitt val (Behåll eller Förkasta)"
+  }
+}

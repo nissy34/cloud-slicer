@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "Thème",
+    "current": "Thème : {{choice}}",
+    "system": "Système",
+    "systemHint": "Suivre cet appareil",
+    "light": "Clair",
+    "dark": "Sombre"
+  }
+}

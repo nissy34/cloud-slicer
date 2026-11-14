@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "“{{variable}}” bu dilimleyicinin tanıdığı bir ayar değil (başka bir dilimleyiciden veya daha yeni bir sürümden gelmiş olabilir).",
+    "unknownName": "bu dilimleyicinin tanımadığı bir ad kullanıyor.",
+    "negativeIndex": "“{{variable}}”, ilk filament yüklenmeden önce okunuyor (orada dizini -1); önce bu dizini {if ...} ile denetleyin.",
+    "negativeIndexList": "bir liste, ilk filament yüklenmeden önce okunuyor (orada dizini -1); önce bu dizini {if ...} ile denetleyin.",
+    "reasonAt": "{{reason}}, “{{variable}}” noktasında.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, satır {{line}}: {{why}}",
+    "filamentSettings": "filament ayarları",
+    "printerSettings": "yazıcı ayarları",
+    "or": " veya ",
+    "stoppedOne": "Dilimleme durdu: özel bir G-code doldurulamıyor.",
+    "stoppedSome": "Dilimleme durdu: bazı özel G-code'lar doldurulamıyor.",
+    "fix": "{{where}} bölümünde düzeltin veya ön ayarın G-code'una sıfırlayın."
+  }
+}

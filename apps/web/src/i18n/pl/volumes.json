@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "Dodaj część",
+    "addNegative": "Dodaj część ujemną",
+    "addModifier": "Dodaj modyfikator",
+    "addBlocker": "Dodaj blokadę podpór",
+    "addEnforcer": "Dodaj wymuszenie podpór",
+    "part": "Część",
+    "negative": "Część ujemna",
+    "modifier": "Modyfikator",
+    "enforcer": "Wymuszenie podpór",
+    "blocker": "Blokada podpór",
+    "other": "Inne"
+  }
+}

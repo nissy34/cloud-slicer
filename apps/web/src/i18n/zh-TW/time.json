@@ -1,0 +1,7 @@
+{
+  "time": {
+    "justNow": "剛剛",
+    "minAgo": "{{n}} 分鐘前",
+    "hoursAgo": "{{n}} 小時前"
+  }
+}

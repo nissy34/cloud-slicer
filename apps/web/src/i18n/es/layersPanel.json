@@ -1,0 +1,33 @@
+{
+  "layersPanel": {
+    "addDetail": "Añadir detalle",
+    "addDetailTip": "Capas más finas (escritorio: botón izquierdo del ratón)",
+    "removeDetail": "Quitar detalle",
+    "removeDetailTip": "Capas más gruesas (escritorio: botón derecho del ratón)",
+    "backToBase": "Volver a la base",
+    "backToBaseTip": "Volver a la altura de capa uniforme (escritorio: Shift + botón izquierdo)",
+    "smooth": "Suavizar",
+    "smoothTip": "Suaviza los escalones (escritorio: Shift + botón derecho)",
+    "profile": "Perfil de altura de capa",
+    "title": "Altura de capa variable",
+    "done": "Hecho",
+    "intro": "Capas finas donde la forma necesita detalle y gruesas donde no. Adaptativo lo hace según las pendientes; o mantenga pulsado en el gráfico para añadir o quitar detalle alrededor de esa altura.",
+    "heights": "Alturas de capa",
+    "variable": "Variable",
+    "plain": "Uniforme",
+    "layers_one": "{{count}} capa",
+    "layers_many": "{{count}} capas",
+    "layers_other": "{{count}} capas",
+    "chartEdits": "Ediciones del gráfico",
+    "band": "Editar banda",
+    "adaptive": "Adaptativo",
+    "quality": "Calidad",
+    "qualityOrSpeed": "Calidad o velocidad",
+    "speed": "Velocidad",
+    "radius": "Radio",
+    "smoothRadius": "Radio de suavizado",
+    "keepMin": "Conservar las capas más finas",
+    "reset": "Restablecer",
+    "reading": "Leyendo las capas…"
+  }
+}

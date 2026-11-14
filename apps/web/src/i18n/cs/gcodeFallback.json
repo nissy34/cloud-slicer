@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "Použít počáteční G-code a G-code výměny filamentu z {{engine}}?",
+    "yes": "Ano, slicovat",
+    "body": "Počáteční G-code a G-code výměny filamentu v tomto souboru byl napsán pro {{app}} a {{engine}} ho nemůže použít. {{engine}} má vlastní pro <b>{{printer}}</b>, který funguje. Tato volba se uloží s tímto projektem."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Cài đặt vật thể",
+    "modifierSettings": "Cài đặt modifier",
+    "partSettings": "Cài đặt phần",
+    "addToObject": "Thêm một cài đặt cho vật thể này",
+    "addToModifier": "Thêm một cài đặt cho modifier này",
+    "addToPart": "Thêm một cài đặt cho phần này",
+    "addSetting": "+ Thêm cài đặt",
+    "modifierEmpty": "Thêm một cài đặt để thay đổi nó ở chỗ modifier chồng lên vật thể, như thêm infill ở một chỗ.",
+    "partEmpty": "Dùng cài đặt của vật thể. Thêm một cài đặt để đổi chỉ cho phần này.",
+    "objectEmpty": "Dùng cài đặt process. Thêm một cài đặt để đổi chỉ cho vật thể này.",
+    "others": "Khác",
+    "removeFromObject": "Xóa khỏi vật thể này",
+    "removeFromModifier": "Xóa khỏi modifier này",
+    "removeFromPart": "Xóa khỏi phần này"
+  }
+}

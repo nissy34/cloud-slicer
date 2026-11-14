@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} filament {{heads}} buruetan: inprimaketa bidaltzean zuk aukeratzen duzu zein buruk inprimatzen duen bakoitza.",
+    "warn": "{{n}} filament {{heads}} buru dituen inprimagailu batean."
+  }
+}

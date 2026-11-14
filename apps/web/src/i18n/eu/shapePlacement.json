@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Biratu testua",
+    "rotateSvg": "Biratu SVG",
+    "moveText": "Mugitu testua gainazaletik",
+    "moveSvg": "Mugitu SVG gainazaletik",
+    "rotationTip": "Biratu bere ardatzaren inguruan, erloju-orratzen noranzkoan (3D ikuspegiko eraztunak ere bera egiten du)",
+    "rotation": "Biraketa",
+    "fromSurfaceTip": "Gainazaletik zenbat irteten den",
+    "fromSurface": "Gainazaletik",
+    "keepUpTip": "Zutik mantentzen du gainazalean zehar irristatzen duzun bitartean edo kamerari begira jartzen duzunean",
+    "keepUp": "Mantendu zutik",
+    "faceCameraTip": "Biratu zuri begira jartzeko, ikusten duzun lekutik",
+    "faceCamera": "Begira kamerari",
+    "moveToolsText": "Mugitu edo biratu testua tresna horiekin.",
+    "moveToolsShape": "Mugitu edo biratu forma tresna horiekin.",
+    "dragText": "Arrastatu testua edo bere marko urdina objektuaren gainean irristatzeko. Eraztunak biratzen du.",
+    "dragShape": "Arrastatu forma edo bere marko urdina objektuaren gainean irristatzeko. Eraztunak biratzen du."
+  }
+}

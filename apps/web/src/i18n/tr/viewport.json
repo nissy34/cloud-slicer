@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Taşı",
+    "rotate": "Döndür",
+    "scale": "Ölçeklendir",
+    "rotateText": "Metni döndür",
+    "moveSvgSurface": "SVG'yi yüzey üzerinde taşı",
+    "moveTextSurface": "Metni yüzey üzerinde taşı",
+    "movePart": "Parçayı taşı",
+    "rotatePart": "Parçayı döndür",
+    "scalePart": "Parçayı ölçeklendir",
+    "plates": "Plakalar",
+    "ownSettingsTip": "Bu plakanın kendi ayarları var",
+    "ownSettings": "kendi ayarları var",
+    "plateSettings": "Plaka ayarları",
+    "plateNSettings": "{{n}}. plaka ayarları"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Namnlös",
+    "nothingYet": "Inget på den här plattan än",
+    "locked": "Den här plattan är låst",
+    "deleteTip": "Ta bort den här plattan och det som finns på den (inte den sista)",
+    "orientTip": "Auto-orientera objekten på den här plattan",
+    "arrangeTip": "Arrangera objekten på den här plattan (Shift+A)",
+    "unlockTip": "Lås upp den här plattan",
+    "lockTip": "Lås den här plattan: Arrangera och Auto-orientera lämnar den som den är",
+    "settingsOwnTip": "Plattinställningar: den här plattan har egna inställningar",
+    "settingsTip": "Plattinställningar: plattyp, utskriftsordning, spiralvas, filamentordning",
+    "renameTip": "Byt namn på den här plattan"
+  }
+}

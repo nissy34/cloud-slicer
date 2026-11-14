@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "使用 {{engine}} 的起始和换料 G-code？",
+    "yes": "是，切片",
+    "body": "此文件的起始和换料 G-code 是为 {{app}} 编写的，{{engine}} 无法使用。{{engine}} 为 <b>{{printer}}</b> 自带了可用的 G-code。此选择会保存在此项目中。"
+  }
+}

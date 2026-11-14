@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Platnost tohoto kódu vypršela. Požádejte svou AI aplikaci o nové přihlášení pro nový kód.",
+    "invalid": "Tento kód není platný. Porovnejte ho s tím, který zobrazuje vaše AI aplikace, nebo ji požádejte o nové přihlášení.",
+    "siteAnswered": "Web odpověděl {{status}}",
+    "checkingAccount": "Kontrola vašeho účtu…",
+    "signInFirst": "Nejprve se přihlaste do Cloud Slicer. Pak vás toto okno požádá o připojení vaší AI aplikace.",
+    "noSignIn": "Přihlášení na tomto webu není nastavené.",
+    "codeLabel": "Kód, který zobrazuje vaše AI aplikace",
+    "checkingCode": "Kontrola kódu…",
+    "connected": "Připojeno. Vraťte se do své AI aplikace: je přihlášená jako {{name}}.",
+    "turnedDown": "Odmítnuto. Vaše AI aplikace není přihlášená.",
+    "asks": "AI aplikace na vašem počítači (doplněk Cloud Slicer) žádá o použití vašeho účtu <b>{{email}}</b>. Zkontrolujte, že zobrazuje tento kód:",
+    "willSee": "Uvidí vaše uložené předvolby a tiskárny a může kontrolovat vaše tiskárny a nahrávat na ně. Před každým zahájením tisku se vás zeptá. Můžete ji odhlásit z AI aplikace.",
+    "continueGoogle": "Pokračovat přes Google",
+    "dontConnect": "Nepřipojovat",
+    "connect": "Připojit",
+    "title": "Připojit AI aplikaci"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "presetChanges": {
+    "filamentN": "Filament {{n}}",
+    "process": "Process",
+    "printer": "Máy in",
+    "changes_other": "{{count}} thay đổi",
+    "saveTitle": "Lưu các cài đặt đã thay đổi",
+    "back": "Quay lại",
+    "saving": "Đang lưu…",
+    "save": "Lưu",
+    "namesText": "Các cài đặt sẵn của riêng bạn giữ tên và nhận các thay đổi. Hãy đặt tên mới để lưu thành bản sao.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Giữ các cài đặt đã thay đổi của bạn?",
+    "discard": "Bỏ",
+    "saveMenu": "Lưu…",
+    "keep": "Giữ",
+    "text": "Một số cài đặt sẵn có cài đặt đã thay đổi. Hãy giữ chúng trong dự án mới, bỏ chúng, hoặc lưu chúng vào cài đặt sẵn.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Nhớ lựa chọn của tôi (Giữ hoặc Bỏ)"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "等角",
+    "top": "上",
+    "bottom": "下",
+    "front": "前",
+    "back": "後",
+    "left": "左",
+    "right": "右",
+    "views": "視角",
+    "viewsTip": "視角：上、前、側…",
+    "viewTip": "{{view}}視角 ({{key}})",
+    "fitAll": "全部顯示",
+    "fitAllTip": "全部顯示：讓所有內容都可見 (Z)"
+  }
+}

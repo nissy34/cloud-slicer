@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "Az OctoPrint nincs csatlakoztatva a nyomtatóhoz.",
+    "octoprintRestart": "Újracsatlakozás",
+    "octoprintRestarting": "Az OctoPrint csatlakoztatása a nyomtatóhoz",
+    "bambuStopped": "A nyomtató nem válaszol: ellenőrizze, hogy be van-e kapcsolva és a hálózaton van-e.",
+    "bambuCameraMissing": "Csak a P1 és A1 nyomtatók kamerája látszik itt: az X1, H2 és P2S olyan videót küld, amelyet csak a Bambu saját alkalmazásai játszanak le.",
+    "bambuSlotNoun": "AMS-foglalat",
+    "bambuSlotUnset": "Töltsön be oda filamentet, vagy állítsa be a nyomtató képernyőjén.",
+    "bambuSlotNote": "Mint a Bambu Studióban, egy filament csak olyan foglalatba kerülhet, amelyben ugyanilyen filamenttípus van. A márka és a szín eltérhet.",
+    "outsideSpool": "Külső tekercs",
+    "u1Heads": "Szerszámfejek",
+    "u1HeadNoun": "szerszámfej",
+    "u1HeadUnset": "Töltsön be filamentet, vagy állítsa be a típusát a Szerszámfejek kártyán.",
+    "u1HeadNote": "Mint a Snapmaker saját alkalmazásában, egy filament csak olyan fejhez rendelhető, amelynek ugyanaz a filamenttípusa és fúvókamérete. A márka és a szín eltérhet.",
+    "nozzleStandard": "Normál",
+    "nozzleHighFlow": "Nagy áramlású",
+    "calibratingOffsets": "Szerszámeltolások kalibrálása",
+    "levellingBed": "Asztal szintezése",
+    "calibratingFlow": "Anyagáramlás kalibrálása",
+    "calibratingShaper": "Input shaping kalibrálása",
+    "updatingFirmware": "Firmware frissítése",
+    "needsAttention": "Figyelmet igényel a nyomtató képernyőjén",
+    "adjustingScrews": "Asztalcsavarok beállítása",
+    "loadingFilament": "Filament betöltése",
+    "unloadingFilament": "Filament kivétele",
+    "calibratingPark": "Parkolási pozíció kalibrálása",
+    "calibratingHome": "Alaphelyzeti pozíció kalibrálása",
+    "hotendFan": "Hotend ventilátor T{{n}}"
+  }
+}

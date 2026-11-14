@@ -1,0 +1,9 @@
+{
+  "openProject": {
+    "thisFile": "Ce fichier",
+    "title": "Ouvrir comme projet ?",
+    "geometryOnly": "Importer la géométrie seulement",
+    "open": "Ouvrir le projet",
+    "body": "<b>{{name}}</b> est un projet avec ses propres plaques et réglages. L’ouvrir remplace ce qui est actuellement sur vos plaques. Importer sa géométrie ajoute ses objets à votre plaque et conserve vos réglages."
+  }
+}

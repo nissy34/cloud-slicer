@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} trên {{size}} MB",
+    "arrivingRelay": "{{got}} trên {{size}} MB qua relay",
+    "cannotFetch": "Kết nối máy in này không tải được video.",
+    "fetchFailed": "Không thể tải video.",
+    "delete": "Xóa",
+    "download": "Tải xuống",
+    "cantPlay": "Loại video này không phát được trong trình duyệt. Hãy tải xuống để xem.",
+    "none": "Chưa có timelapse nào. Hãy bật Timelapse khi bắt đầu in.",
+    "watch": "Xem",
+    "pages": "Trang timelapse",
+    "refresh": "Làm mới",
+    "deleteTitle": "Xóa timelapse"
+  }
+}

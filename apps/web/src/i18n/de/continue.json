@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Dort weitermachen, wo Sie aufgehört haben?",
+    "local": "{{name}}, geändert {{when}}. In diesem Browser gehalten, nicht gespeichert.",
+    "discard": "Verwerfen",
+    "continue": "Weitermachen",
+    "projectAsk": "{{name}} fortsetzen?",
+    "project": "{{name}} fortsetzen",
+    "openHere": "Sie hatten es hier geöffnet, bearbeitet {{when}}",
+    "editedOn": "Bearbeitet {{when}} auf {{device}}",
+    "notNow": "Nicht jetzt",
+    "editedElsewhere": "{{name}} wird auf {{device}} bearbeitet",
+    "viewOnly": "Dieser Tab ist nur zum Ansehen.",
+    "viewOnlyUnsaved": "Dieser Tab ist nur zum Ansehen. Ihre hier gemachten Änderungen sind darin nicht enthalten.",
+    "saveMineAsCopy": "Meine Version als Kopie speichern",
+    "editHere": "Stattdessen hier bearbeiten",
+    "gone": "„{{name}}“ wurde auf {{device}} gelöscht. Es ist hier noch geöffnet, aber nicht gespeichert."
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "アイソメ",
+    "top": "上",
+    "bottom": "下",
+    "front": "前",
+    "back": "後",
+    "left": "左",
+    "right": "右",
+    "views": "ビュー",
+    "viewsTip": "ビュー: 上、前、側面など",
+    "viewTip": "{{view}}ビュー（{{key}}）",
+    "fitAll": "全体表示",
+    "fitAllTip": "全体表示: すべてを表示します（Z）"
+  }
+}

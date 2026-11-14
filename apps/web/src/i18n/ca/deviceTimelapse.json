@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} de {{size}} MB",
+    "arrivingRelay": "{{got}} de {{size}} MB a través del relé",
+    "cannotFetch": "Aquesta connexió amb la impressora no pot obtenir vídeos.",
+    "fetchFailed": "No s'ha pogut obtenir el vídeo.",
+    "delete": "Suprimeix",
+    "download": "Descarrega",
+    "cantPlay": "Aquest tipus de vídeo no es reprodueix al navegador. Descarregueu-lo per veure'l.",
+    "none": "Encara no hi ha cap timelapse. Activeu Timelapse quan inicieu una impressió.",
+    "watch": "Mira",
+    "pages": "Pàgines de timelapses",
+    "refresh": "Actualitza",
+    "deleteTitle": "Suprimeix el timelapse"
+  }
+}

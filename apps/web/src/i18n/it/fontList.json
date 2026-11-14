@@ -1,0 +1,8 @@
+{
+  "fontList": {
+    "hebrew": "Ebraico",
+    "pickScriptFont": "Scegli un carattere {{script}}, come {{fonts}}.",
+    "pickAnyFont": "Scegli un carattere che li contenga: un file di carattere, o uno dei caratteri di questo computer.",
+    "noLetters": "Questo carattere non ha lettere per {{letters}}, quindi vengono omesse."
+  }
+}

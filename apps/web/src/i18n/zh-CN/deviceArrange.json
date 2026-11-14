@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "无法保存卡片布局。在你重新加载页面之前会一直保留。",
+    "pageCard": "页面卡片 {{n}}",
+    "cameraCard": "摄像头卡片 {{n}}",
+    "arrangingFor": "正在为 {{name}} 排列卡片。",
+    "helpPhone": "按住卡片的把手，向上或向下拖动。",
+    "helpDesktop": "按住卡片的把手，将其拖入某一列，或拖到顶部或底部。",
+    "helpRest": "隐藏的卡片会留在这里，呈淡色。其他打印机保留各自的布局。",
+    "columns": "列数",
+    "addCameraCard": "添加摄像头卡片",
+    "addPageCard": "添加页面卡片",
+    "backToDefault": "恢复默认",
+    "acrossTop": "顶部横跨",
+    "column": "第 {{n}} 列",
+    "acrossBottom": "底部横跨",
+    "small": "小",
+    "medium": "中",
+    "large": "大",
+    "moveCard": "移动 {{name}}",
+    "halfWidthTip": "半宽：两张半宽卡片并排显示",
+    "halfWidth": "半宽",
+    "cameraSize": "摄像头大小",
+    "remove": "移除"
+  }
+}

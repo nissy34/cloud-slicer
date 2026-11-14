@@ -1,0 +1,28 @@
+{
+  "brimEars": {
+    "title": "Peremfülek",
+    "done": "Kész",
+    "intro": "A sarkok alatti kerek perempárnák megakadályozzák a felemelkedést, sokkal kevesebb leszedendő peremmel, mint egy teljes perem.",
+    "howTouch": "Koppintson a modellre vagy a mellette lévő asztalra egy fül hozzáadásához. Koppintson egy fülre a kijelöléséhez, majd Kijelöltek eltávolítása.",
+    "howMouse": "Kattintson a modellre vagy a mellette lévő asztalra egy fül hozzáadásához. Kattintson egy fülre a kijelöléséhez (Shift többet ad hozzá), vagy kattintson rá jobb gombbal az eltávolításhoz.",
+    "reading": "A fülek beolvasása…",
+    "notPainted": "A fülek csak akkor nyomtatódnak, ha az objektum peremtípusa Festett (peremfülek).",
+    "usePainted": "Peremfülek használata ennél az objektumnál",
+    "ears": "Fülek",
+    "count_one": "{{count}} fül",
+    "count_other": "{{count}} fül",
+    "loose_one": "{{count}} nem érinti az objektumot",
+    "loose_other": "{{count}} nem érinti az objektumot",
+    "picked_one": "{{count}} kijelölve",
+    "picked_other": "{{count}} kijelölve",
+    "size": "Fülméret",
+    "auto": "Fülek hozzáadása a sarkokra",
+    "maxAngle": "Max. szög",
+    "maxAngleTip": "Az ennél élesebb sarkok kapnak fület",
+    "detection": "Észlelési hossz",
+    "detectionTip": "Az ennél rövidebb kis kiemelkedéseket előbb elsimítja, így azok nem kapnak fület",
+    "resize": "Kijelöltek átméretezése",
+    "remove": "Kijelöltek eltávolítása",
+    "removeAll": "Összes eltávolítása"
+  }
+}

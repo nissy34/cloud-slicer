@@ -1,0 +1,10 @@
+{
+  "presetEngines": {
+    "split_one": "{{count}} configuração não é mais igual nos dois motores; \"{{name}}\" mantém os valores dela em cada um.",
+    "split_many": "{{count}} configurações não são mais iguais nos dois motores; \"{{name}}\" mantém os valores delas em cada um.",
+    "split_other": "{{count}} configurações não são mais iguais nos dois motores; \"{{name}}\" mantém os valores delas em cada um.",
+    "separate_one": "{{count}} configuração de \"{{name}}\" agora pode ser igual nos dois motores, mas é diferente; \"Usar os mesmos valores nos dois motores\" no menu dela as iguala.",
+    "separate_many": "{{count}} configurações de \"{{name}}\" agora podem ser iguais nos dois motores, mas são diferentes; \"Usar os mesmos valores nos dois motores\" no menu delas as iguala.",
+    "separate_other": "{{count}} configurações de \"{{name}}\" agora podem ser iguais nos dois motores, mas são diferentes; \"Usar os mesmos valores nos dois motores\" no menu delas as iguala."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · กำลังสไลซ์ · {{title}}",
+    "doneTitle": "สไลซ์เสร็จแล้ว",
+    "plateSliced": "สไลซ์เพลต {{plate}} แล้ว แตะเพื่อดู",
+    "tapToSee": "แตะเพื่อดู",
+    "questionTitle": "การสไลซ์ต้องการคุณ",
+    "questionBody": "มีคำถามก่อนจะทำต่อได้ แตะเพื่อตอบ",
+    "failedTitle": "สไลซ์ไม่สำเร็จ",
+    "tapToSeeWhy": "แตะเพื่อดูสาเหตุ"
+  }
+}

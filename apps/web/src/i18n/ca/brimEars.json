@@ -1,0 +1,31 @@
+{
+  "brimEars": {
+    "title": "Orelles de vora",
+    "done": "Fet",
+    "intro": "Unes safates rodones de vora sota les cantonades eviten que s'aixequin, amb molta menys vora per netejar que una vora completa.",
+    "howTouch": "Toqueu el model o el llit al costat per afegir una orella. Toqueu una orella per triar-la i després Treu les triades.",
+    "howMouse": "Feu clic al model o al llit al costat per afegir una orella. Feu clic a una orella per triar-la (Maj n'afegeix més), o clic dret per treure-la.",
+    "reading": "Llegint les orelles…",
+    "notPainted": "Les orelles només s'imprimeixen quan el tipus de vora d'aquest objecte és Pintat (orelles de vora).",
+    "usePainted": "Usa orelles de vora per a aquest objecte",
+    "ears": "Orelles",
+    "count_one": "{{count}} orella",
+    "count_many": "{{count}} orelles",
+    "count_other": "{{count}} orelles",
+    "loose_one": "{{count}} no toca l'objecte",
+    "loose_many": "{{count}} no toquen l'objecte",
+    "loose_other": "{{count}} no toquen l'objecte",
+    "picked_one": "{{count}} triada",
+    "picked_many": "{{count}} triades",
+    "picked_other": "{{count}} triades",
+    "size": "Mida de l'orella",
+    "auto": "Afegeix orelles a les cantonades",
+    "maxAngle": "Angle màxim",
+    "maxAngleTip": "Les cantonades més agudes que això reben una orella",
+    "detection": "Longitud de detecció",
+    "detectionTip": "Els petits ressalts més curts que això s'allisen primer, i no reben orelles",
+    "resize": "Redimensiona les triades",
+    "remove": "Treu les triades",
+    "removeAll": "Treu-les totes"
+  }
+}

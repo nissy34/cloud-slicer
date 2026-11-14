@@ -1,0 +1,30 @@
+{
+  "simplifyTool": {
+    "title": "Simplifier",
+    "done": "Terminé",
+    "hint": "Moins de triangles permettent à un gros modèle de s’ouvrir, se découper et s’afficher plus vite. Les détails fins peuvent s’adoucir ; Annuler rend l’ancien maillage.",
+    "trianglesLabel": "Triangles",
+    "triangles_one": "{{n}} triangle",
+    "triangles_many": "{{n}} triangles",
+    "triangles_other": "{{n}} triangles",
+    "trianglesUnknown": "… triangles",
+    "workingOut": "(calcul en cours…)",
+    "by": "Simplifier par",
+    "detailLevel": "Niveau de détail",
+    "ratio": "Ratio de décimation",
+    "detail": "Détail",
+    "removeTip": "Part des triangles à retirer",
+    "remove": "Retirer",
+    "paintKept": "La peinture de cet objet (couleurs, supports, coutures, surface irrégulière) est conservée sur le maillage simplifié.",
+    "apply": "Appliquer",
+    "extraHigh": "Très élevé",
+    "high": "Élevé",
+    "medium": "Moyen",
+    "low": "Faible",
+    "extraLow": "Très faible",
+    "million": "{{n}} million",
+    "heavyPlates": "{{n}} plaques ont plus de {{limit}} triangles (jusqu’à {{most}}), ce qui peut dépasser ce que cet appareil peut gérer. Simplifier chacune à environ {{light}} garde largement assez de détails pour l’impression.",
+    "heavyPlate": "La plaque {{n}} compte {{triangles}} triangles, ce qui peut dépasser ce que cet appareil peut gérer. La simplifier à environ {{light}} garde largement assez de détails pour l’impression.",
+    "heavyModel": "Ce modèle compte {{triangles}} triangles, ce qui peut dépasser ce que cet appareil peut gérer. Le simplifier à environ {{light}} garde largement assez de détails pour l’impression."
+  }
+}

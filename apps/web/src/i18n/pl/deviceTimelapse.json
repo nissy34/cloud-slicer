@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} z {{size}} MB",
+    "arrivingRelay": "{{got}} z {{size}} MB przez przekaźnik",
+    "cannotFetch": "To połączenie z drukarką nie pozwala pobierać filmów.",
+    "fetchFailed": "Nie udało się pobrać filmu.",
+    "delete": "Usuń",
+    "download": "Pobierz",
+    "cantPlay": "Ten rodzaj filmu nie odtwarza się w przeglądarce. Pobierz go, aby obejrzeć.",
+    "none": "Nie ma jeszcze timelapse'ów. Włącz Timelapse, gdy zaczynasz druk.",
+    "watch": "Oglądaj",
+    "pages": "Strony timelapse'ów",
+    "refresh": "Odśwież",
+    "deleteTitle": "Usuń timelapse"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Temperatūros",
+    "filterTimelapse": "Timelapse",
+    "filterTimelapseExample": "timelapse kadrų pranešimai",
+    "filterProgress": "Spausdinimo eiga",
+    "filterOk": "Paprastas „ok“",
+    "done": "Atlikta",
+    "filtersN": "Filtrai ({{n}})",
+    "filters": "Filtrai",
+    "hideThese": "Slėpti šias eilutes",
+    "hideLike": "Slėpti tokias eilutes: {{example}}",
+    "hideContaining": "Slėpti eilutes, kuriose yra „{{text}}“",
+    "removeFilter": "Pašalinti filtrą „{{text}}“",
+    "remove": "Pašalinti",
+    "hideContainingPlaceholder": "Slėpti eilutes, kuriose yra…",
+    "hideContainingLabel": "Slėpti eilutes, kuriose yra",
+    "add": "Pridėti",
+    "filtersHelp": "Bakstelėkite žetoną, kad jį perjungtumėte. Tai, ką siunčiate, ir klaidos rodomos visada.",
+    "linesHidden_one": "1 eilutė paslėpta filtrų",
+    "linesHidden_few": "{{count}} eilutės paslėptos filtrų",
+    "linesHidden_many": "{{count}} eilutės paslėptos filtrų",
+    "linesHidden_other": "{{count}} eilučių paslėpta filtrų",
+    "sendPlaceholder": "Siųsti G-code, pvz., M115",
+    "commandLabel": "G-code komanda",
+    "send": "Siųsti"
+  }
+}

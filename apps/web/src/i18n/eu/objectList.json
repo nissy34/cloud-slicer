@@ -1,0 +1,32 @@
+{
+  "objectList": {
+    "notPrinted": "Inprimatu gabe",
+    "someNotPrinted": "Kopia batzuk inprimatu gabe",
+    "object": "Objektua",
+    "sameAsObject": "Objektuaren berdina",
+    "objects": "Objektuak",
+    "skippedTip": "{{name}}: {{why}}. Xerratzeak kanpoan uzten du; markatu Inprimagarria bere ⋯ menuan inprimatzeko.",
+    "objectN": "{{n}}. objektua",
+    "filamentFor": "{{name}} objektuaren filamentua",
+    "more": "Gehiago",
+    "moreFor": "{{name}} objektuaren aukera gehiago",
+    "moreTip": "Gehiago: klonatu, berrizendatu, ispilatu, esportatu… (edo egin klik eskuinez objektuan)",
+    "painted": "(margotua)",
+    "moreForPart": "{{name}} piezaren aukera gehiago",
+    "partMoreTip": "Berrizendatu, aldatu mota, ezarpenak, ezabatu",
+    "chosen_one": "Objektu {{count}} hautatuta",
+    "chosen_other": "{{count}} objektu hautatuta",
+    "groupHint": "Mugitu, biratu eta eskalatu guztietan funtzionatzen du. Egin klik eskuinez hautatutako eredu batean, edo luze sakatu telefonoan, besteetarako.",
+    "deleteAllTip": "Ezabatu guztiak (Del)",
+    "delete": "Ezabatu",
+    "blockerHint": "{{kind}}: euskarriak ez dira hazten objektuarekin gainjartzen den lekuan, euskarriak aktibatuta daudenean. Mugitu Mugitu tresnarekin.",
+    "enforcerHint": "{{kind}}: euskarriak hazten dira objektuarekin gainjartzen den lekuan, euskarriak aktibatuta daudenean. Mugitu Mugitu tresnarekin.",
+    "addInstance": "Gehitu instantzia",
+    "addInstanceTip": "Kopia bat gehiago, ondoan (+). Ctrl+C eta Ctrl+V objektu berri gisa itsasten dute.",
+    "removeInstance": "Kendu instantzia",
+    "removeInstanceTip": "Kendu kopia hau, besteak mantenduz (-)",
+    "simplify": "Sinplifikatu",
+    "simplifyTip": "Triangelu gutxiago, mahaigaineko Sinplifikatu eredua bezala",
+    "deleteTip": "Objektua bere kopia guztiekin (Del-ek aukeratutako kopia soilik kentzen du)"
+  }
+}

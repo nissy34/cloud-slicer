@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "bat datorren filament bat",
+    "noSlot": "Ez dago {{noun}} batek ere {{material}} duenik. Kargatu, edo aldatu filamentua xerratzailean eta xerratu berriro.",
+    "noSlotNozzle": "Ez dago {{noun}} batek ere {{material}} duenik {{nozzle}} mm-ko pita batekin. Kargatu, edo aldatu filamentua xerratzailean eta xerratu berriro.",
+    "noType": "{{slot}}(e)n ez dago filament motarik ezarrita. {{unset}}",
+    "otherMaterial": "{{slot}}(e)n {{has}} dago, baina filament hau {{material}} gisa xerratu zen.",
+    "otherNozzle": "{{slot}}(e)k {{has}} mm-ko pita du, baina fitxategia {{nozzle}} mm-rako xerratu zen.",
+    "highFlow": "Fitxategia fluxu handiko pita baterako xerratu zen, baina {{slot}}(e)k estandarra du."
+  }
+}

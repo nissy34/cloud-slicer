@@ -1,0 +1,28 @@
+{
+  "brimEars": {
+    "title": "Kenar kulakları",
+    "done": "Bitti",
+    "intro": "Köşelerin altındaki yuvarlak kenar pedleri köşelerin kalkmasını önler ve tam kenara göre temizlenecek çok daha az kenar bırakır.",
+    "howTouch": "Kulak eklemek için modele veya yanındaki yatağa dokunun. Seçmek için bir kulağa dokunun, sonra Seçilenleri kaldır'a basın.",
+    "howMouse": "Kulak eklemek için modele veya yanındaki yatağa tıklayın. Seçmek için bir kulağa tıklayın (Shift daha fazlasını ekler) veya kaldırmak için sağ tıklayın.",
+    "reading": "Kulaklar okunuyor…",
+    "notPainted": "Kulaklar yalnızca bu nesnenin kenar türü Boyalı (kenar kulakları) olduğunda basılır.",
+    "usePainted": "Bu nesne için kenar kulakları kullan",
+    "ears": "Kulaklar",
+    "count_one": "{{count}} kulak",
+    "count_other": "{{count}} kulak",
+    "loose_one": "{{count}} tanesi nesneye değmiyor",
+    "loose_other": "{{count}} tanesi nesneye değmiyor",
+    "picked_one": "{{count}} seçili",
+    "picked_other": "{{count}} seçili",
+    "size": "Kulak boyutu",
+    "auto": "Köşelere kulak ekle",
+    "maxAngle": "En büyük açı",
+    "maxAngleTip": "Bundan keskin köşelere kulak eklenir",
+    "detection": "Algılama uzunluğu",
+    "detectionTip": "Bundan kısa küçük çıkıntılar önce yumuşatılır, böylece kulak almazlar",
+    "resize": "Seçilenleri yeniden boyutlandır",
+    "remove": "Seçilenleri kaldır",
+    "removeAll": "Tümünü kaldır"
+  }
+}

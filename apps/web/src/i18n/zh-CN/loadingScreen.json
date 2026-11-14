@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "正在下载切片引擎",
+    "setup": "正在启动切片引擎",
+    "printers": "正在加载你的打印机和预设",
+    "downloadingProject": "正在下载“{{name}}”",
+    "opening": "正在打开 {{name}}"
+  }
+}

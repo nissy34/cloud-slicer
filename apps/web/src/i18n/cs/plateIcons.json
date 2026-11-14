@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Bez názvu",
+    "nothingYet": "Na této desce zatím nic není",
+    "locked": "Tato deska je zamčená",
+    "deleteTip": "Odebrat tuto desku a vše na ní (ne poslední)",
+    "orientTip": "Automatická orientace objektů na této desce",
+    "arrangeTip": "Rozložit objekty na této desce (Shift+A)",
+    "unlockTip": "Odemknout tuto desku",
+    "lockTip": "Zamknout tuto desku: Rozložit a Automatická orientace ji nechají beze změny",
+    "settingsOwnTip": "Nastavení desky: tato deska má vlastní nastavení",
+    "settingsTip": "Nastavení desky: typ desky, sekvence tisku, spirálová váza, pořadí filamentů",
+    "renameTip": "Přejmenovat tuto desku"
+  }
+}

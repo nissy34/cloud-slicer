@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Atkurti profilio reikšmę",
+    "keptOld": "Palikta sena reikšmė.",
+    "kept": "Palikta {{value}}.",
+    "plateUses": "Plokštė {{n}} naudoja",
+    "on": "įjungta",
+    "off": "išjungta",
+    "itsOwn": "(savo parametras).",
+    "plateSettings": "Plokštės parametrai",
+    "default": "Numatytasis",
+    "percentOrMm": "Procentai ar mm?",
+    "isItPercent": "{{label}}: ar tai {{number}}%, ar {{number}} {{unit}}?",
+    "filamentN": "Gija {{n}}",
+    "mix": "Mišinys",
+    "mixes": "Mišiniai"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "layersPanel": {
+    "addDetail": "Lägg till detaljer",
+    "addDetailTip": "Tunnare lager (dator: vänster musknapp)",
+    "removeDetail": "Ta bort detaljer",
+    "removeDetailTip": "Tjockare lager (dator: höger musknapp)",
+    "backToBase": "Tillbaka till basen",
+    "backToBaseTip": "Tillbaka till vanlig lagerhöjd (dator: Shift + vänster knapp)",
+    "smooth": "Jämna ut",
+    "smoothTip": "Jämna ut steg (dator: Shift + höger knapp)",
+    "profile": "Profil för lagerhöjd",
+    "title": "Variabel lagerhöjd",
+    "done": "Klar",
+    "intro": "Tunna lager där formen behöver detaljer, tjocka där den inte gör det. Adaptiv gör det utifrån lutningarna; eller tryck och håll på diagrammet för att lägga till eller ta bort detaljer runt den höjden.",
+    "heights": "Lagerhöjder",
+    "variable": "Variabel",
+    "plain": "Vanlig",
+    "layers_one": "{{count}} lager",
+    "layers_other": "{{count}} lager",
+    "chartEdits": "Diagramändringar",
+    "band": "Redigera band",
+    "adaptive": "Adaptiv",
+    "quality": "Kvalitet",
+    "qualityOrSpeed": "Kvalitet eller hastighet",
+    "speed": "Hastighet",
+    "radius": "Radie",
+    "smoothRadius": "Utjämningsradie",
+    "keepMin": "Behåll de tunnaste lagren",
+    "reset": "Återställ",
+    "reading": "Läser lagren…"
+  }
+}

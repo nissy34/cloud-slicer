@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "“{{name}}” bewaren?",
+    "saveText": "Het staat nog niet in uw online projecten. Niet bewaren gooit het weg.",
+    "save": "Bewaren",
+    "dontSave": "Niet bewaren",
+    "discardTitle": "Niet-bewaarde wijzigingen verwerpen?",
+    "discard": "Wijzigingen verwerpen",
+    "openTitle": "{{what}} openen",
+    "addToText": "U werkte aan “{{project}}”. Daaraan toevoegen, of er een nieuw project mee beginnen?",
+    "newProject": "Nieuw project",
+    "addTo": "Toevoegen aan {{project}}"
+  }
+}

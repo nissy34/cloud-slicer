@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Kart düzeni kaydedilemedi. Sayfayı yenileyene kadar korunur.",
+    "pageCard": "Sayfa kartı {{n}}",
+    "cameraCard": "Kamera kartı {{n}}",
+    "arrangingFor": "{{name}} için kartlar düzenleniyor.",
+    "helpPhone": "Bir kartı tutamacından tutup yukarı veya aşağı sürükleyin.",
+    "helpDesktop": "Bir kartı tutamacından tutup bir sütuna veya üst ya da alt şeride sürükleyin.",
+    "helpRest": "Gizli kartlar burada soluk olarak kalır. Diğer yazıcılar kendi düzenini korur.",
+    "columns": "Sütunlar",
+    "addCameraCard": "Kamera kartı ekle",
+    "addPageCard": "Sayfa kartı ekle",
+    "backToDefault": "Varsayılana dön",
+    "acrossTop": "Üst şerit",
+    "column": "Sütun {{n}}",
+    "acrossBottom": "Alt şerit",
+    "small": "Küçük",
+    "medium": "Orta",
+    "large": "Büyük",
+    "moveCard": "{{name}} kartını taşı",
+    "halfWidthTip": "Yarım genişlik: iki yarım kart yan yana durur",
+    "halfWidth": "Yarım genişlik",
+    "cameraSize": "Kamera boyutu",
+    "remove": "Kaldır"
+  }
+}

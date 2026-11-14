@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "your": "{{device}} của bạn",
+    "another": "thiết bị khác",
+    "iPad": "iPad",
+    "phone": "điện thoại",
+    "tablet": "máy tính bảng",
+    "windows": "máy tính Windows",
+    "mac": "Mac",
+    "chromebook": "Chromebook",
+    "linux": "máy tính Linux",
+    "other": "thiết bị khác"
+  }
+}

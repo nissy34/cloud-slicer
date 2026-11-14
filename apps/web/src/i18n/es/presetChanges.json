@@ -1,0 +1,24 @@
+{
+  "presetChanges": {
+    "filamentN": "Filamento {{n}}",
+    "process": "Proceso",
+    "printer": "Impresora",
+    "changes_one": "{{count}} cambio",
+    "changes_many": "{{count}} cambios",
+    "changes_other": "{{count}} cambios",
+    "saveTitle": "Guardar los ajustes cambiados",
+    "back": "Atrás",
+    "saving": "Guardando…",
+    "save": "Guardar",
+    "namesText": "Sus propios perfiles conservan su nombre y reciben los cambios. Dé un nombre nuevo para guardar una copia en su lugar.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "¿Conservar los ajustes cambiados?",
+    "discard": "Descartar",
+    "saveMenu": "Guardar…",
+    "keep": "Conservar",
+    "text": "Algunos perfiles tienen ajustes cambiados. Consérvelos en el proyecto nuevo, descártelos o guárdelos en perfiles.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Recordar mi elección (Conservar o Descartar)"
+  }
+}

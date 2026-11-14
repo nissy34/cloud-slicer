@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Sans titre",
+    "nothingYet": "Rien sur cette plaque pour l’instant",
+    "locked": "Cette plaque est verrouillée",
+    "deleteTip": "Retirer cette plaque et ce qu’elle contient (pas la dernière)",
+    "orientTip": "Orienter automatiquement les objets de cette plaque",
+    "arrangeTip": "Organiser les objets de cette plaque (Shift+A)",
+    "unlockTip": "Déverrouiller cette plaque",
+    "lockTip": "Verrouiller cette plaque : Organiser et Orientation auto la laissent telle quelle",
+    "settingsOwnTip": "Réglages de la plaque : cette plaque a ses propres réglages",
+    "settingsTip": "Réglages de la plaque : type de plaque, séquence d’impression, vase spirale, ordre des filaments",
+    "renameTip": "Renommer cette plaque"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "De start- en filamentwissel-G-code van {{engine}} gebruiken?",
+    "yes": "Ja, slicen",
+    "body": "De start- en filamentwissel-G-code van dit bestand is geschreven voor {{app}} en {{engine}} kan die niet gebruiken. {{engine}} heeft een eigen versie voor <b>{{printer}}</b>, die werkt. Deze keuze wordt bij dit project bewaard."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "deviceFiles": {
+    "print": "พิมพ์…",
+    "deleteName": "ลบ {{name}}",
+    "delete": "ลบ",
+    "title": "ไฟล์บนเครื่องพิมพ์",
+    "upload": "อัปโหลด G-code…",
+    "timelapses": "ไทม์แลปส์",
+    "none": "ยังไม่มีไฟล์ G-code",
+    "searchN_other": "ค้นหา {{count}} ไฟล์",
+    "search": "ค้นหาไฟล์",
+    "noMatch": "ไม่มีไฟล์ที่ตรงกับ “{{query}}”",
+    "deleteFile": "ลบไฟล์",
+    "deleteText": "ลบ {{name}} ออกจากเครื่องพิมพ์หรือไม่",
+    "deleted": "ลบแล้ว",
+    "pages": "หน้าไฟล์",
+    "newer": "ใหม่กว่า",
+    "older": "เก่ากว่า",
+    "range": "{{from}}–{{to}} จาก {{total}}"
+  }
+}

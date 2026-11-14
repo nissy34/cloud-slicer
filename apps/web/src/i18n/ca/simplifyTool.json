@@ -1,0 +1,30 @@
+{
+  "simplifyTool": {
+    "title": "Simplifica",
+    "done": "Fet",
+    "hint": "Menys triangles fan que un model gran s'obri, es lamini i es previsualitzi més ràpid. Els detalls fins es poden suavitzar; Desfer recupera la malla anterior.",
+    "trianglesLabel": "Triangles",
+    "triangles_one": "{{n}} triangle",
+    "triangles_many": "{{n}} triangles",
+    "triangles_other": "{{n}} triangles",
+    "trianglesUnknown": "… triangles",
+    "workingOut": "(calculant…)",
+    "by": "Simplifica per",
+    "detailLevel": "Nivell de detall",
+    "ratio": "Proporció de reducció",
+    "detail": "Detall",
+    "removeTip": "Part dels triangles que es treuen",
+    "remove": "Treu",
+    "paintKept": "La pintura d'aquest objecte (colors, suports, costures, superfície rugosa) es conserva a la malla simplificada.",
+    "apply": "Aplica",
+    "extraHigh": "Molt alt",
+    "high": "Alt",
+    "medium": "Mitjà",
+    "low": "Baix",
+    "extraLow": "Molt baix",
+    "million": "{{n}} milions",
+    "heavyPlates": "{{n}} safates tenen més de {{limit}} triangles (fins a {{most}}), cosa que pot ser més del que aquest dispositiu pot suportar. Simplificar-ne cadascuna fins a uns {{light}} conserva molt detall per imprimir.",
+    "heavyPlate": "La safata {{n}} té {{triangles}} triangles, cosa que pot ser més del que aquest dispositiu pot suportar. Simplificar-la fins a uns {{light}} conserva molt detall per imprimir.",
+    "heavyModel": "Aquest model té {{triangles}} triangles, cosa que pot ser més del que aquest dispositiu pot suportar. Simplificar-lo fins a uns {{light}} conserva molt detall per imprimir."
+  }
+}

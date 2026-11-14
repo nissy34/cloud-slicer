@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "Izo",
+    "top": "Shora",
+    "bottom": "Zdola",
+    "front": "Zepředu",
+    "back": "Zezadu",
+    "left": "Zleva",
+    "right": "Zprava",
+    "views": "Pohledy",
+    "viewsTip": "Pohledy: shora, zepředu, ze strany...",
+    "viewTip": "Pohled {{view}} ({{key}})",
+    "fitAll": "Zobrazit vše",
+    "fitAllTip": "Zobrazit vše: ukáže všechno (Z)"
+  }
+}

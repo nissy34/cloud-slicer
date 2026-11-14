@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "Закрити вікно",
+    "moreAboutThis": "Більше про це",
+    "plannedForPhase": "Заплановано на етап {{phase}}.",
+    "saving": "Збереження",
+    "loadedOf": "{{loaded}} із {{total}}"
+  }
+}

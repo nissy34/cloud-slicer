@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "egy megfelelő filament",
+    "noSlot": "Egyik {{noun}} sem tartalmaz {{material}} anyagot. Töltse be, vagy módosítsa a filamentet a szeletelőben, és szeletelje újra.",
+    "noSlotNozzle": "Egyik {{noun}} sem tartalmaz {{material}} anyagot {{nozzle}} mm-es fúvókával. Töltse be, vagy módosítsa a filamentet a szeletelőben, és szeletelje újra.",
+    "noType": "A(z) {{slot}} filamenttípusa nincs beállítva. {{unset}}",
+    "otherMaterial": "A(z) {{slot}} {{has}} anyagot tartalmaz, de ezt a filamentet {{material}} anyagként szeletelték.",
+    "otherNozzle": "A(z) {{slot}} {{has}} mm-es fúvókájú, de a fájlt {{nozzle}} mm-esre szeletelték.",
+    "highFlow": "A fájlt nagy áramlású fúvókához szeletelték, de a(z) {{slot}} fúvókája normál."
+  }
+}

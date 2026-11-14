@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "Wit",
+    "yellow": "Geel",
+    "lime": "Limoen",
+    "green": "Groen",
+    "darkGreen": "Donkergroen",
+    "teal": "Blauwgroen",
+    "mint": "Mint",
+    "skyBlue": "Hemelsblauw",
+    "lightBlue": "Lichtblauw",
+    "blue": "Blauw",
+    "indigo": "Indigo",
+    "purple": "Paars",
+    "magenta": "Magenta",
+    "lavender": "Lavendel",
+    "pink": "Roze",
+    "red": "Rood",
+    "brown": "Bruin",
+    "orange": "Oranje",
+    "cream": "Crème",
+    "beige": "Beige",
+    "tan": "Zandbruin",
+    "grey": "Grijs",
+    "lightGrey": "Lichtgrijs",
+    "black": "Zwart",
+    "colours": "Kleuren",
+    "recent": "Recent",
+    "recentColours": "Recente kleuren",
+    "hex": "Hexcode",
+    "custom": "Aangepast"
+  }
+}

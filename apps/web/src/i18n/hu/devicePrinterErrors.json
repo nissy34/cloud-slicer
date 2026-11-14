@@ -1,0 +1,13 @@
+{
+  "devicePrinterErrors": {
+    "motionProblem": "Mozgásrendszer-hiba",
+    "mainboardProblem": "Alaplap-hiba",
+    "amsProblem": "AMS-hiba",
+    "toolheadProblem": "Nyomtatófej-hiba",
+    "cameraProblem": "Kamerahiba",
+    "printerProblem": "Nyomtatóhiba",
+    "bambuUnknown": "A nyomtató ezt a hibát jelentette. A részletekért nézze meg a képernyőjét.",
+    "printerError": "Nyomtatóhiba",
+    "u1Unknown": "A nyomtató hibát jelentett. A részletekért nézze meg a képernyőjét."
+  }
+}

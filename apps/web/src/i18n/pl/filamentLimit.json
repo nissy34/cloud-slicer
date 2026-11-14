@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "Filamenty: {{n}}, głowice: {{heads}}. Przy wysyłaniu wydruku wybierzesz, która głowica drukuje który filament.",
+    "warn": "Filamenty: {{n}}, a drukarka ma głowice: {{heads}}."
+  }
+}

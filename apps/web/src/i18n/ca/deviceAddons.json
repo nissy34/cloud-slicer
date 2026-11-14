@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint no està connectat a la impressora.",
+    "octoprintRestart": "Torna a connectar",
+    "octoprintRestarting": "Connectant OctoPrint a la impressora",
+    "bambuStopped": "La impressora ha deixat de respondre: comproveu que està encesa i a la xarxa.",
+    "bambuCameraMissing": "Només les impressores P1 i A1 mostren aquí la càmera: X1, H2 i P2S envien vídeo que només reprodueixen les aplicacions de Bambu.",
+    "bambuSlotNoun": "ranura AMS",
+    "bambuSlotUnset": "Carregueu-hi filament, o definiu-lo a la pantalla de la impressora.",
+    "bambuSlotNote": "Com a Bambu Studio, un filament només pot anar a una ranura del mateix tipus de filament. La marca i el color poden ser diferents.",
+    "outsideSpool": "Bobina externa",
+    "u1Heads": "Capçals",
+    "u1HeadNoun": "capçal",
+    "u1HeadUnset": "Carregueu filament, o definiu-ne el tipus a la targeta Capçals.",
+    "u1HeadNote": "Com a l'aplicació de Snapmaker, un filament només pot anar a un capçal del mateix tipus de filament i mida de broquet. La marca i el color poden ser diferents.",
+    "nozzleStandard": "Estàndard",
+    "nozzleHighFlow": "Alt flux",
+    "calibratingOffsets": "Calibrant els desplaçaments dels capçals",
+    "levellingBed": "Anivellant el llit",
+    "calibratingFlow": "Calibrant el flux",
+    "calibratingShaper": "Calibrant el modelat d'entrada",
+    "updatingFirmware": "Actualitzant el microprogramari",
+    "needsAttention": "Cal atenció a la pantalla de la impressora",
+    "adjustingScrews": "Ajustant els cargols del llit",
+    "loadingFilament": "Carregant filament",
+    "unloadingFilament": "Descarregant filament",
+    "calibratingPark": "Calibrant la posició d'aparcament",
+    "calibratingHome": "Calibrant la posició d'origen",
+    "hotendFan": "Ventilador del hotend T{{n}}"
+  }
+}

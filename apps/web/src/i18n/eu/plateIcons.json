@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Izenik gabea",
+    "nothingYet": "Oraindik ez dago ezer plaka honetan",
+    "locked": "Plaka hau blokeatuta dago",
+    "deleteTip": "Kendu plaka hau eta gainean dagoena (ez azkena)",
+    "orientTip": "Orientatu automatikoki plaka honetako objektuak",
+    "arrangeTip": "Antolatu plaka honetako objektuak (Shift+A)",
+    "unlockTip": "Desblokeatu plaka hau",
+    "lockTip": "Blokeatu plaka hau: Antolatu eta Orientatu automatikoki aukerek ez diote ezer aldatzen",
+    "settingsOwnTip": "Plakaren ezarpenak: plaka honek bere ezarpen propioak ditu",
+    "settingsTip": "Plakaren ezarpenak: plaka mota, inprimatze-sekuentzia, ontzi espiralaren modua, filamentuen ordena",
+    "renameTip": "Aldatu plaka honen izena"
+  }
+}

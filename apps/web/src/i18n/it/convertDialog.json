@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Convertire questo progetto?",
+    "convert": "Converti",
+    "setUpFor": "Era configurato per <b>{{printer}}</b>. Scegli una delle tue stampanti su cui stamparlo.",
+    "printer": "Stampante",
+    "convertTo": "Converti per la stampante",
+    "keep": "Mantieni le impostazioni del modello che il progetto ha cambiato: strati, pareti, riempimento, supporti, cuciture, tesa",
+    "remember": "Fallo automaticamente la prossima volta",
+    "note": "Le impostazioni che il progetto aveva lasciato ai valori predefiniti della vecchia stampante, e velocità, accelerazione, jerk, larghezze di linea, calibrazione del flusso e torre di spurgo, provengono da {{printer}}. I filamenti vengono abbinati per materiale e tipo (opaco, seta, alto flusso...) e mantengono i colori del progetto.",
+    "yourPrinter": "la tua stampante"
+  }
+}

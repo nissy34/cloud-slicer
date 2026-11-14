@@ -1,6 +1,6 @@
 // Every English word file, listed by name (not import.meta.glob) so code shared with
 // Node (the AI app add-on, apps/mcp) and Pages Functions can bundle it too.
-// words.test.ts fails when a file in en/ is missing here.
+// Written by scripts/word-lists.mjs; words.test.ts fails when a file in en/ is missing here.
 import w_account from './en/account.json';
 import w_accountErrors from './en/accountErrors.json';
 import w_actionbar from './en/actionbar.json';

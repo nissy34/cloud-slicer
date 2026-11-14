@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "Khóa API",
+    "klipperHint": "Mainsail và Fluidd hiển thị nó trong phần cài đặt.",
+    "klipperLocked": "Máy in này bị khóa: hãy nhập khóa API của nó",
+    "prusaKey": "Mật khẩu PrusaLink",
+    "prusaHint": "Máy in hiển thị nó trong Settings, Network, PrusaLink (tên người dùng ở đó là maker).",
+    "prusaLocked": "Hãy nhập mật khẩu PrusaLink từ màn hình máy in",
+    "octoprintKey": "Khóa API OctoPrint",
+    "octoprintHint": "Trong OctoPrint: Settings, Application Keys, rồi tạo một khóa cho Cloud Slicer (hoặc sao chép khóa API của người dùng bạn trong Settings, API).",
+    "octoprintLocked": "OctoPrint này bị khóa: hãy nhập khóa API từ phần cài đặt của nó",
+    "bambuKey": "Mã truy cập LAN",
+    "bambuHint": "Máy in hiển thị nó trên màn hình, trong cài đặt mạng cạnh chế độ LAN Only. Để gửi bản in và điều khiển từ đây, hãy bật thêm chế độ LAN Only và Developer Mode ở đó (đám mây của Bambu và ứng dụng Bambu Handy ngừng hoạt động khi các chế độ này bật).",
+    "bambuLocked": "Hãy nhập mã truy cập từ màn hình máy in",
+    "featStatus": "Trạng thái",
+    "featSend": "Gửi & in",
+    "featCamera": "Camera",
+    "featMove": "Di chuyển & nhiệt độ",
+    "featMoveShort": "Di chuyển & nhiệt",
+    "featConsole": "Console",
+    "klipperName": "Máy in Klipper",
+    "klipperExamples": "Snapmaker U1, Voron, Qidi, Sovol",
+    "prusaName": "Prusa với PrusaLink",
+    "prusaExamples": "MK4, Core One, XL, Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "mọi máy in mà OctoPrint chạy được",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "chưa hỗ trợ Carbon 2",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1, P1, P2S, A1, H2; camera trên P1 và A1; cần Developer Mode"
+  }
+}

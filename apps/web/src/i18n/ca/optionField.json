@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Restableix al valor del perfil",
+    "keptOld": "S'ha conservat el valor anterior.",
+    "kept": "S'ha conservat {{value}}.",
+    "plateUses": "La safata {{n}} usa",
+    "on": "activat",
+    "off": "desactivat",
+    "itsOwn": "(el seu propi paràmetre).",
+    "plateSettings": "Paràmetres de la safata",
+    "default": "Per defecte",
+    "percentOrMm": "Percentatge o mm?",
+    "isItPercent": "{{label}}: és {{number}}% o {{number}} {{unit}}?",
+    "filamentN": "Filament {{n}}",
+    "mix": "Mescla",
+    "mixes": "Mescles"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "shapePlacement": {
+    "rotateText": "Tekst draaien",
+    "rotateSvg": "SVG draaien",
+    "moveText": "Tekst van het oppervlak af verplaatsen",
+    "moveSvg": "SVG van het oppervlak af verplaatsen",
+    "rotationTip": "Draai het om zijn eigen as, met de klok mee (de ring in de 3D-weergave doet hetzelfde)",
+    "rotation": "Draaiing",
+    "fromSurfaceTip": "Hoever het van het oppervlak af staat",
+    "fromSurface": "Van oppervlak",
+    "keepUpTip": "Houdt het rechtop terwijl u het over het oppervlak schuift of naar de camera richt",
+    "keepUp": "Rechtop houden",
+    "faceCameraTip": "Draai het naar u toe, vanuit waar u ernaar kijkt",
+    "faceCamera": "Naar de camera richten",
+    "moveToolsText": "Verplaats of draai de tekst met die gereedschappen.",
+    "moveToolsShape": "Verplaats of draai de vorm met die gereedschappen.",
+    "dragText": "Sleep de tekst of het blauwe kader om het over het voorwerp te schuiven. De ring draait het.",
+    "dragShape": "Sleep de vorm of het blauwe kader om het over het voorwerp te schuiven. De ring draait het."
+  }
+}

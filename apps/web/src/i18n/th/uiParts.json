@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "ปิดหน้าต่าง",
+    "moreAboutThis": "ข้อมูลเพิ่มเติม",
+    "plannedForPhase": "วางแผนไว้สำหรับระยะที่ {{phase}}",
+    "saving": "กำลังบันทึก",
+    "loadedOf": "{{loaded}} จาก {{total}}"
+  }
+}

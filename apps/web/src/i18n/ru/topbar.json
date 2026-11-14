@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "Рабочая область",
+    "prepare": "Подготовка",
+    "preview": "Предпросмотр",
+    "device": "Принтер",
+    "calibration": "Калибровка",
+    "slicingWith": "Нарезка с помощью {{name}} {{version}}"
+  }
+}

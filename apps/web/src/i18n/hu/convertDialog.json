@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Átalakítja ezt a projektet?",
+    "convert": "Átalakítás",
+    "setUpFor": "Ehhez volt beállítva: <b>{{printer}}</b>. Válassza ki az egyik nyomtatóját, amelyen nyomtatni fogja.",
+    "printer": "Nyomtató",
+    "convertTo": "Átalakítás nyomtatóra",
+    "keep": "A projekt által módosított modellbeállítások megtartása: rétegek, falak, kitöltés, támaszok, varratok, perem",
+    "remember": "Legközelebb ezt automatikusan tegye",
+    "note": "Azok a beállítások, amelyeket a projekt a régi nyomtatója alapértékein hagyott, valamint a sebességek, gyorsulás, jerk, vonalszélességek, áramlási kalibráció és a törlőtorony a(z) {{printer}} nyomtatóról származnak. A filamenteket anyag és fajta (matt, selyem, nagy áramlású…) szerint párosítja, és megtartják a projekt színeit.",
+    "yourPrinter": "a nyomtatója"
+  }
+}

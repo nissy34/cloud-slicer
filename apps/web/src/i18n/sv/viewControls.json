@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "Iso",
+    "top": "Ovanifrån",
+    "bottom": "Underifrån",
+    "front": "Framifrån",
+    "back": "Bakifrån",
+    "left": "Vänster",
+    "right": "Höger",
+    "views": "Vyer",
+    "viewsTip": "Vyer: ovanifrån, framifrån, från sidan...",
+    "viewTip": "Vy {{view}} ({{key}})",
+    "fitAll": "Passa in alla",
+    "fitAllTip": "Passa in alla: visa allt (Z)"
+  }
+}

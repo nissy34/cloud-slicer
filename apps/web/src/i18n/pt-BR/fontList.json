@@ -1,0 +1,8 @@
+{
+  "fontList": {
+    "hebrew": "Hebraico",
+    "pickScriptFont": "Escolha uma fonte de {{script}}, como {{fonts}}.",
+    "pickAnyFont": "Escolha uma fonte que as tenha: um arquivo de fonte ou uma das fontes deste computador.",
+    "noLetters": "Esta fonte não tem letras para {{letters}}, então elas ficam de fora."
+  }
+}

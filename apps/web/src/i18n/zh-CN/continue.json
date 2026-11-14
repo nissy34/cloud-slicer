@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "从上次中断的地方继续？",
+    "local": "{{name}}，{{when}}修改。保存在此浏览器中，尚未保存。",
+    "discard": "放弃",
+    "continue": "继续",
+    "projectAsk": "继续 {{name}}？",
+    "project": "继续 {{name}}",
+    "openHere": "你曾在这里打开过它，{{when}}编辑",
+    "editedOn": "{{when}}在 {{device}} 上编辑",
+    "notNow": "以后再说",
+    "editedElsewhere": "{{name}} 正在 {{device}} 上编辑",
+    "viewOnly": "此标签页仅供查看。",
+    "viewOnlyUnsaved": "此标签页仅供查看。你在这里所做的更改不在其中。",
+    "saveMineAsCopy": "将我的另存为副本",
+    "editHere": "改为在这里编辑",
+    "gone": "“{{name}}”已在 {{device}} 上被删除。它仍在这里打开，尚未保存。"
+  }
+}

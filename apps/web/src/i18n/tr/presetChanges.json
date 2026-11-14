@@ -1,0 +1,23 @@
+{
+  "presetChanges": {
+    "filamentN": "Filament {{n}}",
+    "process": "İşlem",
+    "printer": "Yazıcı",
+    "changes_one": "{{count}} değişiklik",
+    "changes_other": "{{count}} değişiklik",
+    "saveTitle": "Değişen ayarları kaydet",
+    "back": "Geri",
+    "saving": "Kaydediliyor…",
+    "save": "Kaydet",
+    "namesText": "Kendi ön ayarlarınız adını korur ve değişiklikleri alır. Bunun yerine bir kopya kaydetmek için yeni bir ad verin.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Değişen ayarlarınız korunsun mu?",
+    "discard": "At",
+    "saveMenu": "Kaydet…",
+    "keep": "Koru",
+    "text": "Bazı ön ayarların ayarları değişti. Yeni projede koruyun, atın veya ön ayarlara kaydedin.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Seçimimi hatırla (Koru veya At)"
+  }
+}

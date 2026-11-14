@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Thể tích xả",
+    "ownAmounts": "lượng tự đặt",
+    "fromColours": "theo màu",
+    "leftNozzle": "Đầu phun trái",
+    "rightNozzle": "Đầu phun phải",
+    "nozzleN": "Đầu phun {{n}}",
+    "filamentN": "Filament {{n}}",
+    "recalculate": "Tính lại",
+    "done": "Xong",
+    "explain": "Lượng máy in đẩy ra, tính bằng mm³, khi đổi từ filament bên trái sang filament ở trên cùng. Được tính từ màu: tối sang sáng cần nhiều hơn.",
+    "nozzle": "Đầu phun",
+    "tableLabel": "Thể tích xả tính bằng mm³",
+    "from": "từ",
+    "to": "sang",
+    "toFilament": "Sang {{name}}",
+    "fromFilament": "Từ {{name}}",
+    "purgeLabel": "Xả từ {{from}} sang {{to}}, mm³",
+    "suggested": "Đề xuất: {{min}} đến {{max}} mm³ (ngoài khoảng này hiện màu đỏ).",
+    "multiplier": "Hệ số nhân",
+    "scales": "Nhân mọi lượng ({{min}} đến {{max}}).",
+    "towerOff": "\"Purge in prime tower\" đang tắt trong cài đặt máy in này (trang Multimaterial), nên mỗi lần đổi filament xả theo thể tích prime ({{volume}} mm³) thay vì các lượng này. Chúng vẫn đặt chiều dài xả mà G-code đổi filament của máy in nhận."
+  }
+}

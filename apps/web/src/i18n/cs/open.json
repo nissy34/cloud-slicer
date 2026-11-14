@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Sem přetáhněte soubory STL, 3MF, OBJ, STEP nebo SVG",
+    "openModel": "Otevřít model",
+    "fromDrive": "Otevřít z Google Drive",
+    "deletePlateTip": "Smazat tuto desku a vše na ní",
+    "deletePlate": "Smazat desku",
+    "clearAsk": "Vyčistit desku?",
+    "unsavedChanges": "„{{name}}“ má změny, které ještě nejsou uloženy.",
+    "clearAll": "Vyčistit vše",
+    "dropToAdd": "Pusťte pro přidání"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "presetEngines": {
+    "split_other": "{{count}} cài đặt không còn giống nhau ở cả hai công cụ; \"{{name}}\" giữ giá trị riêng ở mỗi công cụ.",
+    "separate_other": "{{count}} cài đặt của \"{{name}}\" giờ có thể giống nhau ở cả hai công cụ nhưng đang khác nhau; \"Dùng cùng giá trị ở cả hai công cụ\" trong menu của nó sẽ làm chúng khớp nhau."
+  }
+}

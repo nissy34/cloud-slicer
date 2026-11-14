@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "작업 공간",
+    "prepare": "준비",
+    "preview": "미리 보기",
+    "device": "장치",
+    "calibration": "교정",
+    "slicingWith": "{{name}} {{version}}(으)로 슬라이싱 중"
+  }
+}

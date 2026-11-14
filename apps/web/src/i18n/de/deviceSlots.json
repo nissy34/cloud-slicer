@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "ein passendes Filament",
+    "noSlot": "Kein {{noun}} enthält {{material}}. Laden Sie es, oder ändern Sie das Filament im Slicer und slicen Sie erneut.",
+    "noSlotNozzle": "Kein {{noun}} enthält {{material}} mit einer {{nozzle}}-mm-Düse. Laden Sie es, oder ändern Sie das Filament im Slicer und slicen Sie erneut.",
+    "noType": "Für {{slot}} ist kein Filamenttyp eingestellt. {{unset}}",
+    "otherMaterial": "{{slot}} enthält {{has}}, aber dieses Filament wurde als {{material}} geslict.",
+    "otherNozzle": "{{slot}} hat eine {{has}}-mm-Düse, aber die Datei wurde für {{nozzle}} mm geslict.",
+    "highFlow": "Die Datei wurde für eine High-Flow-Düse geslict, aber {{slot}} hat eine Standarddüse."
+  }
+}

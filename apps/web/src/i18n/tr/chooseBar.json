@@ -1,0 +1,18 @@
+{
+  "chooseBar": {
+    "chosenModels": "Seçilen modeller",
+    "tapToChoose": "Seçmek için modellere dokunun",
+    "chosen_one": "{{count}} seçili",
+    "chosen_other": "{{count}} seçili",
+    "selectAll": "Tümünü seç",
+    "all": "Tümü",
+    "assemble": "Birleştir",
+    "assembleTip": "Hepsini tek nesnede birleştir, her parça bulunduğu yerde kalsın",
+    "menuTip": "Hepsiyle ne yapılacağı (veya seçili bir modele sağ tıklayın / uzun basın)",
+    "menu": "Bunlarla ne yapılsın",
+    "doneTip": "Dokunuşlar yine tek model seçer",
+    "clearTip": "Hiçbir şey seçili değil (Esc)",
+    "done": "Bitti",
+    "clear": "Temizle"
+  }
+}

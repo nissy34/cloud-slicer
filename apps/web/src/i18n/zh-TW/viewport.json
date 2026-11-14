@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "移動",
+    "rotate": "旋轉",
+    "scale": "縮放",
+    "rotateText": "旋轉文字",
+    "moveSvgSurface": "在表面上移動 SVG",
+    "moveTextSurface": "在表面上移動文字",
+    "movePart": "移動零件",
+    "rotatePart": "旋轉零件",
+    "scalePart": "縮放零件",
+    "plates": "列印板",
+    "ownSettingsTip": "此列印板有自己的設定",
+    "ownSettings": "有自己的設定",
+    "plateSettings": "列印板設定",
+    "plateNSettings": "列印板 {{n}} 設定"
+  }
+}

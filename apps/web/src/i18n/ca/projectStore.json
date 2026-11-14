@@ -1,0 +1,32 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} de {{total}}",
+    "engineNoStart": "{{engine}} no s'ha pogut iniciar",
+    "openedWith": "Obert amb {{engine}}, el motor amb què es va fer aquest projecte.",
+    "somethingWrong": "Alguna cosa ha anat malament",
+    "files_one": "{{count}} fitxer",
+    "files_many": "{{count}} fitxers",
+    "files_other": "{{count}} fitxers",
+    "saving": "Desant…",
+    "savingAfterSlice": "Desant… després del laminat",
+    "savingMaking": "Desant… creant el 3MF",
+    "savingSent": "Desant… {{progress}}",
+    "savingFinishing": "Desant… acabant",
+    "saved": "«{{name}}» desat als vostres projectes",
+    "notSaved": "No desat: {{error}}",
+    "preparing": "Preparant el 3MF…",
+    "makeFailed": "No s'ha pogut crear el 3MF: {{error}}",
+    "opening": "Obrint «{{name}}»…",
+    "openFailed": "No s'ha pogut obrir «{{name}}»: {{error}}",
+    "saveCancelled": "Desat cancel·lat",
+    "viewOnly": "Aquest projecte és només de lectura aquí. Useu «Edita aquí» per canviar-lo.",
+    "openDriveFailed": "No s'ha pogut obrir «{{name}}» des de Google Drive: {{error}}",
+    "quoted": "«{{name}}»",
+    "cantOpen": "Cloud Slicer no pot obrir {{names}}.",
+    "cantOpenShared": "Cloud Slicer no pot obrir {{names}}",
+    "openedDriveFile": "«{{name}}» obert des del vostre Google Drive. Desa en conserva una còpia a la carpeta de Cloud Slicer. El fitxer a Drive es queda com és.",
+    "openedDriveFiles": "{{name}} oberts des del vostre Google Drive. Desa en conserva una còpia a la carpeta de Cloud Slicer. Els fitxers a Drive es queden com són.",
+    "myProject": "El meu projecte",
+    "removed": "«{{name}}» tret dels vostres projectes"
+  }
+}

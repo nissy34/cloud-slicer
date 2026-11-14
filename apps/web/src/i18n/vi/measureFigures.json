@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Điểm",
+    "edge": "Cạnh",
+    "circle": "Hình tròn",
+    "plane": "Mặt phẳng",
+    "position": "Vị trí",
+    "length": "Chiều dài",
+    "from": "Từ",
+    "to": "Đến",
+    "diameter": "Đường kính",
+    "radius": "Bán kính",
+    "centre": "Tâm",
+    "normal": "Pháp tuyến",
+    "angle": "Góc",
+    "distance": "Khoảng cách",
+    "perpendicular": "Khoảng cách vuông góc",
+    "along": "Dọc theo {{axis}}"
+  }
+}

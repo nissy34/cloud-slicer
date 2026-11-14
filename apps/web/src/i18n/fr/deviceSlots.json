@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "un filament correspondant",
+    "noSlot": "Aucun(e) {{noun}} ne contient du {{material}}. Chargez-en, ou changez le filament dans le slicer et découpez à nouveau.",
+    "noSlotNozzle": "Aucun(e) {{noun}} ne contient du {{material}} avec une buse de {{nozzle}} mm. Chargez-en, ou changez le filament dans le slicer et découpez à nouveau.",
+    "noType": "{{slot}} n’a pas de type de filament défini. {{unset}}",
+    "otherMaterial": "{{slot}} contient du {{has}}, mais ce filament a été découpé comme {{material}}.",
+    "otherNozzle": "{{slot}} a une buse de {{has}} mm, mais le fichier a été découpé pour {{nozzle}} mm.",
+    "highFlow": "Le fichier a été découpé pour une buse grand débit, mais {{slot}} en a une standard."
+  }
+}

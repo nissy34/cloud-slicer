@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "부품 추가",
+    "addNegative": "비우기 부품 추가",
+    "addModifier": "수정자 추가",
+    "addBlocker": "서포트 차단기 추가",
+    "addEnforcer": "서포트 강제기 추가",
+    "part": "부품",
+    "negative": "비우기 부품",
+    "modifier": "수정자",
+    "enforcer": "서포트 강제기",
+    "blocker": "서포트 차단기",
+    "other": "기타"
+  }
+}

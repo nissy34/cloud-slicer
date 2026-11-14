@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Išjungta spausdinant",
+    "disabledPaused": "Išjungta pristabdžius",
+    "position": "Padėtis",
+    "speed": "Greitis",
+    "flow": "Srautas",
+    "head": "Galvutė",
+    "moveHead": "Judinti galvutę",
+    "headBack": "Galvutė atgal",
+    "headLeft": "Galvutė į kairę",
+    "homeHead": "Galvutė į pradinę padėtį",
+    "headRight": "Galvutė į dešinę",
+    "headToward": "Galvutė link jūsų",
+    "bed": "Pagrindas",
+    "headHeight": "Galvutės aukštis",
+    "moveBed": "Judinti pagrindą",
+    "moveHeadZ": "Judinti galvutę aukštyn ir žemyn",
+    "bedUp": "Pagrindas aukštyn",
+    "headUp": "Galvutė aukštyn",
+    "homeBed": "Pagrindas į pradinę padėtį",
+    "homeHeight": "Aukštis į pradinę padėtį",
+    "bedDown": "Pagrindas žemyn",
+    "headDown": "Galvutė žemyn",
+    "step": "Žingsnis",
+    "homeAll": "Viską į pradinę padėtį",
+    "motorsOff": "Išjungti variklius",
+    "heatFirst": "Pirmiausia įkaitinkite purkštuką",
+    "extrude10": "Išspausti 10 mm",
+    "retract": "Atitraukti",
+    "homeFirst": "Prieš judindami spausdintuvą, nustatykite pradinę padėtį."
+  }
+}

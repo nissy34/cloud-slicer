@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Point",
+    "edge": "Arête",
+    "circle": "Cercle",
+    "plane": "Plan",
+    "position": "Emplacement",
+    "length": "Longueur",
+    "from": "De",
+    "to": "À",
+    "diameter": "Diamètre",
+    "radius": "Rayon",
+    "centre": "Centre",
+    "normal": "Normale",
+    "angle": "Angle",
+    "distance": "Distance",
+    "perpendicular": "Distance perpendiculaire",
+    "along": "Le long de {{axis}}"
+  }
+}

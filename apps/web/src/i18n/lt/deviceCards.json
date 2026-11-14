@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Kameros",
+    "climate": "Pagrindas ir kamera",
+    "move": "Judinimas",
+    "console": "Konsolė",
+    "print": "Spausdinimas",
+    "toolHeads": "Įrankių galvutės",
+    "alerts": "Pranešimai",
+    "files": "Failai",
+    "unfold": "Išskleisti šią kortelę",
+    "fold": "Suskleisti šią kortelę",
+    "targetOf": "{{label}} tikslas",
+    "turnOff": "Išjungti {{label}}",
+    "off": "Išjungta",
+    "keepGoing": "Tęsti",
+    "chamberLight": "Kameros apšvietimas",
+    "purifierExhaust": "Valytuvo išmetimas",
+    "purifierFilter": "Valytuvo filtras",
+    "fanAuto": "Spausdintuvas šį ventiliatorių valdo pats"
+  }
+}

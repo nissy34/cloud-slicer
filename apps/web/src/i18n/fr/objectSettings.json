@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Réglages de l’objet",
+    "modifierSettings": "Réglages du modificateur",
+    "partSettings": "Réglages de la pièce",
+    "addToObject": "Ajouter un réglage à cet objet",
+    "addToModifier": "Ajouter un réglage à ce modificateur",
+    "addToPart": "Ajouter un réglage à cette pièce",
+    "addSetting": "+ Ajouter un réglage",
+    "modifierEmpty": "Ajoutez un réglage pour le modifier là où le modificateur recouvre l’objet, par exemple plus de remplissage à un endroit.",
+    "partEmpty": "Utilise les réglages de l’objet. Ajoutez-en un pour le modifier pour cette pièce seulement.",
+    "objectEmpty": "Utilise les réglages de traitement. Ajoutez-en un pour le modifier pour cet objet seulement.",
+    "others": "Autres",
+    "removeFromObject": "Retirer de cet objet",
+    "removeFromModifier": "Retirer de ce modificateur",
+    "removeFromPart": "Retirer de cette pièce"
+  }
+}

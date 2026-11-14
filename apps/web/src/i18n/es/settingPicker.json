@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "Ajustes para añadir a este objeto",
+    "forPart": "Ajustes para añadir a esta pieza",
+    "forModifier": "Ajustes para añadir a este modificador",
+    "search": "Buscar ajustes",
+    "done": "Hecho",
+    "noMatch": "Ningún ajuste coincide con “{{query}}”.",
+    "more": "Más ajustes"
+  }
+}

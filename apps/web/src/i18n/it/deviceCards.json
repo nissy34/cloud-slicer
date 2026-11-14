@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Telecamere",
+    "climate": "Piatto e camera",
+    "move": "Movimento",
+    "console": "Console",
+    "print": "Stampa",
+    "toolHeads": "Testine",
+    "alerts": "Avvisi",
+    "files": "File",
+    "unfold": "Espandi questa scheda",
+    "fold": "Comprimi questa scheda",
+    "targetOf": "Obiettivo {{label}}",
+    "turnOff": "Spegni {{label}}",
+    "off": "Spento",
+    "keepGoing": "Continua",
+    "chamberLight": "Luce della camera",
+    "purifierExhaust": "Scarico del purificatore",
+    "purifierFilter": "Filtro del purificatore",
+    "fanAuto": "La stampante gestisce da sola questa ventola"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} von {{size}} MB",
+    "arrivingRelay": "{{got}} von {{size}} MB über das Relay",
+    "cannotFetch": "Diese Druckerverbindung kann keine Videos abrufen.",
+    "fetchFailed": "Das Video konnte nicht abgerufen werden.",
+    "delete": "Löschen",
+    "download": "Herunterladen",
+    "cantPlay": "Diese Art von Video lässt sich im Browser nicht abspielen. Laden Sie es herunter, um es anzusehen.",
+    "none": "Noch keine Zeitraffer. Schalten Sie Zeitraffer ein, wenn Sie einen Druck starten.",
+    "watch": "Ansehen",
+    "pages": "Zeitraffer-Seiten",
+    "refresh": "Aktualisieren",
+    "deleteTitle": "Zeitraffer löschen"
+  }
+}

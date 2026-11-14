@@ -10,7 +10,7 @@ import type { OptionDef, OrcaConfig, PresetSummary, SettingsLayout } from '../en
 import type { PresetType } from '../account/api';
 import { presetNameError } from '../account/api';
 import { META } from '../account/preset-diff';
-import { i18n } from '../i18n';
+import { i18n, settingText } from '../i18n';
 import { alignFlowVariants } from './flow-variants';
 import { modelProcessKeys, pickProcess } from './project-import';
 import { pickFilamentPreset } from './presets';
@@ -156,7 +156,7 @@ export function importDiff(own: OrcaConfig, base: OrcaConfig, options: Record<st
 export function changedGcode(diff: OrcaConfig, options: Record<string, OptionDef>): string[] {
   return Object.keys(diff)
     .filter((k) => /gcode$/.test(k))
-    .map((k) => options[k]?.label || k);
+    .map((k) => settingText(options[k]?.label ?? '') || k);
 }
 
 /** Why a diff can't be stored, or null. */

@@ -1,0 +1,26 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Sıcaklıklar",
+    "filterTimelapse": "Timelapse",
+    "filterTimelapseExample": "timelapse kare mesajları",
+    "filterProgress": "Baskı ilerlemesi",
+    "filterOk": "Düz \"ok\"",
+    "done": "Bitti",
+    "filtersN": "Filtreler ({{n}})",
+    "filters": "Filtreler",
+    "hideThese": "Bu satırları gizle",
+    "hideLike": "Şuna benzer satırları gizle: {{example}}",
+    "hideContaining": "“{{text}}” içeren satırları gizle",
+    "removeFilter": "“{{text}}” filtresini kaldır",
+    "remove": "Kaldır",
+    "hideContainingPlaceholder": "Şunu içeren satırları gizle…",
+    "hideContainingLabel": "Şunu içeren satırları gizle",
+    "add": "Ekle",
+    "filtersHelp": "Açıp kapatmak için bir etikete dokunun. Gönderdikleriniz ve hatalar her zaman görünür.",
+    "linesHidden_one": "1 satır filtrelerle gizlendi",
+    "linesHidden_other": "{{count}} satır filtrelerle gizlendi",
+    "sendPlaceholder": "G-code gönder, ör. M115",
+    "commandLabel": "G-code komutu",
+    "send": "Gönder"
+  }
+}

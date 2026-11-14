@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint není připojený k tiskárně.",
+    "octoprintRestart": "Připojit znovu",
+    "octoprintRestarting": "Připojování OctoPrint k tiskárně",
+    "bambuStopped": "Tiskárna přestala odpovídat: zkontrolujte, že je zapnutá a v síti.",
+    "bambuCameraMissing": "Kameru tady zobrazují jen tiskárny P1 a A1: X1, H2 a P2S posílají video, které přehrají jen vlastní aplikace Bambu.",
+    "bambuSlotNoun": "slot AMS",
+    "bambuSlotUnset": "Zaveďte tam filament nebo ho nastavte na obrazovce tiskárny.",
+    "bambuSlotNote": "Stejně jako v Bambu Studiu lze filament přiřadit jen do slotu se stejným typem filamentu. Značka a barva se mohou lišit.",
+    "outsideSpool": "Externí cívka",
+    "u1Heads": "Nástrojové hlavy",
+    "u1HeadNoun": "nástrojová hlava",
+    "u1HeadUnset": "Zaveďte filament nebo nastavte jeho typ na kartě Nástrojové hlavy.",
+    "u1HeadNote": "Stejně jako ve vlastní aplikaci Snapmaker lze filament přiřadit jen k hlavě se stejným typem filamentu a velikostí trysky. Značka a barva se mohou lišit.",
+    "nozzleStandard": "Standardní",
+    "nozzleHighFlow": "Vysoký průtok",
+    "calibratingOffsets": "Kalibrace offsetů nástrojů",
+    "levellingBed": "Vyrovnávání podložky",
+    "calibratingFlow": "Kalibrace průtoku",
+    "calibratingShaper": "Kalibrace input shapingu",
+    "updatingFirmware": "Aktualizace firmwaru",
+    "needsAttention": "Vyžaduje pozornost na obrazovce tiskárny",
+    "adjustingScrews": "Seřizování šroubů podložky",
+    "loadingFilament": "Zavádění filamentu",
+    "unloadingFilament": "Vysouvání filamentu",
+    "calibratingPark": "Kalibrace parkovací polohy",
+    "calibratingHome": "Kalibrace domovské polohy",
+    "hotendFan": "Ventilátor hotendu T{{n}}"
+  }
+}

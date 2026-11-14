@@ -1,0 +1,26 @@
+{
+  "deviceConsole": {
+    "filterTemps": "Temperaturen",
+    "filterTimelapse": "Timelapse",
+    "filterTimelapseExample": "berichten over timelapse-frames",
+    "filterProgress": "Printvoortgang",
+    "filterOk": "Gewoon \"ok\"",
+    "done": "Klaar",
+    "filtersN": "Filters ({{n}})",
+    "filters": "Filters",
+    "hideThese": "Deze regels verbergen",
+    "hideLike": "Regels verbergen zoals: {{example}}",
+    "hideContaining": "Regels met “{{text}}” verbergen",
+    "removeFilter": "Het filter “{{text}}” verwijderen",
+    "remove": "Verwijderen",
+    "hideContainingPlaceholder": "Regels verbergen met…",
+    "hideContainingLabel": "Regels verbergen met",
+    "add": "Toevoegen",
+    "filtersHelp": "Tik op een chip om die om te schakelen. Wat u verstuurt en fouten blijven altijd zichtbaar.",
+    "linesHidden_one": "1 regel verborgen door filters",
+    "linesHidden_other": "{{count}} regels verborgen door filters",
+    "sendPlaceholder": "G-code versturen, bijv. M115",
+    "commandLabel": "G-code-opdracht",
+    "send": "Versturen"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "物件設定",
+    "modifierSettings": "修改器設定",
+    "partSettings": "零件設定",
+    "addToObject": "為此物件新增設定",
+    "addToModifier": "為此修改器新增設定",
+    "addToPart": "為此零件新增設定",
+    "addSetting": "+ 新增設定",
+    "modifierEmpty": "新增設定，即可在修改器與物件重疊的地方改變它，例如在某處增加填充。",
+    "partEmpty": "使用物件的設定。新增設定即可只為此零件變更。",
+    "objectEmpty": "使用列印參數設定。新增設定即可只為此物件變更。",
+    "others": "其他",
+    "removeFromObject": "從此物件移除",
+    "removeFromModifier": "從此修改器移除",
+    "removeFromPart": "從此零件移除"
+  }
+}

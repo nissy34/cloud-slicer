@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "要儲存「{{name}}」嗎？",
+    "saveText": "它還不在您的線上專案中。選擇不儲存會將其捨棄。",
+    "save": "儲存",
+    "dontSave": "不儲存",
+    "discardTitle": "要捨棄未儲存的變更嗎？",
+    "discard": "捨棄變更",
+    "openTitle": "開啟{{what}}",
+    "addToText": "您正在處理「{{project}}」。要加到該專案，還是以它開始新專案？",
+    "newProject": "新專案",
+    "addTo": "加入 {{project}}"
+  }
+}

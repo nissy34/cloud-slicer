@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}} % · Découpe · {{title}}",
+    "doneTitle": "Découpe terminée",
+    "plateSliced": "La plaque {{plate}} est découpée. Touchez pour la voir.",
+    "tapToSee": "Touchez pour la voir.",
+    "questionTitle": "La découpe a besoin de vous",
+    "questionBody": "Elle a une question avant de pouvoir terminer. Touchez pour répondre.",
+    "failedTitle": "La découpe a échoué",
+    "tapToSeeWhy": "Touchez pour voir pourquoi."
+  }
+}

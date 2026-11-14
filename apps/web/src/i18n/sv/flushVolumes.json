@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Spolvolymer",
+    "ownAmounts": "dina egna mängder",
+    "fromColours": "från färgerna",
+    "leftNozzle": "Vänster nozzel",
+    "rightNozzle": "Höger nozzel",
+    "nozzleN": "Nozzel {{n}}",
+    "filamentN": "Filament {{n}}",
+    "recalculate": "Räkna om",
+    "done": "Klar",
+    "explain": "Hur mycket skrivaren trycker ut, i mm³, när den byter från filamentet till vänster till det högst upp. Beräknas från färgerna: mörkt till ljust behöver mer.",
+    "nozzle": "Nozzel",
+    "tableLabel": "Spolvolymer i mm³",
+    "from": "från",
+    "to": "till",
+    "toFilament": "Till {{name}}",
+    "fromFilament": "Från {{name}}",
+    "purgeLabel": "Spola från {{from}} till {{to}}, mm³",
+    "suggested": "Föreslaget: {{min}} till {{max}} mm³ (utanför visas det rött).",
+    "multiplier": "Multiplikator",
+    "scales": "Skalar varje mängd ({{min}} till {{max}}).",
+    "towerOff": "”Spola i prime tornet” är avstängt i den här skrivarens inställningar (sidan Multimaterial), så varje filamentbyte spolar prime-volymen ({{volume}} mm³) i stället för de här mängderna. De bestämmer ändå spollängden som skrivarens byte-G-code får."
+  }
+}

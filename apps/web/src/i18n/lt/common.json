@@ -1,0 +1,14 @@
+{
+  "common": {
+    "cancel": "Atšaukti",
+    "copied": "Nukopijuota",
+    "copyError": "Kopijuoti klaidą",
+    "hide": "Slėpti",
+    "show": "Rodyti",
+    "close": "Uždaryti",
+    "closeMessage": "Uždaryti pranešimą",
+    "done": "Atlikta",
+    "notNow": "Ne dabar",
+    "next": "Toliau"
+  }
+}

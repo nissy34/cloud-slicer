@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "하던 작업을 이어서 할까요?",
+    "local": "{{name}}, {{when}}에 변경됨. 이 브라우저에만 보관되어 있고 저장되지 않았습니다.",
+    "discard": "버리기",
+    "continue": "계속",
+    "projectAsk": "{{name}}을(를) 이어서 할까요?",
+    "project": "{{name}} 이어서 하기",
+    "openHere": "여기에서 열어 두었습니다. {{when}}에 편집됨",
+    "editedOn": "{{device}}에서 {{when}}에 편집됨",
+    "notNow": "나중에",
+    "editedElsewhere": "{{name}}을(를) {{device}}에서 편집 중입니다",
+    "viewOnly": "이 탭은 보기 전용입니다.",
+    "viewOnlyUnsaved": "이 탭은 보기 전용입니다. 여기에서 변경한 내용은 반영되어 있지 않습니다.",
+    "saveMineAsCopy": "내 것을 사본으로 저장",
+    "editHere": "대신 여기에서 편집",
+    "gone": "“{{name}}”이(가) {{device}}에서 삭제되었습니다. 여기에는 아직 열려 있지만 저장되지 않았습니다."
+  }
+}

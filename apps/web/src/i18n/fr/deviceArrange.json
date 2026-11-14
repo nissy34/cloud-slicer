@@ -1,0 +1,26 @@
+{
+  "deviceArrange": {
+    "saveFailed": "Impossible d’enregistrer la disposition des cartes. Elle est conservée jusqu’au rechargement de la page.",
+    "pageCard": "Carte de page {{n}}",
+    "cameraCard": "Carte caméra {{n}}",
+    "arrangingFor": "Organisation des cartes pour {{name}}.",
+    "helpPhone": "Maintenez une carte par sa poignée et faites-la glisser vers le haut ou le bas.",
+    "helpDesktop": "Faites glisser une carte par sa poignée dans une colonne, ou sur toute la largeur en haut ou en bas.",
+    "helpRest": "Les cartes masquées restent ici, estompées. Les autres imprimantes gardent leur propre disposition.",
+    "columns": "Colonnes",
+    "addCameraCard": "Ajouter une carte caméra",
+    "addPageCard": "Ajouter une carte de page",
+    "backToDefault": "Revenir au défaut",
+    "acrossTop": "Sur toute la largeur en haut",
+    "column": "Colonne {{n}}",
+    "acrossBottom": "Sur toute la largeur en bas",
+    "small": "Petite",
+    "medium": "Moyenne",
+    "large": "Grande",
+    "moveCard": "Déplacer {{name}}",
+    "halfWidthTip": "Demi-largeur : deux demi-cartes se placent côte à côte",
+    "halfWidth": "Demi-largeur",
+    "cameraSize": "Taille de la caméra",
+    "remove": "Retirer"
+  }
+}

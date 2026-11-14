@@ -1,0 +1,11 @@
+{
+  "settingPicker": {
+    "forObject": "Réglages à ajouter à cet objet",
+    "forPart": "Réglages à ajouter à cette pièce",
+    "forModifier": "Réglages à ajouter à ce modificateur",
+    "search": "Rechercher des réglages",
+    "done": "Terminé",
+    "noMatch": "Aucun réglage ne correspond à « {{query}} ».",
+    "more": "Plus de réglages"
+  }
+}

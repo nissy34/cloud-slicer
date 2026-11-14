@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "Точка",
+    "edge": "Ребро",
+    "circle": "Коло",
+    "plane": "Площина",
+    "position": "Позиція",
+    "length": "Довжина",
+    "from": "Від",
+    "to": "До",
+    "diameter": "Діаметр",
+    "radius": "Радіус",
+    "centre": "Центр",
+    "normal": "Нормаль",
+    "angle": "Кут",
+    "distance": "Відстань",
+    "perpendicular": "Перпендикулярна відстань",
+    "along": "Уздовж {{axis}}"
+  }
+}

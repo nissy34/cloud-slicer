@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} van {{size}} MB",
+    "arrivingRelay": "{{got}} van {{size}} MB via de relay",
+    "cannotFetch": "Deze printerverbinding kan geen video's ophalen.",
+    "fetchFailed": "De video kon niet worden opgehaald.",
+    "delete": "Verwijderen",
+    "download": "Downloaden",
+    "cantPlay": "Dit soort video wordt niet in de browser afgespeeld. Download het om te kijken.",
+    "none": "Nog geen timelapses. Zet Timelapse aan wanneer u een print start.",
+    "watch": "Bekijken",
+    "pages": "Timelapse-pagina's",
+    "refresh": "Vernieuwen",
+    "deleteTitle": "Timelapse verwijderen"
+  }
+}

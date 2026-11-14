@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "รีเซ็ตเป็นค่าของพรีเซ็ต",
+    "keptOld": "คงค่าเดิมไว้",
+    "kept": "คง {{value}} ไว้",
+    "plateUses": "เพลต {{n}} ใช้",
+    "on": "เปิด",
+    "off": "ปิด",
+    "itsOwn": "(การตั้งค่าของมันเอง)",
+    "plateSettings": "การตั้งค่าเพลต",
+    "default": "ค่าเริ่มต้น",
+    "percentOrMm": "เปอร์เซ็นต์หรือ mm",
+    "isItPercent": "{{label}}: คือ {{number}}% หรือ {{number}} {{unit}}",
+    "filamentN": "เส้นพลาสติก {{n}}",
+    "mix": "สีผสม",
+    "mixes": "สีผสม"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Trascina qui file STL, 3MF, OBJ, STEP o SVG",
+    "openModel": "Apri modello",
+    "fromDrive": "Apri da Google Drive",
+    "deletePlateTip": "Elimina questo piatto e ciò che contiene",
+    "deletePlate": "Elimina piatto",
+    "clearAsk": "Svuotare il piatto?",
+    "unsavedChanges": "“{{name}}” ha modifiche non ancora salvate.",
+    "clearAll": "Svuota tutto",
+    "dropToAdd": "Rilascia per aggiungere"
+  }
+}

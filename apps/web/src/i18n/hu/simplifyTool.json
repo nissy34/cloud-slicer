@@ -1,0 +1,29 @@
+{
+  "simplifyTool": {
+    "title": "Egyszerűsítés",
+    "done": "Kész",
+    "hint": "A kevesebb háromszög gyorsabbá teszi egy nagy modell megnyitását, szeletelését és előnézetét. A finom részletek elmosódhatnak; a Visszavonás visszahozza a régi hálót.",
+    "trianglesLabel": "Háromszögek",
+    "triangles_one": "{{n}} háromszög",
+    "triangles_other": "{{n}} háromszög",
+    "trianglesUnknown": "… háromszög",
+    "workingOut": "(számolás…)",
+    "by": "Egyszerűsítés",
+    "detailLevel": "Részletességi szint",
+    "ratio": "Csökkentési arány",
+    "detail": "Részletesség",
+    "removeTip": "Az eltávolítandó háromszögek aránya",
+    "remove": "Eltávolítás",
+    "paintKept": "Az objektum festése (színek, támaszok, varratok, barázdált felület) megmarad az egyszerűsített hálón.",
+    "apply": "Alkalmaz",
+    "extraHigh": "Extra magas",
+    "high": "Magas",
+    "medium": "Közepes",
+    "low": "Alacsony",
+    "extraLow": "Extra alacsony",
+    "million": "{{n}} millió",
+    "heavyPlates": "{{n}} tálcán több mint {{limit}} háromszög van (legfeljebb {{most}}), ami több lehet, mint amennyit ez az eszköz elbír. Ha mindegyiket körülbelül {{light}}-ra egyszerűsíti, bőven marad részlet a nyomtatáshoz.",
+    "heavyPlate": "A(z) {{n}}. tálcán {{triangles}} háromszög van, ami több lehet, mint amennyit ez az eszköz elbír. Ha körülbelül {{light}}-ra egyszerűsíti, bőven marad részlet a nyomtatáshoz.",
+    "heavyModel": "Ebben a modellben {{triangles}} háromszög van, ami több lehet, mint amennyit ez az eszköz elbír. Ha körülbelül {{light}}-ra egyszerűsíti, bőven marad részlet a nyomtatáshoz."
+  }
+}

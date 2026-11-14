@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Autres applis de chat",
+    "title": "Utiliser avec une appli d’IA",
+    "more": "En savoir plus",
+    "intro": "Demandez à votre appli d’IA de découper à votre place : « Découpe ce Benchy pour mon U1 en PETG avec 4 parois et dis-moi le temps. » Installez-la dans Claude Desktop comme extension, ou dans d’autres applis de chat sur votre ordinateur comme LM Studio et Msty. Elle découpe sur votre ordinateur avec les mêmes moteurs et préréglages que ce site, et vos modèles y restent.",
+    "whichApp": "Quelle appli",
+    "step1": "Téléchargez l’extension Cloud Slicer.",
+    "download": "Télécharger pour Claude Desktop",
+    "size": "environ 11 Mo. Déjà installée ? Téléchargez-la à nouveau pour la mettre à jour.",
+    "step2": "Ouvrez le fichier. Claude Desktop propose de l’installer : cliquez sur <b>Installer</b>.",
+    "step3": "Demandez à Claude de découper un fichier sur votre ordinateur.",
+    "otherStep1": "Dans les réglages de votre appli de chat, ajoutez un serveur MCP avec ceci (la plupart des applis l’acceptent tel quel) :",
+    "otherStep2": "Il faut Node 20 ou plus récent sur votre ordinateur (<a>nodejs.org</a>).",
+    "canDo": "Elle peut ouvrir des modèles et des projets, choisir l’imprimante, le traitement et les filaments, régler les couleurs et le filament qui imprime chaque objet, modifier les réglages, organiser les plaques et découper. Tant que votre ordinateur est allumé, Claude sur votre téléphone peut aussi l’utiliser. Une fois connecté, elle utilise aussi vos préréglages et imprimantes, et vous demande avant de lancer une impression.",
+    "version": "Version {{version}}"
+  }
+}

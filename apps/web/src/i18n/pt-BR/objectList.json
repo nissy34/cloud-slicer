@@ -1,0 +1,33 @@
+{
+  "objectList": {
+    "notPrinted": "Não impresso",
+    "someNotPrinted": "Algumas cópias não impressas",
+    "object": "Objeto",
+    "sameAsObject": "Igual ao objeto",
+    "objects": "Objetos",
+    "skippedTip": "{{name}}: {{why}}. O fatiamento o deixa de fora; marque Imprimível no menu ⋯ dele para imprimi-lo.",
+    "objectN": "Objeto {{n}}",
+    "filamentFor": "Filamento de {{name}}",
+    "more": "Mais",
+    "moreFor": "Mais para {{name}}",
+    "moreTip": "Mais: clonar, renomear, espelhar, exportar… (ou clique com o botão direito no objeto)",
+    "painted": "(pintado)",
+    "moreForPart": "Mais para a peça {{name}}",
+    "partMoreTip": "Renomear, mudar tipo, configurações, excluir",
+    "chosen_one": "{{count}} objeto escolhido",
+    "chosen_many": "{{count}} objetos escolhidos",
+    "chosen_other": "{{count}} objetos escolhidos",
+    "groupHint": "Mover, girar e dimensionar funcionam em todos eles. Clique com o botão direito em um modelo escolhido, ou pressione e segure no celular, para o resto.",
+    "deleteAllTip": "Excluir todos (Del)",
+    "delete": "Excluir",
+    "blockerHint": "{{kind}}: os suportes não crescem onde ele se sobrepõe ao objeto, quando os suportes estão ativados. Mova-o com a ferramenta Mover.",
+    "enforcerHint": "{{kind}}: os suportes crescem onde ele se sobrepõe ao objeto, quando os suportes estão ativados. Mova-o com a ferramenta Mover.",
+    "addInstance": "Adicionar instância",
+    "addInstanceTip": "Mais uma cópia dele, ao lado (+). Ctrl+C e Ctrl+V colam como um novo objeto.",
+    "removeInstance": "Remover instância",
+    "removeInstanceTip": "Remove esta cópia, mantendo as outras (-)",
+    "simplify": "Simplificar",
+    "simplifyTip": "Menos triângulos, como o Simplificar modelo do desktop",
+    "deleteTip": "O objeto com todas as cópias (Del remove só a cópia escolhida)"
+  }
+}

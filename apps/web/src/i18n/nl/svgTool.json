@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "SVG-vorm",
+    "done": "Klaar",
+    "pickHint": "Kies een SVG-vorm in de voorwerpenlijst of de 3D-weergave om die te wijzigen, of voeg er een toe uit een .svg-bestand: op het geselecteerde voorwerp, of als eigen voorwerp als er niets geselecteerd is. Een .svg-bestand openen of neerzetten voegt er ook een toe.",
+    "addSvg": "SVG toevoegen…",
+    "depth": "Diepte",
+    "depthCutTip": "Hoe diep de vorm insnijdt",
+    "depthTip": "Hoever de vorm uitsteekt",
+    "width": "Breedte",
+    "widthTip": "Afmeting over de vorm",
+    "height": "Hoogte",
+    "heightTip": "Afmeting omhoog van de vorm",
+    "keepProportions": "Verhoudingen behouden",
+    "useSurfaceTip": "De vorm buigt mee met het oppervlak van het voorwerp in plaats van er plat op te staan",
+    "useSurface": "Oppervlak volgen",
+    "svgType": "SVG-type",
+    "changeType": "Type wijzigen",
+    "engraved": "Gegraveerd",
+    "making": "De vorm wordt gemaakt…",
+    "undoHint": "Ongedaan maken brengt de laatste vorm terug."
+  }
+}

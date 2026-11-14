@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Slicing-Engine wird heruntergeladen",
+    "setup": "Slicing-Engine wird gestartet",
+    "printers": "Ihre Drucker und Profile werden geladen",
+    "downloadingProject": "„{{name}}“ wird heruntergeladen",
+    "opening": "{{name}} wird geöffnet"
+  }
+}

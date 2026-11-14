@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Naudokite 1–128 simbolius, be / \\ : * ? \" < > |",
+    "notAvailable": "Profilis {{name}} nepasiekiamas.",
+    "onlyOwn": "Galima išsaugoti tik savo profilius; naudokite Išsaugoti kaip.",
+    "noneSelected": "Nepasirinktas joks profilis.",
+    "sameName": "Du profiliai negali turėti to paties pavadinimo.",
+    "nameTaken": "Profilis pavadinimu „{{name}}“ jau yra.",
+    "notYours": "Šis profilis nėra vienas iš jūsų."
+  }
+}

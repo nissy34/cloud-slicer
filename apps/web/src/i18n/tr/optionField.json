@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Ön ayar değerine sıfırla",
+    "keptOld": "Eski değer korundu.",
+    "kept": "{{value}} korundu.",
+    "plateUses": "{{n}}. plaka şunu kullanıyor:",
+    "on": "açık",
+    "off": "kapalı",
+    "itsOwn": "(kendi ayarı).",
+    "plateSettings": "Plaka ayarları",
+    "default": "Varsayılan",
+    "percentOrMm": "Yüzde mi, mm mi?",
+    "isItPercent": "{{label}}: %{{number}} mi, yoksa {{number}} {{unit}} mi?",
+    "filamentN": "Filament {{n}}",
+    "mix": "Karışım",
+    "mixes": "Karışımlar"
+  }
+}

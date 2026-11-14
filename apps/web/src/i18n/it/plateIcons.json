@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Senza titolo",
+    "nothingYet": "Ancora niente su questo piatto",
+    "locked": "Questo piatto è bloccato",
+    "deleteTip": "Rimuovi questo piatto e ciò che contiene (non l'ultimo)",
+    "orientTip": "Orientamento automatico degli oggetti su questo piatto",
+    "arrangeTip": "Disponi gli oggetti su questo piatto (Maiusc+A)",
+    "unlockTip": "Sblocca questo piatto",
+    "lockTip": "Blocca questo piatto: Disponi e Orientamento automatico lo lasciano com'è",
+    "settingsOwnTip": "Impostazioni del piatto: questo piatto ha impostazioni proprie",
+    "settingsTip": "Impostazioni del piatto: tipo di piatto, sequenza di stampa, vaso a spirale, ordine dei filamenti",
+    "renameTip": "Rinomina questo piatto"
+  }
+}

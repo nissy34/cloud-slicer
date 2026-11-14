@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "un filament coincident",
+    "noSlot": "Cap {{noun}} té {{material}}. Carregueu-lo, o canvieu el filament al laminador i torneu a laminar.",
+    "noSlotNozzle": "Cap {{noun}} té {{material}} amb un broquet de {{nozzle}} mm. Carregueu-lo, o canvieu el filament al laminador i torneu a laminar.",
+    "noType": "{{slot}} no té cap tipus de filament definit. {{unset}}",
+    "otherMaterial": "{{slot}} té {{has}}, però aquest filament s'ha laminat com a {{material}}.",
+    "otherNozzle": "{{slot}} té un broquet de {{has}} mm, però el fitxer s'ha laminat per a {{nozzle}} mm.",
+    "highFlow": "El fitxer s'ha laminat per a un broquet d'alt flux, però {{slot}} en té un d'estàndard."
+  }
+}

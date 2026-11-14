@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Paràmetres de l'objecte",
+    "modifierSettings": "Paràmetres del modificador",
+    "partSettings": "Paràmetres de la peça",
+    "addToObject": "Afegeix un paràmetre a aquest objecte",
+    "addToModifier": "Afegeix un paràmetre a aquest modificador",
+    "addToPart": "Afegeix un paràmetre a aquesta peça",
+    "addSetting": "+ Afegeix un paràmetre",
+    "modifierEmpty": "Afegiu un paràmetre per canviar-lo on el modificador se sobreposa a l'objecte, com més farciment en un punt.",
+    "partEmpty": "Usa els paràmetres de l'objecte. Afegiu-ne un per canviar-lo només per a aquesta peça.",
+    "objectEmpty": "Usa els paràmetres del procés. Afegiu-ne un per canviar-lo només per a aquest objecte.",
+    "others": "Altres",
+    "removeFromObject": "Treu d'aquest objecte",
+    "removeFromModifier": "Treu d'aquest modificador",
+    "removeFromPart": "Treu d'aquesta peça"
+  }
+}

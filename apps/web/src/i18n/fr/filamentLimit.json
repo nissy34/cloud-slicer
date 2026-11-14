@@ -1,0 +1,6 @@
+{
+  "filamentLimit": {
+    "mapped": "{{n}} filaments sur {{heads}} têtes : vous choisissez quelle tête imprime chacun au moment d’envoyer l’impression.",
+    "warn": "{{n}} filaments sur une imprimante à {{heads}} têtes."
+  }
+}

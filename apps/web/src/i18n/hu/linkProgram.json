@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "Ez a kód lejárt. Kérje meg MI-alkalmazását, hogy jelentkezzen be újra egy újért.",
+    "invalid": "Ez a kód nem érvényes. Vesse össze azzal, amelyet az MI-alkalmazása mutat, vagy kérje meg, hogy jelentkezzen be újra.",
+    "siteAnswered": "Az oldal ezt válaszolta: {{status}}",
+    "checkingAccount": "A fiók ellenőrzése…",
+    "signInFirst": "Előbb jelentkezzen be a Cloud Slicerbe. Ezután ez az ablak megkéri, hogy csatlakoztassa az MI-alkalmazását.",
+    "noSignIn": "A bejelentkezés ezen az oldalon nincs beállítva.",
+    "codeLabel": "Az MI-alkalmazása által mutatott kód",
+    "checkingCode": "A kód ellenőrzése…",
+    "connected": "Csatlakoztatva. Menjen vissza az MI-alkalmazásához: be van jelentkezve mint {{name}}.",
+    "turnedDown": "Elutasítva. Az MI-alkalmazása nincs bejelentkezve.",
+    "asks": "A számítógépén lévő egyik MI-alkalmazás (a Cloud Slicer bővítmény) a fiókját, a(z) <b>{{email}}</b> címet kéri használatra. Ellenőrizze, hogy ezt a kódot mutatja:",
+    "willSee": "Látni fogja a mentett előbeállításait és nyomtatóit, ellenőrizheti a nyomtatóit, és feltölthet rájuk. Minden nyomtatás indítása előtt rákérdez. Az MI-alkalmazásból kijelentkeztetheti.",
+    "continueGoogle": "Folytatás Google-lel",
+    "dontConnect": "Nem csatlakoztatom",
+    "connect": "Csatlakoztatás",
+    "title": "MI-alkalmazás csatlakoztatása"
+  }
+}

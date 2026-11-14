@@ -1,0 +1,31 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} av {{total}}",
+    "engineNoStart": "{{engine}} kunde inte starta",
+    "openedWith": "Öppnat med {{engine}}, motorn det här projektet gjordes med.",
+    "somethingWrong": "Något gick fel",
+    "files_one": "{{count}} fil",
+    "files_other": "{{count}} filer",
+    "saving": "Sparar…",
+    "savingAfterSlice": "Sparar… efter beredningen",
+    "savingMaking": "Sparar… skapar 3MF-filen",
+    "savingSent": "Sparar… {{progress}}",
+    "savingFinishing": "Sparar… avslutar",
+    "saved": "Sparade ”{{name}}” bland dina projekt",
+    "notSaved": "Inte sparad: {{error}}",
+    "preparing": "Förbereder 3MF-filen…",
+    "makeFailed": "Kunde inte skapa 3MF-filen: {{error}}",
+    "opening": "Öppnar ”{{name}}”…",
+    "openFailed": "Kunde inte öppna ”{{name}}”: {{error}}",
+    "saveCancelled": "Sparandet avbröts",
+    "viewOnly": "Det här projektet är skrivskyddat här. Använd ”Redigera här i stället” för att ändra det.",
+    "openDriveFailed": "Kunde inte öppna ”{{name}}” från Google Drive: {{error}}",
+    "quoted": "”{{name}}”",
+    "cantOpen": "Cloud Slicer kan inte öppna {{names}}.",
+    "cantOpenShared": "Cloud Slicer kan inte öppna {{names}}",
+    "openedDriveFile": "Öppnade ”{{name}}” från din Google Drive. Spara behåller en kopia i din Cloud Slicer-mapp. Filen på Drive förblir som den är.",
+    "openedDriveFiles": "Öppnade {{name}} från din Google Drive. Spara behåller en kopia i din Cloud Slicer-mapp. Filerna på Drive förblir som de är.",
+    "myProject": "Mitt projekt",
+    "removed": "Tog bort ”{{name}}” från dina projekt"
+  }
+}

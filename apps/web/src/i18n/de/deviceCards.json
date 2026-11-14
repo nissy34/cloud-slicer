@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Kameras",
+    "climate": "Druckbett und Kammer",
+    "move": "Bewegen",
+    "console": "Konsole",
+    "print": "Druck",
+    "toolHeads": "Werkzeugköpfe",
+    "alerts": "Warnungen",
+    "files": "Dateien",
+    "unfold": "Diese Karte aufklappen",
+    "fold": "Diese Karte zuklappen",
+    "targetOf": "Zielwert {{label}}",
+    "turnOff": "{{label}} ausschalten",
+    "off": "Aus",
+    "keepGoing": "Weiter",
+    "chamberLight": "Kammerlicht",
+    "purifierExhaust": "Luftreiniger-Abluft",
+    "purifierFilter": "Luftreiniger-Filter",
+    "fanAuto": "Der Drucker steuert diesen Lüfter selbst"
+  }
+}

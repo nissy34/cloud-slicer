@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Beste txat-aplikazio batzuk",
+    "title": "Erabili AI aplikazio batekin",
+    "more": "Honi buruz gehiago",
+    "intro": "Eskatu zure AI aplikazioari xerratzeko zuretzat: “Xerratu Benchy hau nire U1-erako PETG-rekin eta 4 hormarekin, eta esan denbora.” Instalatu Claude Desktop-en luzapen gisa, edo zure ordenagailuko beste txat-aplikazio batzuetan, adibidez LM Studio eta Msty. Zure ordenagailuan xerratzen du gune honen motor eta aurrezarpen berberekin, eta zure ereduak han geratzen dira.",
+    "whichApp": "Zein aplikazio",
+    "step1": "Deskargatu Cloud Slicer luzapena.",
+    "download": "Deskargatu Claude Desktop-erako",
+    "size": "11 MB inguru. Instalatuta duzu jada? Deskargatu berriro eguneratzeko.",
+    "step2": "Ireki fitxategia. Claude Desktop-ek instalatzeko eskatzen du: egin klik <b>Instalatu</b> aukeran.",
+    "step3": "Eskatu Claude-ri zure ordenagailuko fitxategi bat xerratzeko.",
+    "otherStep1": "Zure txat-aplikazioaren ezarpenetan, gehitu MCP zerbitzari bat honekin (aplikazio gehienek dagoen bezala hartzen dute):",
+    "otherStep2": "Node 20 edo berriagoa behar du zure ordenagailuan (<a>nodejs.org</a>).",
+    "canDo": "Ereduak eta proiektuak ireki ditzake, inprimagailua, prozesua eta filamentuak aukeratu, koloreak eta objektu bakoitza zein filamentuz inprimatzen den ezarri, ezarpenak aldatu, plakak antolatu eta xerratu. Zure ordenagailua piztuta dagoen bitartean, zure telefonoko Claude-k ere erabil dezake. Saioa hasita, zure aurrezarpenak eta inprimagailuak ere erabiltzen ditu, eta inprimaketa bat hasi aurretik galdetzen dizu.",
+    "version": "{{version}} bertsioa"
+  }
+}

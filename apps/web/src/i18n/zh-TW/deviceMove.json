@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "列印中無法使用",
+    "disabledPaused": "暫停時無法使用",
+    "position": "位置",
+    "speed": "速度",
+    "flow": "流量",
+    "head": "列印頭",
+    "moveHead": "移動列印頭",
+    "headBack": "列印頭向後",
+    "headLeft": "列印頭向左",
+    "homeHead": "列印頭歸位",
+    "headRight": "列印頭向右",
+    "headToward": "列印頭朝向您",
+    "bed": "列印板",
+    "headHeight": "列印頭高度",
+    "moveBed": "移動列印板",
+    "moveHeadZ": "上下移動列印頭",
+    "bedUp": "列印板上升",
+    "headUp": "列印頭上升",
+    "homeBed": "列印板歸位",
+    "homeHeight": "高度歸位",
+    "bedDown": "列印板下降",
+    "headDown": "列印頭下降",
+    "step": "步進",
+    "homeAll": "全部歸位",
+    "motorsOff": "關閉馬達",
+    "heatFirst": "請先加熱噴嘴",
+    "extrude10": "擠出 10 mm",
+    "retract": "回抽",
+    "homeFirst": "移動前請先讓列印裝置歸位。"
+  }
+}

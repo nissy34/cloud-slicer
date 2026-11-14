@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint chưa kết nối với máy in.",
+    "octoprintRestart": "Kết nối lại",
+    "octoprintRestarting": "Đang kết nối OctoPrint với máy in",
+    "bambuStopped": "Máy in đã ngừng phản hồi: hãy kiểm tra máy đã bật và đang trong mạng.",
+    "bambuCameraMissing": "Chỉ máy in P1 và A1 hiển thị camera ở đây: X1, H2 và P2S gửi video mà chỉ các ứng dụng riêng của Bambu mới phát được.",
+    "bambuSlotNoun": "khe AMS",
+    "bambuSlotUnset": "Nạp filament vào đó, hoặc đặt trên màn hình máy in.",
+    "bambuSlotNote": "Như trong Bambu Studio, filament chỉ có thể dùng cho khe có cùng loại filament. Thương hiệu và màu có thể khác.",
+    "outsideSpool": "Cuộn bên ngoài",
+    "u1Heads": "Đầu công cụ",
+    "u1HeadNoun": "đầu công cụ",
+    "u1HeadUnset": "Nạp filament, hoặc đặt loại của nó trên thẻ Đầu công cụ.",
+    "u1HeadNote": "Như trong ứng dụng của Snapmaker, filament chỉ có thể dùng cho đầu có cùng loại filament và cỡ đầu phun. Thương hiệu và màu có thể khác.",
+    "nozzleStandard": "Tiêu chuẩn",
+    "nozzleHighFlow": "Lưu lượng cao",
+    "calibratingOffsets": "Đang hiệu chỉnh độ lệch đầu công cụ",
+    "levellingBed": "Đang cân bàn in",
+    "calibratingFlow": "Đang hiệu chỉnh lưu lượng",
+    "calibratingShaper": "Đang hiệu chỉnh input shaping",
+    "updatingFirmware": "Đang cập nhật firmware",
+    "needsAttention": "Cần xử lý trên màn hình máy in",
+    "adjustingScrews": "Đang chỉnh vít bàn in",
+    "loadingFilament": "Đang nạp filament",
+    "unloadingFilament": "Đang rút filament",
+    "calibratingPark": "Đang hiệu chỉnh vị trí đỗ",
+    "calibratingHome": "Đang hiệu chỉnh vị trí gốc",
+    "hotendFan": "Quạt hotend T{{n}}"
+  }
+}

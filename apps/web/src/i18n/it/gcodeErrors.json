@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "“{{variable}}” non è un'impostazione che questo slicer conosce (potrebbe provenire da un altro slicer o da una versione più recente).",
+    "unknownName": "usa un nome che questo slicer non conosce.",
+    "negativeIndex": "“{{variable}}” viene letto prima che il primo filamento sia caricato (il suo indice è -1 lì); controlla prima quell'indice con {if ...}.",
+    "negativeIndexList": "un elenco viene letto prima che il primo filamento sia caricato (il suo indice è -1 lì); controlla prima quell'indice con {if ...}.",
+    "reasonAt": "{{reason}} in “{{variable}}”.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, riga {{line}}: {{why}}",
+    "filamentSettings": "impostazioni del filamento",
+    "printerSettings": "impostazioni della stampante",
+    "or": " o ",
+    "stoppedOne": "Elaborazione interrotta: un G-code personalizzato non può essere compilato.",
+    "stoppedSome": "Elaborazione interrotta: alcuni G-code personalizzati non possono essere compilati.",
+    "fix": "Correggilo nelle {{where}}, oppure ripristinalo al G-code del profilo."
+  }
+}

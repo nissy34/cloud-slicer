@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "Neatsakė laiku",
+    "noAccounts": "Šiame serveryje paskyros nepasiekiamos",
+    "siteNoAnswer": "Cloud Slicer neatsakė. Patikrinkite ryšį ir bandykite dar kartą.",
+    "driveReconnect": "Google Drive reikia prijungti iš naujo. Atidarykite paskyros meniu (viršuje dešinėje) ir paspauskite Prijungti Google Drive.",
+    "driveNoAnswer": "Google Drive neatsakė. Patikrinkite ryšį ir išsaugokite dar kartą.",
+    "driveFull": "Jūsų Google Drive pilnas. Atlaisvinkite vietos Drive ir išsaugokite dar kartą.",
+    "driveGone": "Šio projekto jūsų Google Drive nebėra",
+    "driveNoUpload": "Google Drive nepradėjo įkėlimo",
+    "pickerBlocked": "Jūsų naršyklė užblokavo Google Drive langą. Leiskite šiai svetainei iššokančiuosius langus ir bandykite dar kartą.",
+    "driveSignIn": "Prisijunkite per Google, kad atidarytumėte failus iš savo Google Drive.",
+    "driveConnectFirst": "Pirmiausia paskyros meniu prijunkite Google Drive.",
+    "pickerNotSetUp": "Atidarymas iš Google Drive šioje svetainėje dar nesukonfigūruotas."
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "{{engine}} motorunun başlangıç ve filament değiştirme G-code'u kullanılsın mı?",
+    "yes": "Evet, dilimle",
+    "body": "Bu dosyanın başlangıç ve filament değiştirme G-code'u {{app}} için yazılmış ve {{engine}} bunu kullanamıyor. {{engine}} motorunun <b>{{printer}}</b> için kendi G-code'u var ve çalışıyor. Bu seçim bu projeyle birlikte kaydedilir."
+  }
+}

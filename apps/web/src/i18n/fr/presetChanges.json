@@ -1,0 +1,24 @@
+{
+  "presetChanges": {
+    "filamentN": "Filament {{n}}",
+    "process": "Traitement",
+    "printer": "Imprimante",
+    "changes_one": "{{count}} modification",
+    "changes_many": "{{count}} modifications",
+    "changes_other": "{{count}} modifications",
+    "saveTitle": "Enregistrer les réglages modifiés",
+    "back": "Retour",
+    "saving": "Enregistrement…",
+    "save": "Enregistrer",
+    "namesText": "Vos propres préréglages gardent leur nom et prennent les modifications. Donnez un nouveau nom pour enregistrer une copie à la place.",
+    "row": "{{label}} : {{name}} ({{changes}})",
+    "title": "Conserver vos réglages modifiés ?",
+    "discard": "Ignorer",
+    "saveMenu": "Enregistrer…",
+    "keep": "Conserver",
+    "text": "Certains préréglages ont des réglages modifiés. Conservez-les dans le nouveau projet, ignorez-les, ou enregistrez-les dans des préréglages.",
+    "labelColon": "{{label}} :",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Mémoriser mon choix (Conserver ou Ignorer)"
+  }
+}

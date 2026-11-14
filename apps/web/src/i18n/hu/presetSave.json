@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Használjon 1–128 karaktert, ezek nélkül: / \\ : * ? \" < > |",
+    "notAvailable": "A(z) {{name}} előbeállítás nem érhető el.",
+    "onlyOwn": "Csak a saját előbeállításai menthetők; használja a Mentés másként funkciót.",
+    "noneSelected": "Nincs előbeállítás kiválasztva.",
+    "sameName": "Két előbeállításnak nem lehet ugyanaz a neve.",
+    "nameTaken": "Már létezik „{{name}}” nevű előbeállítás.",
+    "notYours": "Ez az előbeállítás nem az Öné."
+  }
+}

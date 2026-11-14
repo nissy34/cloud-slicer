@@ -1,0 +1,16 @@
+{
+  "accountErrors": {
+    "noAnswer": "Zamanında yanıt vermedi",
+    "noAccounts": "Bu sunucuda hesaplar kullanılamıyor",
+    "siteNoAnswer": "Cloud Slicer yanıt vermedi. Bağlantınızı kontrol edip yeniden deneyin.",
+    "driveReconnect": "Google Drive'ın yeniden bağlanması gerekiyor. Hesap menüsünü (sağ üst) açıp Google Drive'a bağlan'a basın.",
+    "driveNoAnswer": "Google Drive yanıt vermedi. Bağlantınızı kontrol edip yeniden kaydedin.",
+    "driveFull": "Google Drive'ınız dolu. Drive'da biraz yer açıp yeniden kaydedin.",
+    "driveGone": "Bu proje artık Google Drive'ınızda değil",
+    "driveNoUpload": "Google Drive yüklemeyi başlatmadı",
+    "pickerBlocked": "Tarayıcınız Google Drive penceresini engelledi. Bu site için açılır pencerelere izin verip yeniden deneyin.",
+    "driveSignIn": "Google Drive'ınızdaki dosyaları açmak için Google ile oturum açın.",
+    "driveConnectFirst": "Önce hesap menüsünden Google Drive'a bağlanın.",
+    "pickerNotSetUp": "Google Drive'dan açma bu sitede henüz kurulmadı."
+  }
+}

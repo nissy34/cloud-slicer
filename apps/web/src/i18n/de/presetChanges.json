@@ -1,0 +1,23 @@
+{
+  "presetChanges": {
+    "filamentN": "Filament {{n}}",
+    "process": "Prozess",
+    "printer": "Drucker",
+    "changes_one": "{{count}} Änderung",
+    "changes_other": "{{count}} Änderungen",
+    "saveTitle": "Geänderte Einstellungen speichern",
+    "back": "Zurück",
+    "saving": "Wird gespeichert…",
+    "save": "Speichern",
+    "namesText": "Ihre eigenen Profile behalten ihren Namen und übernehmen die Änderungen. Geben Sie einen neuen Namen an, um stattdessen eine Kopie zu speichern.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Geänderte Einstellungen behalten?",
+    "discard": "Verwerfen",
+    "saveMenu": "Speichern…",
+    "keep": "Behalten",
+    "text": "Bei einigen Profilen wurden Einstellungen geändert. Behalten Sie sie im neuen Projekt, verwerfen Sie sie oder speichern Sie sie in Profilen.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Meine Wahl merken (Behalten oder Verwerfen)"
+  }
+}

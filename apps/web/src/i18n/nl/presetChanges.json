@@ -1,0 +1,23 @@
+{
+  "presetChanges": {
+    "filamentN": "Filament {{n}}",
+    "process": "Proces",
+    "printer": "Printer",
+    "changes_one": "{{count}} wijziging",
+    "changes_other": "{{count}} wijzigingen",
+    "saveTitle": "Gewijzigde instellingen bewaren",
+    "back": "Terug",
+    "saving": "Bewaren…",
+    "save": "Bewaren",
+    "namesText": "Uw eigen voorinstellingen behouden hun naam en nemen de wijzigingen over. Geef een nieuwe naam om in plaats daarvan een kopie te bewaren.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Uw gewijzigde instellingen behouden?",
+    "discard": "Verwerpen",
+    "saveMenu": "Bewaren…",
+    "keep": "Behouden",
+    "text": "Sommige voorinstellingen hebben gewijzigde instellingen. Behoud ze in het nieuwe project, verwerp ze, of bewaar ze in voorinstellingen.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Mijn keuze onthouden (Behouden of Verwerpen)"
+  }
+}

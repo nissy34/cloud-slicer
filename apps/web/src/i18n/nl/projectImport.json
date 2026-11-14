@@ -1,0 +1,7 @@
+{
+  "projectImport": {
+    "anotherPrinter": "een andere printer",
+    "slicedFile": "{{name}} is een geslicet bestand: het bevat G-code voor een andere printer maar geen modellen. Open in plaats daarvan het originele project (.3mf).",
+    "noObjects": "{{name}} heeft geen voorwerpen om te printen."
+  }
+}

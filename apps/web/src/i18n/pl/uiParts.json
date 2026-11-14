@@ -1,0 +1,9 @@
+{
+  "uiParts": {
+    "closeWindow": "Zamknij okno",
+    "moreAboutThis": "Więcej na ten temat",
+    "plannedForPhase": "Planowane na etap {{phase}}.",
+    "saving": "Zapisywanie",
+    "loadedOf": "{{loaded}} z {{total}}"
+  }
+}

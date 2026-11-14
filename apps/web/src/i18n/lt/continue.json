@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "Tęsti nuo ten, kur baigėte?",
+    "local": "{{name}}, pakeista {{when}}. Laikoma šioje naršyklėje, neišsaugota.",
+    "discard": "Atmesti",
+    "continue": "Tęsti",
+    "projectAsk": "Tęsti {{name}}?",
+    "project": "Tęsti {{name}}",
+    "openHere": "Buvote atidarę čia, redaguota {{when}}",
+    "editedOn": "Redaguota {{when}} įrenginyje {{device}}",
+    "notNow": "Ne dabar",
+    "editedElsewhere": "{{name}} redaguojamas įrenginyje {{device}}",
+    "viewOnly": "Šis skirtukas tik peržiūrai.",
+    "viewOnlyUnsaved": "Šis skirtukas tik peržiūrai. Čia padarytų pakeitimų jame nėra.",
+    "saveMineAsCopy": "Išsaugoti mano kaip kopiją",
+    "editHere": "Redaguoti čia",
+    "gone": "„{{name}}“ ištrintas įrenginyje {{device}}. Čia vis dar atidarytas, neišsaugotas."
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Загрузка движка нарезки",
+    "setup": "Запуск движка нарезки",
+    "printers": "Загрузка ваших принтеров и профилей",
+    "downloadingProject": "Загрузка «{{name}}»",
+    "opening": "Открытие {{name}}"
+  }
+}

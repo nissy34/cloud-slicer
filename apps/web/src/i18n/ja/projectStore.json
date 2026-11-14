@@ -1,0 +1,30 @@
+{
+  "projectStore": {
+    "sentOf": "{{total}} 中 {{sent}}",
+    "engineNoStart": "{{engine}}を起動できませんでした",
+    "openedWith": "このプロジェクトを作成したエンジンである{{engine}}で開きました。",
+    "somethingWrong": "問題が発生しました",
+    "files_other": "{{count}} 個のファイル",
+    "saving": "保存中…",
+    "savingAfterSlice": "保存中… スライス完了後",
+    "savingMaking": "保存中… 3MF を作成中",
+    "savingSent": "保存中… {{progress}}",
+    "savingFinishing": "保存中… 仕上げ中",
+    "saved": "「{{name}}」をプロジェクトに保存しました",
+    "notSaved": "保存されませんでした: {{error}}",
+    "preparing": "3MF を準備中…",
+    "makeFailed": "3MF を作成できませんでした: {{error}}",
+    "opening": "「{{name}}」を開いています…",
+    "openFailed": "「{{name}}」を開けませんでした: {{error}}",
+    "saveCancelled": "保存をキャンセルしました",
+    "viewOnly": "このプロジェクトはここでは閲覧専用です。変更するには「代わりにここで編集」を使ってください。",
+    "openDriveFailed": "Google Drive から「{{name}}」を開けませんでした: {{error}}",
+    "quoted": "「{{name}}」",
+    "cantOpen": "Cloud Slicer は{{names}}を開けません。",
+    "cantOpenShared": "Cloud Slicer は{{names}}を開けません",
+    "openedDriveFile": "Google Drive から「{{name}}」を開きました。「保存」すると Cloud Slicer フォルダーにコピーが保持されます。Drive 内のファイルはそのままです。",
+    "openedDriveFiles": "Google Drive から{{name}}を開きました。「保存」すると Cloud Slicer フォルダーにコピーが保持されます。Drive 内のファイルはそのままです。",
+    "myProject": "マイプロジェクト",
+    "removed": "「{{name}}」をプロジェクトから削除しました"
+  }
+}

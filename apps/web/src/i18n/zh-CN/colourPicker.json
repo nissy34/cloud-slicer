@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "白色",
+    "yellow": "黄色",
+    "lime": "青柠色",
+    "green": "绿色",
+    "darkGreen": "深绿色",
+    "teal": "青绿色",
+    "mint": "薄荷色",
+    "skyBlue": "天蓝色",
+    "lightBlue": "浅蓝色",
+    "blue": "蓝色",
+    "indigo": "靛蓝色",
+    "purple": "紫色",
+    "magenta": "洋红色",
+    "lavender": "薰衣草色",
+    "pink": "粉色",
+    "red": "红色",
+    "brown": "棕色",
+    "orange": "橙色",
+    "cream": "奶油色",
+    "beige": "米色",
+    "tan": "黄褐色",
+    "grey": "灰色",
+    "lightGrey": "浅灰色",
+    "black": "黑色",
+    "colours": "颜色",
+    "recent": "最近",
+    "recentColours": "最近使用的颜色",
+    "hex": "十六进制代码",
+    "custom": "自定义"
+  }
+}

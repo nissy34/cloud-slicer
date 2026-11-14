@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "“{{name}}” gorde?",
+    "saveText": "Oraindik ez dago zure lineako proiektuetan. Gorde gabe uzteak baztertu egiten du.",
+    "save": "Gorde",
+    "dontSave": "Ez gorde",
+    "discardTitle": "Gorde gabeko aldaketak baztertu?",
+    "discard": "Baztertu aldaketak",
+    "openTitle": "Ireki {{what}}",
+    "addToText": "“{{project}}” proiektuan ari zinen lanean. Hor gehitu nahi duzu, ala proiektu berri bat hasi harekin?",
+    "newProject": "Proiektu berria",
+    "addTo": "Gehitu {{project}} proiektuan"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "simplifyFirst": {
+    "title": "先简化此模型？",
+    "openAsIs": "按原样打开",
+    "simplify": "简化",
+    "paintKept": "其绘制内容会保留在简化后的网格上。",
+    "dontAsk": "在此设备上不再询问"
+  }
+}

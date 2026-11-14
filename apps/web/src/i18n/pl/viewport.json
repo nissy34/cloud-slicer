@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "Przesuń",
+    "rotate": "Obróć",
+    "scale": "Skaluj",
+    "rotateText": "Obróć tekst",
+    "moveSvgSurface": "Przesuń SVG po powierzchni",
+    "moveTextSurface": "Przesuń tekst po powierzchni",
+    "movePart": "Przesuń część",
+    "rotatePart": "Obróć część",
+    "scalePart": "Skaluj część",
+    "plates": "Płyty",
+    "ownSettingsTip": "Ta płyta ma własne ustawienia",
+    "ownSettings": "ma własne ustawienia",
+    "plateSettings": "Ustawienia płyty",
+    "plateNSettings": "Ustawienia płyty {{n}}"
+  }
+}

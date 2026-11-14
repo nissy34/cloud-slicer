@@ -1,0 +1,22 @@
+{
+  "deviceFiles": {
+    "print": "Printen…",
+    "deleteName": "{{name}} verwijderen",
+    "delete": "Verwijderen",
+    "title": "Bestanden op de printer",
+    "upload": "G-code uploaden…",
+    "timelapses": "Timelapses",
+    "none": "Nog geen G-code-bestanden.",
+    "searchN_one": "{{count}} bestand doorzoeken",
+    "searchN_other": "{{count}} bestanden doorzoeken",
+    "search": "Bestanden zoeken",
+    "noMatch": "Geen bestand past bij “{{query}}”.",
+    "deleteFile": "Bestand verwijderen",
+    "deleteText": "{{name}} van de printer verwijderen?",
+    "deleted": "Verwijderd",
+    "pages": "Bestandspagina's",
+    "newer": "Nieuwer",
+    "older": "Ouder",
+    "range": "{{from}}–{{to}} van {{total}}"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "Naudoti {{engine}} pradžios ir gijos keitimo G-code?",
+    "yes": "Taip, sluoksniuoti",
+    "body": "Šio failo pradžios ir gijos keitimo G-code parašytas {{app}}, o {{engine}} jo naudoti negali. {{engine}} turi savo, skirtą <b>{{printer}}</b>, ir jis veikia. Šis pasirinkimas išsaugomas kartu su šiuo projektu."
+  }
+}

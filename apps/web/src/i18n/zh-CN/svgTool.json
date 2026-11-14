@@ -1,0 +1,23 @@
+{
+  "svgTool": {
+    "title": "SVG 形状",
+    "done": "完成",
+    "pickHint": "在对象列表或 3D 视图中选取一个 SVG 形状即可更改它，或从 .svg 文件添加：已选中对象时添加到该对象上，未选中任何内容时则作为独立的对象。打开或拖放 .svg 文件也会添加一个。",
+    "addSvg": "添加 SVG…",
+    "depth": "深度",
+    "depthCutTip": "形状切入的深度",
+    "depthTip": "形状凸出的高度",
+    "width": "宽度",
+    "widthTip": "形状的横向尺寸",
+    "height": "高度",
+    "heightTip": "形状的纵向尺寸",
+    "keepProportions": "保持比例",
+    "useSurfaceTip": "形状会随对象表面弯曲，而不是平放在上面",
+    "useSurface": "贴合表面",
+    "svgType": "SVG 类型",
+    "changeType": "更改类型",
+    "engraved": "雕刻",
+    "making": "正在生成形状…",
+    "undoHint": "撤销可恢复上一个形状。"
+  }
+}

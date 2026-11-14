@@ -1,0 +1,19 @@
+{
+  "aiApps": {
+    "claudeDesktop": "Claude Desktop",
+    "otherApps": "Andra chattappar",
+    "title": "Använd med en AI-app",
+    "more": "Mer om det",
+    "intro": "Be din AI-app bereda åt dig: ”Bered den här Benchyn för min U1 i PETG med 4 väggar och berätta tiden.” Installera den i Claude Desktop som ett tillägg, eller i andra chattappar på din dator som LM Studio och Msty. Den bereder på din dator med samma motorer och förinställningar som den här webbplatsen, och dina modeller stannar där.",
+    "whichApp": "Vilken app",
+    "step1": "Ladda ner Cloud Slicer-tillägget.",
+    "download": "Ladda ner för Claude Desktop",
+    "size": "cirka 11 MB. Redan installerad? Ladda ner den igen för att uppdatera.",
+    "step2": "Öppna filen. Claude Desktop frågar om den ska installeras: klicka på <b>Installera</b>.",
+    "step3": "Be Claude bereda en fil på din dator.",
+    "otherStep1": "Lägg till en MCP-server med det här i din chattapps inställningar (de flesta appar tar emot det som det är):",
+    "otherStep2": "Den kräver Node 20 eller nyare på din dator (<a>nodejs.org</a>).",
+    "canDo": "Den kan öppna modeller och projekt, välja skrivare, process och filament, ställa in färger och vilket filament som skriver ut varje objekt, ändra inställningar, arrangera plattor och bereda. Så länge din dator är på kan Claude i din telefon använda den också. När du är inloggad använder den även dina förinställningar och skrivare, och frågar dig innan den startar en utskrift.",
+    "version": "Version {{version}}"
+  }
+}

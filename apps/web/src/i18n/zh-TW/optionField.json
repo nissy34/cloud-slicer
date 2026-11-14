@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "重設為預設值",
+    "keptOld": "已保留舊值。",
+    "kept": "已保留 {{value}}。",
+    "plateUses": "列印板 {{n}} 使用",
+    "on": "開啟",
+    "off": "關閉",
+    "itsOwn": "（自己的設定）。",
+    "plateSettings": "列印板設定",
+    "default": "預設",
+    "percentOrMm": "百分比還是 mm？",
+    "isItPercent": "{{label}}：是 {{number}}% 還是 {{number}} {{unit}}？",
+    "filamentN": "線材 {{n}}",
+    "mix": "混色",
+    "mixes": "混色組合"
+  }
+}

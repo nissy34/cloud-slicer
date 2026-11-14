@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "Zuria",
+    "yellow": "Horia",
+    "lime": "Lima",
+    "green": "Berdea",
+    "darkGreen": "Berde iluna",
+    "teal": "Berde urdinxka",
+    "mint": "Menta",
+    "skyBlue": "Zeru-urdina",
+    "lightBlue": "Urdin argia",
+    "blue": "Urdina",
+    "indigo": "Indigoa",
+    "purple": "More",
+    "magenta": "Magenta",
+    "lavender": "Izpiliku-kolorea",
+    "pink": "Arrosa",
+    "red": "Gorria",
+    "brown": "Marroia",
+    "orange": "Laranja",
+    "cream": "Krema",
+    "beige": "Beixa",
+    "tan": "Larru-kolorea",
+    "grey": "Grisa",
+    "lightGrey": "Gris argia",
+    "black": "Beltza",
+    "colours": "Koloreak",
+    "recent": "Azkenak",
+    "recentColours": "Azken koloreak",
+    "hex": "Kode hexadezimala",
+    "custom": "Pertsonalizatua"
+  }
+}

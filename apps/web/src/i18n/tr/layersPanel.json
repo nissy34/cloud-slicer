@@ -1,0 +1,32 @@
+{
+  "layersPanel": {
+    "addDetail": "Ayrıntı ekle",
+    "addDetailTip": "Daha ince katmanlar (masaüstü: sol fare düğmesi)",
+    "removeDetail": "Ayrıntıyı kaldır",
+    "removeDetailTip": "Daha kalın katmanlar (masaüstü: sağ fare düğmesi)",
+    "backToBase": "Temele dön",
+    "backToBaseTip": "Düz katman yüksekliğine dön (masaüstü: Shift + sol düğme)",
+    "smooth": "Yumuşat",
+    "smoothTip": "Basamakları yumuşat (masaüstü: Shift + sağ düğme)",
+    "profile": "Katman yüksekliği profili",
+    "title": "Değişken katman yüksekliği",
+    "done": "Bitti",
+    "intro": "Şeklin ayrıntı gerektirdiği yerde ince, gerektirmediği yerde kalın katmanlar. Uyarlanabilir bunu eğimlerden yapar; ya da o yükseklik çevresinde ayrıntı eklemek veya kaldırmak için grafiğe basılı tutun.",
+    "heights": "Katman yükseklikleri",
+    "variable": "Değişken",
+    "plain": "Düz",
+    "layers_one": "{{count}} katman",
+    "layers_other": "{{count}} katman",
+    "chartEdits": "Grafik düzenlemeleri",
+    "band": "Bandı düzenle",
+    "adaptive": "Uyarlanabilir",
+    "quality": "Kalite",
+    "qualityOrSpeed": "Kalite veya hız",
+    "speed": "Hız",
+    "radius": "Yarıçap",
+    "smoothRadius": "Yumuşatma yarıçapı",
+    "keepMin": "En ince katmanları koru",
+    "reset": "Sıfırla",
+    "reading": "Katmanlar okunuyor…"
+  }
+}

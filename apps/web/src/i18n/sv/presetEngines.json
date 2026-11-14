@@ -1,0 +1,8 @@
+{
+  "presetEngines": {
+    "split_one": "{{count}} inställning är inte längre densamma i båda motorerna; ”{{name}}” behåller sina värden i var och en.",
+    "split_other": "{{count}} inställningar är inte längre desamma i båda motorerna; ”{{name}}” behåller sina värden i var och en.",
+    "separate_one": "{{count}} inställning i ”{{name}}” kan nu vara densamma i båda motorerna men skiljer sig åt; ”Använd samma värden i båda motorerna” i dess meny gör att de stämmer överens.",
+    "separate_other": "{{count}} inställningar i ”{{name}}” kan nu vara desamma i båda motorerna men skiljer sig åt; ”Använd samma värden i båda motorerna” i dess meny gör att de stämmer överens."
+  }
+}

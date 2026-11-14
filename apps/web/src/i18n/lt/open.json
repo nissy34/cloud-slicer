@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Čia numeskite STL, 3MF, OBJ, STEP arba SVG failus",
+    "openModel": "Atidaryti modelį",
+    "fromDrive": "Atidaryti iš Google Drive",
+    "deletePlateTip": "Ištrinti šią plokštę ir tai, kas joje yra",
+    "deletePlate": "Ištrinti plokštę",
+    "clearAsk": "Išvalyti plokštę?",
+    "unsavedChanges": "„{{name}}“ turi dar neišsaugotų pakeitimų.",
+    "clearAll": "Išvalyti viską",
+    "dropToAdd": "Numeskite, kad pridėtumėte"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "presetChanges": {
+    "filamentN": "Filament {{n}}",
+    "process": "Proces",
+    "printer": "Drukarka",
+    "changes_one": "{{count}} zmiana",
+    "changes_few": "{{count}} zmiany",
+    "changes_many": "{{count}} zmian",
+    "changes_other": "{{count}} zmiany",
+    "saveTitle": "Zapisz zmienione ustawienia",
+    "back": "Wstecz",
+    "saving": "Zapisywanie…",
+    "save": "Zapisz",
+    "namesText": "Twoje własne profile zachowują nazwę i przyjmują zmiany. Podaj nową nazwę, aby zapisać kopię.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Zachować zmienione ustawienia?",
+    "discard": "Odrzuć",
+    "saveMenu": "Zapisz…",
+    "keep": "Zachowaj",
+    "text": "W niektórych profilach zmieniono ustawienia. Zachowaj je w nowym projekcie, odrzuć je lub zapisz w profilach.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Zapamiętaj mój wybór (Zachowaj lub Odrzuć)"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "A(z) „{{variable}}” nem olyan beállítás, amelyet ez a szeletelő ismer (lehet, hogy másik szeletelőből vagy újabb verzióból származik).",
+    "unknownName": "olyan nevet használ, amelyet ez a szeletelő nem ismer.",
+    "negativeIndex": "A(z) „{{variable}}” értékét az első filament betöltése előtt olvassa (az indexe ott -1); előbb ellenőrizze az indexet a {if ...} segítségével.",
+    "negativeIndexList": "egy listát az első filament betöltése előtt olvas (az indexe ott -1); előbb ellenőrizze az indexet a {if ...} segítségével.",
+    "reasonAt": "{{reason}} itt: „{{variable}}”.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, {{line}}. sor: {{why}}",
+    "filamentSettings": "filamentbeállítások",
+    "printerSettings": "nyomtatóbeállítások",
+    "or": " vagy ",
+    "stoppedOne": "A szeletelés leállt: egy egyedi G-code nem tölthető ki.",
+    "stoppedSome": "A szeletelés leállt: néhány egyedi G-code nem tölthető ki.",
+    "fix": "Javítsa a következőben: {{where}}, vagy állítsa vissza az előbeállítás G-code-jára."
+  }
+}

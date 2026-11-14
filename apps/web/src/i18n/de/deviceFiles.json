@@ -1,0 +1,22 @@
+{
+  "deviceFiles": {
+    "print": "Drucken…",
+    "deleteName": "{{name}} löschen",
+    "delete": "Löschen",
+    "title": "Dateien auf dem Drucker",
+    "upload": "G-code hochladen…",
+    "timelapses": "Zeitraffer",
+    "none": "Noch keine G-code-Dateien.",
+    "searchN_one": "{{count}} Datei durchsuchen",
+    "searchN_other": "{{count}} Dateien durchsuchen",
+    "search": "Dateien durchsuchen",
+    "noMatch": "Keine Datei passt zu „{{query}}“.",
+    "deleteFile": "Datei löschen",
+    "deleteText": "{{name}} vom Drucker löschen?",
+    "deleted": "Gelöscht",
+    "pages": "Dateiseiten",
+    "newer": "Neuer",
+    "older": "Älter",
+    "range": "{{from}}–{{to}} von {{total}}"
+  }
+}

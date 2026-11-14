@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "Izo",
+    "top": "Viršus",
+    "bottom": "Apačia",
+    "front": "Priekis",
+    "back": "Galas",
+    "left": "Kairė",
+    "right": "Dešinė",
+    "views": "Vaizdai",
+    "viewsTip": "Vaizdai: iš viršaus, iš priekio, iš šono...",
+    "viewTip": "{{view}} vaizdas ({{key}})",
+    "fitAll": "Sutalpinti viską",
+    "fitAllTip": "Sutalpinti viską: rodyti viską (Z)"
+  }
+}

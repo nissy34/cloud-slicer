@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "un filamento corrispondente",
+    "noSlot": "Nessun {{noun}} ha {{material}}. Caricalo, oppure cambia il filamento nello slicer ed elabora di nuovo.",
+    "noSlotNozzle": "Nessun {{noun}} ha {{material}} con un ugello da {{nozzle}} mm. Caricalo, oppure cambia il filamento nello slicer ed elabora di nuovo.",
+    "noType": "{{slot}} non ha un tipo di filamento impostato. {{unset}}",
+    "otherMaterial": "{{slot}} ha {{has}}, ma questo filamento è stato elaborato come {{material}}.",
+    "otherNozzle": "{{slot}} ha un ugello da {{has}} mm, ma il file è stato elaborato per {{nozzle}} mm.",
+    "highFlow": "Il file è stato elaborato per un ugello ad alto flusso, ma {{slot}} ne ha uno standard."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "presetChanges": {
+    "filamentN": "線材 {{n}}",
+    "process": "列印參數",
+    "printer": "列印裝置",
+    "changes_other": "{{count}} 項變更",
+    "saveTitle": "儲存已變更的設定",
+    "back": "返回",
+    "saving": "儲存中…",
+    "save": "儲存",
+    "namesText": "您自己的預設會保留名稱並套用變更。輸入新名稱則會另存為副本。",
+    "row": "{{label}}：{{name}} ({{changes}})",
+    "title": "要保留已變更的設定嗎？",
+    "discard": "捨棄",
+    "saveMenu": "儲存…",
+    "keep": "保留",
+    "text": "有些預設的設定已變更。您可以將它們保留到新專案、捨棄，或儲存為預設。",
+    "labelColon": "{{label}}：",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "記住我的選擇（保留或捨棄）"
+  }
+}

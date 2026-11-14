@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "API 키",
+    "klipperHint": "Mainsail과 Fluidd의 설정에 표시됩니다.",
+    "klipperLocked": "이 프린터는 잠겨 있습니다. API 키를 입력하세요",
+    "prusaKey": "PrusaLink 비밀번호",
+    "prusaHint": "프린터의 설정, 네트워크, PrusaLink에 표시됩니다 (사용자 이름은 maker입니다).",
+    "prusaLocked": "프린터 화면에 표시된 PrusaLink 비밀번호를 입력하세요",
+    "octoprintKey": "OctoPrint API 키",
+    "octoprintHint": "OctoPrint에서 설정, Application Keys로 이동해 Cloud Slicer용 키를 만드세요 (또는 설정, API에서 내 사용자의 API 키를 복사하세요).",
+    "octoprintLocked": "이 OctoPrint는 잠겨 있습니다. 설정에서 API 키를 입력하세요",
+    "bambuKey": "LAN 접속 코드",
+    "bambuHint": "프린터 화면의 네트워크 설정에서 LAN 전용 모드 옆에 표시됩니다. 여기에서 출력을 보내고 제어하려면 그곳에서 LAN 전용 모드와 개발자 모드도 켜세요 (켜져 있는 동안에는 Bambu 클라우드와 Bambu Handy 앱을 사용할 수 없습니다).",
+    "bambuLocked": "프린터 화면에 표시된 접속 코드를 입력하세요",
+    "featStatus": "상태",
+    "featSend": "전송 및 출력",
+    "featCamera": "카메라",
+    "featMove": "이동 및 온도",
+    "featMoveShort": "이동 및 온도",
+    "featConsole": "콘솔",
+    "klipperName": "Klipper 프린터",
+    "klipperExamples": "Snapmaker U1, Voron, Qidi, Sovol",
+    "prusaName": "PrusaLink를 쓰는 Prusa",
+    "prusaExamples": "MK4, Core One, XL, Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "OctoPrint로 운영하는 모든 프린터",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "Carbon 2는 아직 지원하지 않음",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1, P1, P2S, A1, H2. 카메라는 P1과 A1만 지원. 개발자 모드 필요"
+  }
+}

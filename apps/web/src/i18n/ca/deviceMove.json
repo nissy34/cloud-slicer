@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Desactivat mentre s'imprimeix",
+    "disabledPaused": "Desactivat mentre és en pausa",
+    "position": "Posició",
+    "speed": "Velocitat",
+    "flow": "Flux",
+    "head": "Capçal",
+    "moveHead": "Mou el capçal",
+    "headBack": "Capçal cap enrere",
+    "headLeft": "Capçal cap a l'esquerra",
+    "homeHead": "Porta el capçal a l'origen",
+    "headRight": "Capçal cap a la dreta",
+    "headToward": "Capçal cap a vosaltres",
+    "bed": "Llit",
+    "headHeight": "Alçada del capçal",
+    "moveBed": "Mou el llit",
+    "moveHeadZ": "Mou el capçal amunt i avall",
+    "bedUp": "Llit amunt",
+    "headUp": "Capçal amunt",
+    "homeBed": "Porta el llit a l'origen",
+    "homeHeight": "Porta l'alçada a l'origen",
+    "bedDown": "Llit avall",
+    "headDown": "Capçal avall",
+    "step": "Pas",
+    "homeAll": "Origen de tot",
+    "motorsOff": "Apaga els motors",
+    "heatFirst": "Primer escalfeu el broquet",
+    "extrude10": "Extrusiona 10 mm",
+    "retract": "Retrau",
+    "homeFirst": "Porteu la impressora a l'origen abans de moure-la."
+  }
+}

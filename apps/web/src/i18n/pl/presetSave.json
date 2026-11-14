@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Użyj 1-128 znaków, bez / \\ : * ? \" < > |",
+    "notAvailable": "Profil {{name}} jest niedostępny.",
+    "onlyOwn": "Zapisać można tylko własne profile; użyj opcji Zapisz jako.",
+    "noneSelected": "Nie wybrano żadnego profilu.",
+    "sameName": "Dwa profile nie mogą mieć tej samej nazwy.",
+    "nameTaken": "Profil o nazwie „{{name}}” już istnieje.",
+    "notYours": "Ten profil nie jest Twój."
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "deviceBrands": {
+    "klipperKey": "API gakoa",
+    "klipperHint": "Mainsail eta Fluidd-ek beren ezarpenetan erakusten dute.",
+    "klipperLocked": "Inprimagailu hau blokeatuta dago: idatzi bere API gakoa",
+    "prusaKey": "PrusaLink pasahitza",
+    "prusaHint": "Inprimagailuak Ezarpenak, Sarea, PrusaLink atalean erakusten du (erabiltzaile-izena maker da).",
+    "prusaLocked": "Idatzi inprimagailuaren pantailako PrusaLink pasahitza",
+    "octoprintKey": "OctoPrint API gakoa",
+    "octoprintHint": "OctoPrint-en: Ezarpenak, Aplikazio-gakoak, eta sortu gako bat Cloud Slicer-erako (edo kopiatu zure erabiltzailearen API gakoa Ezarpenak, API atalean).",
+    "octoprintLocked": "OctoPrint hau blokeatuta dago: idatzi bere ezarpenetako API gako bat",
+    "bambuKey": "LAN sarbide-kodea",
+    "bambuHint": "Inprimagailuak bere pantailan erakusten du, sare-ezarpenetan LAN Only moduaren ondoan. Hemendik inprimaketak bidaltzeko eta kontrolatzeko, aktibatu LAN Only modua eta Developer Mode ere han (Bambu-ren hodeia eta Bambu Handy aplikazioa ez dabil aktibatuta dauden bitartean).",
+    "bambuLocked": "Idatzi inprimagailuaren pantailako sarbide-kodea",
+    "featStatus": "Egoera",
+    "featSend": "Bidali eta inprimatu",
+    "featCamera": "Kamera",
+    "featMove": "Mugitu eta tenperaturak",
+    "featMoveShort": "Mugitu eta temp.",
+    "featConsole": "Kontsola",
+    "klipperName": "Klipper inprimagailuak",
+    "klipperExamples": "Snapmaker U1, Voron, Qidi, Sovol",
+    "prusaName": "PrusaLink duen Prusa",
+    "prusaExamples": "MK4, Core One, XL, Mini",
+    "octoprintName": "OctoPrint",
+    "octoprintExamples": "OctoPrint-ek kudeatzen duen edozein inprimagailu",
+    "elegooName": "Elegoo Centauri Carbon",
+    "elegooExamples": "oraindik Carbon 2 ez",
+    "bambuName": "Bambu Lab",
+    "bambuExamples": "X1, P1, P2S, A1, H2; kamera P1 eta A1-en; Developer Mode behar du"
+  }
+}

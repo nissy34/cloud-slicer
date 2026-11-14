@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "Zapisać „{{name}}”?",
+    "saveText": "Nie ma go jeszcze w Twoich projektach online. Wybranie „Nie zapisuj” go odrzuci.",
+    "save": "Zapisz",
+    "dontSave": "Nie zapisuj",
+    "discardTitle": "Odrzucić niezapisane zmiany?",
+    "discard": "Odrzuć zmiany",
+    "openTitle": "Otwórz {{what}}",
+    "addToText": "Pracujesz nad „{{project}}”. Dodać to tam, czy zacząć z tym nowy projekt?",
+    "newProject": "Nowy projekt",
+    "addTo": "Dodaj do {{project}}"
+  }
+}

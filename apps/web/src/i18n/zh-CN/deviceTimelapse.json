@@ -1,0 +1,16 @@
+{
+  "deviceTimelapse": {
+    "arriving": "{{got}} / {{size}} MB",
+    "arrivingRelay": "通过中继 {{got}} / {{size}} MB",
+    "cannotFetch": "此打印机连接无法获取视频。",
+    "fetchFailed": "无法获取视频。",
+    "delete": "删除",
+    "download": "下载",
+    "cantPlay": "这种视频无法在浏览器中播放。请下载后观看。",
+    "none": "还没有延时摄影。开始打印时请开启延时摄影。",
+    "watch": "观看",
+    "pages": "延时摄影页码",
+    "refresh": "刷新",
+    "deleteTitle": "删除延时摄影"
+  }
+}

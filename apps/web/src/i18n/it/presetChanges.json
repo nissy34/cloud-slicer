@@ -1,0 +1,24 @@
+{
+  "presetChanges": {
+    "filamentN": "Filamento {{n}}",
+    "process": "Processo",
+    "printer": "Stampante",
+    "changes_one": "{{count}} modifica",
+    "changes_other": "{{count}} modifiche",
+    "saveTitle": "Salva le impostazioni modificate",
+    "back": "Indietro",
+    "saving": "Salvataggio…",
+    "save": "Salva",
+    "namesText": "I tuoi profili mantengono il loro nome e prendono le modifiche. Dai un nuovo nome per salvare invece una copia.",
+    "row": "{{label}}: {{name}} ({{changes}})",
+    "title": "Mantenere le impostazioni modificate?",
+    "discard": "Scarta",
+    "saveMenu": "Salva…",
+    "keep": "Mantieni",
+    "text": "Alcuni profili hanno impostazioni modificate. Mantienile nel nuovo progetto, scartale o salvale nei profili.",
+    "labelColon": "{{label}}:",
+    "nameChanges": "{{name}} ({{changes}})",
+    "remember": "Ricorda la mia scelta (Mantieni o Scarta)",
+    "changes_many": "{{count}} modifiche"
+  }
+}

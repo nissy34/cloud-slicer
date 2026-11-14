@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "Thêm phần",
+    "addNegative": "Thêm phần âm",
+    "addModifier": "Thêm modifier",
+    "addBlocker": "Thêm chặn support",
+    "addEnforcer": "Thêm ép support",
+    "part": "Phần",
+    "negative": "Phần âm",
+    "modifier": "Modifier",
+    "enforcer": "Ép support",
+    "blocker": "Chặn support",
+    "other": "Khác"
+  }
+}

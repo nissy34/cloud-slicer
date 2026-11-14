@@ -1,0 +1,14 @@
+{
+  "askDialog": {
+    "saveTitle": "¿Guardar “{{name}}”?",
+    "saveText": "Aún no está en sus proyectos en línea. Si no lo guarda, se descarta.",
+    "save": "Guardar",
+    "dontSave": "No guardar",
+    "discardTitle": "¿Descartar los cambios sin guardar?",
+    "discard": "Descartar cambios",
+    "openTitle": "Abrir {{what}}",
+    "addToText": "Estaba trabajando en “{{project}}”. ¿Lo añade ahí o empieza un proyecto nuevo con él?",
+    "newProject": "Proyecto nuevo",
+    "addTo": "Añadir a {{project}}"
+  }
+}

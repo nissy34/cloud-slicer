@@ -1,0 +1,22 @@
+{
+  "booleanTool": {
+    "union": "União",
+    "difference": "Diferença",
+    "intersection": "Interseção",
+    "subtractFrom": "Subtrair de",
+    "subtractWith": "Subtrair com",
+    "part": "Peça {{n}}",
+    "partOption": "{{name}} ({{kind}})",
+    "title": "Booleana de malha",
+    "done": "Concluído",
+    "operation": "Operação",
+    "needTwo": "Isto funciona com duas peças de um mesmo objeto. Adicione uma peça, peça negativa ou modificador pelo menu do objeto (clique com o botão direito nele ou use o botão ⋯ na lista de objetos), posicione-a e volte aqui.",
+    "unionHint": "Une as duas em uma só peça.",
+    "differenceHint": "Recorta a segunda da primeira.",
+    "intersectionHint": "Mantém só onde as duas se sobrepõem.",
+    "resultHint": "O resultado ocupa o lugar, o tipo e as configurações da primeira. Desfazer traz as duas de volta.",
+    "pickDifferent": "Escolha duas peças diferentes.",
+    "deleteInput": "Excluir entrada (remove também a segunda)",
+    "working": "Processando…"
+  }
+}

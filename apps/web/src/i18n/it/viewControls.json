@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "Iso",
+    "top": "Alto",
+    "bottom": "Basso",
+    "front": "Fronte",
+    "back": "Retro",
+    "left": "Sinistra",
+    "right": "Destra",
+    "views": "Viste",
+    "viewsTip": "Viste: alto, fronte, lato...",
+    "viewTip": "Vista {{view}} ({{key}})",
+    "fitAll": "Adatta tutto",
+    "fitAllTip": "Adatta tutto: mostra ogni cosa (Z)"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "projectStore": {
+    "sentOf": "{{total}} 중 {{sent}}",
+    "engineNoStart": "{{engine}}을(를) 시작할 수 없습니다",
+    "openedWith": "이 프로젝트를 만든 엔진인 {{engine}}(으)로 열었습니다.",
+    "somethingWrong": "문제가 발생했습니다",
+    "files_other": "파일 {{count}}개",
+    "saving": "저장 중…",
+    "savingAfterSlice": "저장 중… 슬라이스 후",
+    "savingMaking": "저장 중… 3MF 만드는 중",
+    "savingSent": "저장 중… {{progress}}",
+    "savingFinishing": "저장 중… 마무리하는 중",
+    "saved": "“{{name}}”을(를) 내 프로젝트에 저장했습니다",
+    "notSaved": "저장되지 않음: {{error}}",
+    "preparing": "3MF를 준비하는 중…",
+    "makeFailed": "3MF를 만들지 못했습니다: {{error}}",
+    "opening": "“{{name}}” 여는 중…",
+    "openFailed": "“{{name}}”을(를) 열지 못했습니다: {{error}}",
+    "saveCancelled": "저장이 취소되었습니다",
+    "viewOnly": "이 프로젝트는 여기에서 보기 전용입니다. 바꾸려면 “대신 여기에서 편집”을 사용하세요.",
+    "openDriveFailed": "Google Drive의 “{{name}}”을(를) 열지 못했습니다: {{error}}",
+    "quoted": "“{{name}}”",
+    "cantOpen": "Cloud Slicer에서 {{names}}을(를) 열 수 없습니다.",
+    "cantOpenShared": "Cloud Slicer에서 {{names}}을(를) 열 수 없습니다",
+    "openedDriveFile": "Google Drive의 “{{name}}”을(를) 열었습니다. 저장하면 Cloud Slicer 폴더에 사본이 보관됩니다. Drive의 파일은 그대로 유지됩니다.",
+    "openedDriveFiles": "Google Drive의 {{name}}을(를) 열었습니다. 저장하면 Cloud Slicer 폴더에 사본이 보관됩니다. Drive의 파일은 그대로 유지됩니다.",
+    "myProject": "내 프로젝트",
+    "removed": "“{{name}}”을(를) 내 프로젝트에서 제거했습니다"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "time": {
+    "justNow": "zojuist",
+    "minAgo": "{{n}} min geleden",
+    "hoursAgo": "{{n}} u geleden"
+  }
+}

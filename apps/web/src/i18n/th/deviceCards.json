@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "กล้อง",
+    "climate": "ฐานพิมพ์และห้องพิมพ์",
+    "move": "ย้าย",
+    "console": "คอนโซล",
+    "print": "พิมพ์",
+    "toolHeads": "หัวพิมพ์",
+    "alerts": "การแจ้งเตือน",
+    "files": "ไฟล์",
+    "unfold": "ขยายการ์ดนี้",
+    "fold": "ย่อการ์ดนี้",
+    "targetOf": "เป้าหมาย {{label}}",
+    "turnOff": "ปิด {{label}}",
+    "off": "ปิด",
+    "keepGoing": "ทำต่อ",
+    "chamberLight": "ไฟห้องพิมพ์",
+    "purifierExhaust": "ท่อระบายอากาศเครื่องฟอกอากาศ",
+    "purifierFilter": "ไส้กรองเครื่องฟอกอากาศ",
+    "fanAuto": "เครื่องพิมพ์ควบคุมพัดลมนี้เอง"
+  }
+}

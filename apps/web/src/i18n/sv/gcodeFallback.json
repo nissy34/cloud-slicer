@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "Använda {{engine}}s start- och filamentbytes-G-code?",
+    "yes": "Ja, bered",
+    "body": "Den här filens start- och filamentbytes-G-code skrevs för {{app}}, och {{engine}} kan inte använda den. {{engine}} har en egen för <b>{{printer}}</b>, som fungerar. Det här valet sparas med det här projektet."
+  }
+}

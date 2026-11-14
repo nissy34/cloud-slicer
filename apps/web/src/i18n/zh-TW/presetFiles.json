@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} 大小為 {{size}}；預設檔案最大為 {{max}}。",
+    "notJson": "{{label}} 不是預設檔案（不是 JSON）。",
+    "tooMany": "一次最多只能匯入 {{max}} 個預設；{{label}} 已略過。",
+    "bundleTooBig": "{{name}} 大小為 {{size}}；套件最大為 {{max}}。",
+    "badZip": "無法將 {{name}} 當作 zip 開啟。",
+    "unpacksTooBig": "{{name}} 解壓縮後超過 {{max}}，或含有超過 {{fileMax}} 的檔案；未從中匯入任何內容。",
+    "empty": "{{name}} 中沒有預設檔案。",
+    "tooManyKeys": "它變更了超過 {{max}} 項設定。",
+    "tooLarge": "其設定超過 {{max}}。",
+    "fileN": "檔案 {{n}}",
+    "unreadable": "不是 Orca 可讀取的預設：{{error}}。",
+    "noName": "它沒有可用的名稱。",
+    "anotherPrinter": "另一台列印裝置",
+    "otherPrinter": "它是給 {{made}} 的，而此應用程式沒有該列印裝置。列印裝置設定是機型專屬的，因此無法移到其他列印裝置上。",
+    "noPrinterBase": "它不是以此應用程式現有的列印裝置為基礎。",
+    "noFilamentBase": "沒有可放置它的線材預設。",
+    "noProcessBase": "沒有可放置它的列印參數預設。"
+  }
+}

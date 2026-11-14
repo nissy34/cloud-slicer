@@ -1,0 +1,14 @@
+{
+  "arrangeOptions": {
+    "spacing": "Aralık",
+    "spacingMm": "Aralık (mm)",
+    "autoNote": "0, otomatik aralık demektir.",
+    "rotate": "Hizalama için otomatik döndür",
+    "multiMaterial": "Aynı plakada birden çok malzemeye izin ver",
+    "alignYOff": "Bunu kullanmak için Otomatik döndür'ü kapatın",
+    "alignYTip": "Her nesneyi uzun kenarı önden arkaya gelecek şekilde döndürür",
+    "alignY": "Y eksenine hizala",
+    "arrange": "Hizala",
+    "reset": "Sıfırla"
+  }
+}

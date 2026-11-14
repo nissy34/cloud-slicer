@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Objektum beállításai",
+    "modifierSettings": "Módosító beállításai",
+    "partSettings": "Tárgy beállításai",
+    "addToObject": "Beállítás hozzáadása ehhez az objektumhoz",
+    "addToModifier": "Beállítás hozzáadása ehhez a módosítóhoz",
+    "addToPart": "Beállítás hozzáadása ehhez a tárgyhoz",
+    "addSetting": "+ Beállítás hozzáadása",
+    "modifierEmpty": "Adjon hozzá egy beállítást, hogy ott módosítsa, ahol a módosító átfedi az objektumot, például több kitöltést egy helyen.",
+    "partEmpty": "Az objektum beállításait használja. Adjon hozzá egyet, hogy csak ennél a tárgynál módosítsa.",
+    "objectEmpty": "A folyamat beállításait használja. Adjon hozzá egyet, hogy csak ennél az objektumnál módosítsa.",
+    "others": "Egyéb",
+    "removeFromObject": "Eltávolítás ebből az objektumból",
+    "removeFromModifier": "Eltávolítás ebből a módosítóból",
+    "removeFromPart": "Eltávolítás ebből a tárgyból"
+  }
+}

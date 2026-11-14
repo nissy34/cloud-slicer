@@ -1,0 +1,31 @@
+{
+  "brimEars": {
+    "title": "Orelhas de borda",
+    "done": "Concluído",
+    "intro": "Pequenos discos de borda sob os cantos evitam que eles descolem, com muito menos borda para remover do que uma borda completa.",
+    "howTouch": "Toque no modelo ou na mesa ao lado dele para adicionar uma orelha. Toque em uma orelha para escolhê-la e depois em Remover escolhidas.",
+    "howMouse": "Clique no modelo ou na mesa ao lado dele para adicionar uma orelha. Clique em uma orelha para escolhê-la (Shift adiciona mais) ou clique nela com o botão direito para removê-la.",
+    "reading": "Lendo as orelhas…",
+    "notPainted": "As orelhas só são impressas quando o tipo de borda do objeto é Pintada (orelhas de borda).",
+    "usePainted": "Usar orelhas de borda neste objeto",
+    "ears": "Orelhas",
+    "count_one": "{{count}} orelha",
+    "count_many": "{{count}} orelhas",
+    "count_other": "{{count}} orelhas",
+    "loose_one": "{{count}} sem tocar o objeto",
+    "loose_many": "{{count}} sem tocar o objeto",
+    "loose_other": "{{count}} sem tocar o objeto",
+    "picked_one": "{{count}} escolhida",
+    "picked_many": "{{count}} escolhidas",
+    "picked_other": "{{count}} escolhidas",
+    "size": "Tamanho da orelha",
+    "auto": "Adicionar orelhas nos cantos",
+    "maxAngle": "Ângulo máximo",
+    "maxAngleTip": "Cantos mais agudos que isto recebem uma orelha",
+    "detection": "Comprimento de detecção",
+    "detectionTip": "Saliências menores que isto são suavizadas antes, para não receberem orelhas",
+    "resize": "Redimensionar escolhidas",
+    "remove": "Remover escolhidas",
+    "removeAll": "Remover todas"
+  }
+}

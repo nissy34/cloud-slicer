@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Camera",
+    "climate": "Bàn in và buồng in",
+    "move": "Di chuyển",
+    "console": "Console",
+    "print": "In",
+    "toolHeads": "Đầu công cụ",
+    "alerts": "Cảnh báo",
+    "files": "Tệp",
+    "unfold": "Mở rộng thẻ này",
+    "fold": "Thu gọn thẻ này",
+    "targetOf": "Mục tiêu {{label}}",
+    "turnOff": "Tắt {{label}}",
+    "off": "Tắt",
+    "keepGoing": "Tiếp tục",
+    "chamberLight": "Đèn buồng in",
+    "purifierExhaust": "Cửa xả bộ lọc khí",
+    "purifierFilter": "Bộ lọc khí",
+    "fanAuto": "Máy in tự điều khiển quạt này"
+  }
+}

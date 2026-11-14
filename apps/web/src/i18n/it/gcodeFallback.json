@@ -1,0 +1,7 @@
+{
+  "gcodeFallback": {
+    "title": "Usare il G-code di avvio e cambio filamento di {{engine}}?",
+    "yes": "Sì, elabora",
+    "body": "Il G-code di avvio e cambio filamento di questo file è stato scritto per {{app}}, e {{engine}} non può usarlo. {{engine}} ha il proprio per <b>{{printer}}</b>, che funziona. Questa scelta viene salvata con questo progetto."
+  }
+}

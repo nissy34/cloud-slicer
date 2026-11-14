@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "사전 설정 값으로 초기화",
+    "keptOld": "이전 값을 유지했습니다.",
+    "kept": "{{value}}을(를) 유지했습니다.",
+    "plateUses": "플레이트 {{n}}의 설정:",
+    "on": "켜짐",
+    "off": "꺼짐",
+    "itsOwn": "(자체 설정).",
+    "plateSettings": "플레이트 설정",
+    "default": "기본값",
+    "percentOrMm": "백분율인가요, mm인가요?",
+    "isItPercent": "{{label}}: {{number}}%인가요, {{number}} {{unit}}인가요?",
+    "filamentN": "필라멘트 {{n}}",
+    "mix": "혼합",
+    "mixes": "혼합 목록"
+  }
+}

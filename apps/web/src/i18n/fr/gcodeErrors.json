@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "« {{variable}} » n’est pas un réglage que ce slicer connaît (il vient peut-être d’un autre slicer ou d’une version plus récente).",
+    "unknownName": "il utilise un nom que ce slicer ne connaît pas.",
+    "negativeIndex": "« {{variable}} » est lu avant le chargement du premier filament (son indice vaut alors -1) ; vérifiez d’abord cet indice avec {if ...}.",
+    "negativeIndexList": "une liste est lue avant le chargement du premier filament (son indice vaut alors -1) ; vérifiez d’abord cet indice avec {if ...}.",
+    "reasonAt": "{{reason}} à « {{variable}} ».",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, ligne {{line}} : {{why}}",
+    "filamentSettings": "réglages du filament",
+    "printerSettings": "réglages de l’imprimante",
+    "or": " ou ",
+    "stoppedOne": "Découpe arrêtée : un G-code personnalisé ne peut pas être complété.",
+    "stoppedSome": "Découpe arrêtée : certains G-codes personnalisés ne peuvent pas être complétés.",
+    "fix": "Corrigez-le dans les {{where}}, ou réinitialisez-le au G-code du préréglage."
+  }
+}

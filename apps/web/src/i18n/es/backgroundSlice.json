@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · Laminando · {{title}}",
+    "doneTitle": "Laminado terminado",
+    "plateSliced": "La placa {{plate}} está laminada. Toque para verla.",
+    "tapToSee": "Toque para verla.",
+    "questionTitle": "El laminado le necesita",
+    "questionBody": "Tiene una pregunta antes de poder terminar. Toque para responder.",
+    "failedTitle": "El laminado ha fallado",
+    "tapToSeeWhy": "Toque para ver el motivo."
+  }
+}
