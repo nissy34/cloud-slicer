@@ -114,6 +114,7 @@ Slicing in the browser: [engine](architecture/engine.md) ·
 [colour mixing](architecture/colour-mixing.md) · [preview](architecture/preview.md) ·
 [calibration](architecture/calibration.md) · [layout and phones](architecture/layout.md) ·
 [design system](architecture/design-system.md) · [languages](architecture/languages.md) ·
+[background slicing](architecture/background-slicing.md) ·
 [slicing from Claude](architecture/mcp.md)
 
 Accounts and storage: [accounts](architecture/accounts.md) · [data](architecture/data.md)
@@ -131,4 +132,3 @@ Running it: [hosting](architecture/hosting.md) · [testing](architecture/testing
 - The engine keeps a dropped big model's memory (load, clear, load again can run out on a phone).
 - Painting kept through Simplify.
 - Relay hardening: key rotation, end-to-end encryption ([SECURITY.md](../apps/device-relay/SECURITY.md)).
-- OrcaSlicer 2.5: replaces 2.4.2 once 2.5.0 is stable; ready on its beta ([decisions](decisions.md#engines)).

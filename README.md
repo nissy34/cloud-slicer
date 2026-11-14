@@ -84,7 +84,7 @@ bridge app, which can live on the printer itself.
 - **Slice and print from an AI app**: a Claude Desktop add-on that opens models, slices,
   and runs your printers from a chat, asking you first before anything heats or moves.
 - **Background slicing** with a fast WebAssembly SIMD engine.
-- **Light and dark theme**, and the app in more than one language.
+- **Light and dark theme**, and the app in many languages.
 
 A short tour of every feature: [docs/features.md](docs/features.md).
 
@@ -109,6 +109,7 @@ read) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | `apps/web/` | The web app (React + TypeScript + Vite) and its Cloudflare Pages Functions. See [apps/web/README.md](apps/web/README.md) |
 | `apps/device-bridge/` | The bridge that lets the Device tab reach printers on a home network: one small Go program per system and chip, and the Mac/Linux installer. See [apps/device-bridge/README.md](apps/device-bridge/README.md) |
 | `apps/device-relay/` | The relay Worker between browsers and bridges. See [apps/device-relay/README.md](apps/device-relay/README.md) and [SECURITY.md](apps/device-relay/SECURITY.md) |
+| `apps/mcp/` | The AI app add-on: a local MCP server wrapping the engine, packaged as a Claude Desktop extension. See [apps/mcp/README.md](apps/mcp/README.md) |
 | `packages/printer/` | Printer helpers ported from the Android app (Moonraker client, filament library, G-code summary, tool remap). The site doesn't use them; only CI runs their tests |
 | `fixtures/` | Small test models and G-code |
 | `docs/` | [Docs map](docs/README.md): [architecture](docs/ARCHITECTURE.md), one page per feature, [decisions](docs/decisions.md), [features](docs/features.md), [CI](docs/CI.md) |

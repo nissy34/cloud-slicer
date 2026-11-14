@@ -68,5 +68,5 @@ A short tour of what Cloud Slicer does. Every option, key and limit:
 ## The app
 
 - Works on a computer, a tablet and a phone, with tabs at the bottom on phones.
-- Installable on Android, light and dark theme, more than one language.
+- Installable on Android, light and dark theme, many languages.
 - Free, open source, no telemetry. Errors show with a Copy button.

@@ -176,7 +176,18 @@ why: [README.md](README.md) (the docs map) and [architecture/](architecture/).
   dialog, the U1's error codes in Snapmaker's own words). Printers on a home network are reached through a small bridge app.
 - **Light and dark theme**, a layout that works on phones (Prepare, Preview and Device as tabs at the bottom, the Device tab showing the print's progress; an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
-- **English or Hebrew**: English unless picked at the bottom of the account menu; Hebrew turns the page right to left. Setting names stay English, like the engine gives them.
+- **24 languages**: the site's own words in English and the other languages desktop OrcaSlicer
+  ships, plus right-to-left; English unless picked at the bottom of the account menu (never
+  guessed from the browser). Setting names show desktop Orca's own translation where it has one.
+- **Sign-in welcome page** on a first visit: Sign in with Google or Continue without signing in;
+  an account that already has printers skips the setup wizard.
+- **Colour picker** with desktop Orca's built-in colour grid, plus Custom.
+- **Fast engine**: built with WebAssembly SIMD; slicing keeps going in a background tab, with
+  progress in the tab title and a "Slicing done" notification on a computer.
+- **Slice from an AI app**: a Claude Desktop add-on (window "Use with an AI app") that signs in
+  with a code, opens models (also ones sent in the chat), slices, shows a picture of the slice,
+  adds pauses at layers, opens and saves online projects, and runs your Device-tab printers.
+  Anything that heats, moves, starts or stops asks you first, every time.
 
 ## Accounts, presets and projects in detail
 
