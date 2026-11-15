@@ -42,23 +42,23 @@ const browser = await chromium.launch(
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
-  // Keep the engine workers, to crash the current one.
+  // Keep the engine workers (named "engine"; the Preview's G-code reader is another), to crash the current one.
   await page.addInitScript(() => {
     const Real = window.Worker;
     window.__workers = [];
     window.Worker = class extends Real {
       constructor(...args) {
         super(...args);
-        window.__workers.push(this);
+        if (args[1]?.name === 'engine') window.__workers.push(this);
       }
     };
   });
   const crash = () =>
     page.evaluate(() => {
-      const w = window.__workers.filter((w) => w.onerror).at(-1);
+      const w = window.__workers.at(-1);
       w.dispatchEvent(new ErrorEvent('error', { message: 'Uncaught RuntimeError: unreachable' }));
     });
-  const workers = () => page.evaluate(() => window.__workers.filter((w) => w.onerror).length);
+  const workers = () => page.evaluate(() => window.__workers.length);
 
   await page.goto(url);
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
