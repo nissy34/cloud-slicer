@@ -365,7 +365,7 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
   };
 }
 
-/** Features that outer walls and the layers above hide; the Preview leaves them out while the view moves. */
+/** Features that outer walls and the layers above hide; on big prints the Preview leaves them out while the view moves. */
 export const INNER_FEATURES = new Set(
   ['Inner wall', 'Sparse infill', 'Internal solid infill', 'Internal Bridge', 'Gap infill'].map((f) =>
     FEATURES.indexOf(f as (typeof FEATURES)[number]),
