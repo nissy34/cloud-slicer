@@ -415,51 +415,141 @@ export const INNER_FEATURES = new Set(
 );
 
 /**
- * Segments in the Preview's drawing order: every layer's shell (what can be
- * seen from outside) first, then every layer's inner segments, so each group
- * up to a layer is one contiguous run that one draw call covers.
+ * Segments in the Preview's drawing order, packed small for the graphics card
+ * (a big print has tens of millions): every layer's shell (what can be seen
+ * from outside) first, then every layer's inner segments, so each group up to
+ * a layer is one contiguous run that one draw call covers.
+ *
+ * Segment s is drawn from point s to point s + 1, so a path's segments share
+ * their corners. Where one path ends and the next starts elsewhere, a gap
+ * segment joins them; it has height 0 (`isGap`) and isn't drawn.
  */
-export interface PreviewGcode extends Omit<ParsedGcode, 'layerStarts'> {
+export interface PreviewGcode extends Omit<ParsedGcode, 'layerStarts' | 'positions' | 'sizes'> {
+  /** Corners as x y z steps from `origin`, `step` mm apiece: segments + 1 of them. */
+  points: Uint16Array;
+  origin: [number, number, number];
+  step: [number, number, number];
+  /** Width and height per segment in SIZE_UNIT steps (0.1 µm, up to 6.5 mm); height 0 for a gap. */
+  sizes: Uint16Array;
+  /** Bounding box (minX minY minZ maxX maxY maxZ) of each line type's segments, by FEATURES index; empty ones are Infinity/-Infinity. */
+  featureBoxes: Float64Array;
   /** Index of the first shell segment of each layer, plus a final end index (= innerStarts[0]). */
   shellStarts: Uint32Array;
   /** Index of the first inner segment of each layer, plus a final end index. */
   innerStarts: Uint32Array;
 }
 
+/** A segment that only joins two paths and isn't drawn. */
+export const isGap = (p: Pick<PreviewGcode, 'sizes'>, s: number) => p.sizes[s * 2 + 1] === 0;
+
+/** Corner i in mm: segment s runs from corner s to corner s + 1. */
+export const pointAt = (p: Pick<PreviewGcode, 'points' | 'origin' | 'step'>, i: number): [number, number, number] => [
+  p.origin[0] + p.points[i * 3] * p.step[0],
+  p.origin[1] + p.points[i * 3 + 1] * p.step[1],
+  p.origin[2] + p.points[i * 3 + 2] * p.step[2],
+];
+
+/** Segment s's width and height (mm). */
+export const SIZE_UNIT = 1e-4;
+export const segmentWidth = (p: Pick<PreviewGcode, 'sizes'>, s: number) => p.sizes[s * 2] * SIZE_UNIT;
+export const segmentHeight = (p: Pick<PreviewGcode, 'sizes'>, s: number) => p.sizes[s * 2 + 1] * SIZE_UNIT;
+
 export function orderForPreview(p: ParsedGcode): PreviewGcode {
   const n = p.features.length;
   const layers = p.layerZ.length;
-  const positions = new Float32Array(n * 6);
-  const features = new Uint8Array(n);
-  const tools = new Uint8Array(n);
-  const sizes = new Float32Array(n * 2);
-  const speeds = new Uint16Array(n);
-  const flows = new Uint16Array(n);
-  const fans = new Uint8Array(n);
-  const temps = new Uint16Array(n);
+  const pos = p.positions;
+  // The corners' box sets the steps: 65535 of them across it (~0.004 mm on a 270 mm bed).
+  const featureBoxes = new Float64Array(FEATURES.length * 6);
+  for (let f = 0; f < FEATURES.length; f++) featureBoxes.set([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity], f * 6);
+  for (let s = 0; s < n; s++) {
+    const b = p.features[s] * 6;
+    for (let i = s * 6; i < s * 6 + 6; i += 3)
+      for (let a = 0; a < 3; a++) {
+        const v = pos[i + a];
+        if (v < featureBoxes[b + a]) featureBoxes[b + a] = v;
+        if (v > featureBoxes[b + 3 + a]) featureBoxes[b + 3 + a] = v;
+      }
+  }
+  const origin: [number, number, number] = [Infinity, Infinity, Infinity];
+  const top = [-Infinity, -Infinity, -Infinity];
+  for (let f = 0; f < FEATURES.length; f++)
+    for (let a = 0; a < 3; a++) {
+      origin[a] = Math.min(origin[a], featureBoxes[f * 6 + a]);
+      top[a] = Math.max(top[a], featureBoxes[f * 6 + 3 + a]);
+    }
+  if (!n) origin.fill(0), top.fill(0);
+  const step = origin.map((o, a) => (top[a] > o ? (top[a] - o) / 65535 : 1)) as [number, number, number];
+  const q = (v: number, a: number) => Math.round((v - origin[a]) / step[a]);
+
+  // The drawing order: each layer's shell, then each layer's inner segments.
+  const inOrder = (fn: (s: number) => void) => {
+    for (const inner of [false, true])
+      for (let k = 0; k < layers; k++)
+        for (let s = p.layerStarts[k]; s < p.layerStarts[k + 1]; s++) if (INNER_FEATURES.has(p.features[s]) === inner) fn(s);
+  };
+  // Whether segment s starts where the last one drawn ended.
+  let lx = -1, ly = -1, lz = -1;
+  const follows = (s: number) => q(pos[s * 6], 0) === lx && q(pos[s * 6 + 1], 1) === ly && q(pos[s * 6 + 2], 2) === lz;
+  const endAt = (s: number) => {
+    lx = q(pos[s * 6 + 3], 0);
+    ly = q(pos[s * 6 + 4], 1);
+    lz = q(pos[s * 6 + 5], 2);
+  };
+  let count = 0;
+  inOrder((s) => {
+    if (count && !follows(s)) count++;
+    count++;
+    endAt(s);
+  });
+
+  const points = new Uint16Array((count + 1) * 3);
+  const features = new Uint8Array(count);
+  const tools = new Uint8Array(count);
+  const sizes = new Uint16Array(count * 2);
+  const speeds = new Uint16Array(count);
+  const flows = new Uint16Array(count);
+  const fans = new Uint8Array(count);
+  const temps = new Uint16Array(count);
   const shellStarts = new Uint32Array(layers + 1);
   const innerStarts = new Uint32Array(layers + 1);
-  let shellCount = 0;
-  for (let s = 0; s < n; s++) if (!INNER_FEATURES.has(p.features[s])) shellCount++;
-  let shell = 0, inner = shellCount;
-  for (let k = 0; k < layers; k++) {
-    shellStarts[k] = shell;
-    innerStarts[k] = inner;
-    for (let s = p.layerStarts[k]; s < p.layerStarts[k + 1]; s++) {
-      const to = INNER_FEATURES.has(p.features[s]) ? inner++ : shell++;
-      positions.set(p.positions.subarray(s * 6, s * 6 + 6), to * 6);
-      sizes[to * 2] = p.sizes[s * 2];
-      sizes[to * 2 + 1] = p.sizes[s * 2 + 1];
-      features[to] = p.features[s];
-      tools[to] = p.tools[s];
-      speeds[to] = p.speeds[s];
-      flows[to] = p.flows[s];
-      fans[to] = p.fans[s];
-      temps[to] = p.temps[s];
+  const um = (mm: number) => Math.max(1, Math.min(65535, Math.round(mm / SIZE_UNIT)));
+  // Segment `to` takes segment s's values; a gap before s takes them too, at height 0.
+  const copy = (to: number, s: number, gap: boolean) => {
+    features[to] = p.features[s];
+    tools[to] = p.tools[s];
+    sizes[to * 2] = gap ? 0 : um(p.sizes[s * 2]);
+    sizes[to * 2 + 1] = gap ? 0 : um(p.sizes[s * 2 + 1]);
+    speeds[to] = p.speeds[s];
+    flows[to] = p.flows[s];
+    fans[to] = p.fans[s];
+    temps[to] = p.temps[s];
+  };
+  let at = 0; // segments written
+  lx = ly = lz = -1;
+  for (const inner of [false, true]) {
+    const starts = inner ? innerStarts : shellStarts;
+    for (let k = 0; k < layers; k++) {
+      // A run starts at its first segment written, a gap before it included.
+      starts[k] = at;
+      for (let s = p.layerStarts[k]; s < p.layerStarts[k + 1]; s++) {
+        if (INNER_FEATURES.has(p.features[s]) !== inner) continue;
+        if (at === 0) {
+          for (let a = 0; a < 3; a++) points[a] = q(pos[s * 6 + a], a);
+        } else if (!follows(s)) {
+          for (let a = 0; a < 3; a++) points[(at + 1) * 3 + a] = q(pos[s * 6 + a], a);
+          copy(at++, s, true);
+        }
+        for (let a = 0; a < 3; a++) points[(at + 1) * 3 + a] = q(pos[s * 6 + 3 + a], a);
+        copy(at++, s, false);
+        endAt(s);
+      }
     }
+    starts[layers] = at;
   }
-  shellStarts[layers] = shell;
-  innerStarts[layers] = inner;
   const { layerZ, toolsUsed, layerTimes, stats } = p;
-  return { positions, features, tools, sizes, speeds, flows, fans, temps, shellStarts, innerStarts, layerZ, toolsUsed, layerTimes, stats };
+  return {
+    points, origin, step, featureBoxes,
+    features, tools, sizes, speeds, flows, fans, temps,
+    shellStarts, innerStarts, layerZ, toolsUsed, layerTimes, stats,
+  };
 }

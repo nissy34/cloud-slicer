@@ -3,7 +3,7 @@
 // blue-to-red scale.
 import { i18n } from '../i18n';
 import { rgb } from './colour';
-import { FEATURE_COLOURS, FEATURES, type PreviewGcode } from './gcode';
+import { FEATURE_COLOURS, FEATURES, isGap, segmentHeight, segmentWidth, type PreviewGcode } from './gcode';
 
 export type ColourBy =
   | 'feature'
@@ -77,9 +77,9 @@ function segmentValue(p: PreviewGcode, by: ColourBy, s: number): number {
     case 'speed':
       return p.speeds[s] / 10;
     case 'height':
-      return p.sizes[s * 2 + 1];
+      return segmentHeight(p, s);
     case 'width':
-      return p.sizes[s * 2];
+      return segmentWidth(p, s);
     case 'flow':
       return p.flows[s] / 100;
     case 'fan':
@@ -109,7 +109,7 @@ export function valueRange(p: PreviewGcode, by: ColourBy, hidden: ReadonlySet<nu
   if (by === 'layerTime' || by === 'layerTimeLog') {
     eachLayerRun(p, (k, from, to) => {
       for (let s = from; s < to; s++)
-        if (!hidden.has(p.features[s])) {
+        if (!hidden.has(p.features[s]) && !isGap(p, s)) {
           const v = p.layerTimes[k];
           if (v < min) min = v;
           if (v > max) max = v;
@@ -118,7 +118,7 @@ export function valueRange(p: PreviewGcode, by: ColourBy, hidden: ReadonlySet<nu
     });
   } else {
     for (let s = 0; s < p.features.length; s++) {
-      if (hidden.has(p.features[s])) continue;
+      if (hidden.has(p.features[s]) || isGap(p, s)) continue;
       const v = segmentValue(p, by, s);
       if (v < min) min = v;
       if (v > max) max = v;
@@ -160,37 +160,34 @@ export function valueAt(range: ValueRange, t: number): number {
   return range.min + (range.max - range.min) * t;
 }
 
-/** RGB bytes per segment, in the Preview's drawing order. */
-export function segmentColours(p: PreviewGcode, by: ColourBy, filamentColours: string[], range: ValueRange | null): Uint8Array {
+/**
+ * Each segment's colour as an index into a 256-colour palette (RGB bytes), in
+ * the Preview's drawing order: one byte per segment for the graphics card.
+ */
+export interface SegmentColours {
+  index: Uint8Array;
+  palette: Uint8Array;
+}
+
+export function segmentColours(p: PreviewGcode, by: ColourBy, filamentColours: string[], range: ValueRange | null): SegmentColours {
   const n = p.features.length;
-  const col = new Uint8Array(n * 3);
   const byte = (c: [number, number, number]) => c.map((v) => Math.round(v * 255));
-  // Writes palette entry `i` (RGB bytes) as segment `s`'s colour.
-  const put = (palette: Uint8Array, i: number, s: number) => {
-    col[s * 3] = palette[i * 3];
-    col[s * 3 + 1] = palette[i * 3 + 1];
-    col[s * 3 + 2] = palette[i * 3 + 2];
-  };
   if (!isRangeView(by) || !range) {
-    // RGB bytes per feature or per tool (256 entries, light grey past the known tools).
+    // Per feature or per tool (light grey past the known tools): the segments' own bytes are the index.
     const palette = new Uint8Array(256 * 3).fill(204);
     (by === 'feature' ? FEATURE_COLOURS : filamentColours).forEach((c, i) => palette.set(byte(rgb(c)), i * 3));
-    const index = by === 'feature' ? p.features : p.tools;
-    for (let s = 0; s < n; s++) put(palette, index[s], s);
-    return col;
-  }
-  if (by === 'layerTime' || by === 'layerTimeLog') {
-    eachLayerRun(p, (k, from, to) => {
-      const c = Uint8Array.from(byte(rangeColour(position(range, p.layerTimes[k]))));
-      for (let s = from; s < to; s++) put(c, 0, s);
-    });
-    return col;
+    return { index: by === 'feature' ? p.features : p.tools, palette };
   }
   // 256 steps along the scale are finer than the eye can tell apart.
-  const steps = new Uint8Array(256 * 3);
-  for (let i = 0; i < 256; i++) steps.set(byte(rangeColour(i / 255)), i * 3);
-  for (let s = 0; s < n; s++) put(steps, Math.round(position(range, segmentValue(p, by, s)) * 255), s);
-  return col;
+  const palette = new Uint8Array(256 * 3);
+  for (let i = 0; i < 256; i++) palette.set(byte(rangeColour(i / 255)), i * 3);
+  const index = new Uint8Array(n);
+  if (by === 'layerTime' || by === 'layerTimeLog') {
+    eachLayerRun(p, (k, from, to) => index.fill(Math.round(position(range, p.layerTimes[k]) * 255), from, to));
+  } else {
+    for (let s = 0; s < n; s++) index[s] = Math.round(position(range, segmentValue(p, by, s)) * 255);
+  }
+  return { index, palette };
 }
 
 /** "3m 05s", "42s", "1h 02m": desktop's short layer times. */

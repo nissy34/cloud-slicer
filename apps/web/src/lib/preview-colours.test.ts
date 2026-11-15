@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEATURES, orderForPreview, parseGcode } from './gcode';
+import { FEATURES, isGap, orderForPreview, parseGcode } from './gcode';
 import { RANGE_COLOURS, formatValue, rangeColour, segmentColours, shortTime, valueAt, valueRange } from './preview-colours';
 import { rgb } from './colour';
 
@@ -49,14 +49,15 @@ describe('scale colours', () => {
   it('gives the slowest segment blue and the fastest red', () => {
     const r = valueRange(p, 'speed', new Set());
     const c = segmentColours(p, 'speed', [], r);
-    // Drawing order: layer 1's wall (20 mm/s), layer 2's wall (50), then the infill (100).
-    const at = (s: number) => Array.from(c.subarray(s * 3, s * 3 + 3));
+    // Drawing order: layer 1's wall (20 mm/s), a gap, layer 2's wall (50), a gap, then the infill (100).
+    expect([0, 1, 2, 3, 4].map((s) => isGap(p, s))).toEqual([false, true, false, true, false]);
+    const at = (s: number) => Array.from(c.palette.subarray(c.index[s] * 3, c.index[s] * 3 + 3));
     expect(at(0)).toEqual(rgb(RANGE_COLOURS[0]).map((v) => Math.round(v * 255)));
-    expect(at(2)).toEqual(rgb(RANGE_COLOURS.at(-1)).map((v) => Math.round(v * 255)));
+    expect(at(4)).toEqual(rgb(RANGE_COLOURS.at(-1)).map((v) => Math.round(v * 255)));
   });
   it('colours by line type with Orca\'s feature colours', () => {
     const c = segmentColours(p, 'feature', [], null);
-    expect(Array.from(c.subarray(0, 3))).toEqual([0xff, 0x7d, 0x38]);
+    expect(Array.from(c.palette.subarray(c.index[0] * 3, c.index[0] * 3 + 3))).toEqual([0xff, 0x7d, 0x38]);
   });
   it('labels a log scale by its own steps', () => {
     const r = { min: 1, max: 100, log: true };

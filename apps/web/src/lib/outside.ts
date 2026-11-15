@@ -5,7 +5,7 @@
 // ToolHeightOutside).
 import type { PreviewMesh, ProjectInfo, SliceWarning } from '../engine/protocol';
 import { bedSize } from './colour';
-import { FEATURES } from './gcode';
+import { FEATURES, type PreviewGcode } from './gcode';
 
 /** The build volume in plate coordinates (mm); maxZ is Infinity when the printer has no height. */
 export interface PlateBounds {
@@ -73,15 +73,15 @@ const NOT_CHECKED = new Set([FEATURES.indexOf('Custom'), FEATURES.indexOf('Other
  * the printer's height, or (when not) off the plate. Custom G-code (start and
  * end G-code, purge lines) isn't checked, as on desktop.
  */
-export function toolpathWarnings(parsed: { positions: Float32Array; features: Uint8Array; layerZ: Float32Array }, b: PlateBounds): SliceWarning[] {
+export function toolpathWarnings(parsed: Pick<PreviewGcode, 'featureBoxes' | 'layerZ'>, b: PlateBounds): SliceWarning[] {
   const top = parsed.layerZ.length ? Math.max(...parsed.layerZ) : 0;
   if (top - b.maxZ >= 1e-6) return [{ text: 'A G-code path goes beyond the max print height.', level: 'serious' }];
-  const p = parsed.positions;
-  for (let s = 0; s < parsed.features.length; s++) {
-    if (NOT_CHECKED.has(parsed.features[s])) continue;
-    for (let i = s * 6; i < s * 6 + 6; i += 3)
-      if (p[i] < b.minX - BED_EPSILON || p[i] > b.maxX + BED_EPSILON || p[i + 1] < b.minY - BED_EPSILON || p[i + 1] > b.maxY + BED_EPSILON)
-        return [{ text: 'A G-code path goes beyond the plate boundaries.', level: 'serious' }];
+  // The plate is a rectangle, so each line type's bounding box tells.
+  const box = parsed.featureBoxes;
+  for (let f = 0; f < FEATURES.length; f++) {
+    if (NOT_CHECKED.has(f) || box[f * 6] > box[f * 6 + 3]) continue;
+    if (box[f * 6] < b.minX - BED_EPSILON || box[f * 6 + 3] > b.maxX + BED_EPSILON || box[f * 6 + 1] < b.minY - BED_EPSILON || box[f * 6 + 4] > b.maxY + BED_EPSILON)
+      return [{ text: 'A G-code path goes beyond the plate boundaries.', level: 'serious' }];
   }
   return [];
 }

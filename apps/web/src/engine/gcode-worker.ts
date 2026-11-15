@@ -46,7 +46,8 @@ self.onmessage = async ({ data }: MessageEvent<{ gcode: Blob }>) => {
     return;
   }
   post({ parsed }, [
-    parsed.positions.buffer,
+    parsed.points.buffer,
+    parsed.featureBoxes.buffer,
     parsed.features.buffer,
     parsed.tools.buffer,
     parsed.sizes.buffer,

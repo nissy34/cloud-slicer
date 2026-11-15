@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { bedSize, rgb } from '../lib/colour';
 import { formatClock, formatMegabytes } from '../lib/format';
-import { FEATURE_COLOURS, FEATURES, type GcodeStats, type PreviewGcode } from '../lib/gcode';
+import { FEATURE_COLOURS, FEATURES, SIZE_UNIT, type GcodeStats, type PreviewGcode } from '../lib/gcode';
 import {
   RANGE_COLOURS,
   VIEW_TYPES,
@@ -170,12 +170,17 @@ const BEAD = (() => {
   return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx };
 })();
 
+// Each segment reaches the GPU small (lib/gcode.ts PreviewGcode): its two
+// corners as steps from uOrigin, width and height in 0.1 µm steps, line type
+// and colour (RGB bytes).
 const beadVertex = /* glsl */ `
   attribute vec3 iStart;
   attribute vec3 iEnd;
   attribute vec3 iColor;
   attribute vec2 iSize;
   attribute float iFeature;
+  uniform vec3 uOrigin;
+  uniform vec3 uStep;
   // 1 for each line type the legend has hidden.
   uniform float uHidden[${FEATURES.length}];
   // Height of the drawing in pixels.
@@ -183,12 +188,14 @@ const beadVertex = /* glsl */ `
   varying vec3 vColor;
   varying vec3 vNormal;
   void main() {
-    if (uHidden[int(iFeature + 0.5)] > 0.5) {
+    // Height 0: a gap from one path to the next, not drawn.
+    if (iSize.y < 0.5 || uHidden[int(iFeature + 0.5)] > 0.5) {
       // Outside the view on every corner: nothing is drawn.
       gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       return;
     }
-    vec3 d = iEnd - iStart;
+    vec3 start = uOrigin + iStart * uStep;
+    vec3 d = (iEnd - iStart) * uStep;
     float len = length(d);
     vec3 dir = len > 1e-6 ? d / len : vec3(1.0, 0.0, 0.0);
     vec3 side = cross(vec3(0.0, 0.0, 1.0), dir);
@@ -197,13 +204,13 @@ const beadVertex = /* glsl */ `
     // At least a pixel and a bit wide on screen: thinner lines (a first
     // layer seen from afar) leave pixel gaps that show the bed and its logo
     // through the print.
-    float dist = max(-(modelViewMatrix * vec4(iStart, 1.0)).z, 0.0);
+    float dist = max(-(modelViewMatrix * vec4(start, 1.0)).z, 0.0);
     float pixel = 2.0 * dist / (projectionMatrix[1][1] * uViewHeight);
-    float w = max(iSize.x, 1.5 * pixel);
-    float h = iSize.y;
+    float w = max(iSize.x * ${SIZE_UNIT}, 1.5 * pixel);
+    float h = iSize.y * ${SIZE_UNIT};
     // Run past both ends by half a width so corners close up.
     float along = -0.5 * w + position.x * (len + w);
-    vec3 p = iStart + dir * along + side * (position.y * w) + up * (position.z * h);
+    vec3 p = start + dir * along + side * (position.y * w) + up * (position.z * h);
     vec3 n = dir * normal.x + side * (normal.y / w) + up * (normal.z / h);
     vNormal = normalize(normalMatrix * normalize(n));
     vColor = iColor;
@@ -223,16 +230,17 @@ const beadFragment = /* glsl */ `
   }
 `;
 
-/** Segments [from, to) of the G-code as instanced beads, in the colours given per segment. */
+/** Segments [from, to) of the G-code as instanced beads, in the colours given per segment (RGB bytes). */
 function useBeads(parsed: PreviewGcode, from: number, to: number, colour: Uint8Array) {
   const geometry = useMemo(() => {
     const g = new THREE.InstancedBufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(BEAD.pos, 3));
     g.setAttribute('normal', new THREE.BufferAttribute(BEAD.nrm, 3));
     g.setIndex(BEAD.idx);
-    const ends = new THREE.InstancedInterleavedBuffer(parsed.positions.subarray(from * 6, to * 6), 6);
-    g.setAttribute('iStart', new THREE.InterleavedBufferAttribute(ends, 3, 0));
-    g.setAttribute('iEnd', new THREE.InterleavedBufferAttribute(ends, 3, 3));
+    // Segment s runs from corner s to corner s + 1: both read the same corners, one apart.
+    const corners = new THREE.InstancedInterleavedBuffer(parsed.points.subarray(from * 3, (to + 1) * 3), 3);
+    g.setAttribute('iStart', new THREE.InterleavedBufferAttribute(corners, 3, 0));
+    g.setAttribute('iEnd', new THREE.InterleavedBufferAttribute(corners, 3, 3));
     g.setAttribute('iSize', new THREE.InstancedBufferAttribute(parsed.sizes.subarray(from * 2, to * 2), 2));
     g.setAttribute('iFeature', new THREE.InstancedBufferAttribute(parsed.features.subarray(from, to), 1));
     return g;
@@ -267,7 +275,18 @@ function Toolpaths({
   hidden: ReadonlySet<number>;
   moving: boolean;
 }) {
-  const colour = useMemo(() => segmentColours(parsed, colourBy, colours, range), [parsed, colourBy, colours, range]);
+  // RGB bytes per segment: a palette read in the vertex shader instead drew a third slower.
+  const colour = useMemo(() => {
+    const { index, palette } = segmentColours(parsed, colourBy, colours, range);
+    const rgb = new Uint8Array(index.length * 3);
+    for (let s = 0; s < index.length; s++) {
+      const i = index[s] * 3;
+      rgb[s * 3] = palette[i];
+      rgb[s * 3 + 1] = palette[i + 1];
+      rgb[s * 3 + 2] = palette[i + 2];
+    }
+    return rgb;
+  }, [parsed, colourBy, colours, range]);
   const { shellStarts, innerStarts } = parsed;
   const last = shellStarts.length - 1;
   const shellEnd = shellStarts[last];
@@ -283,10 +302,18 @@ function Toolpaths({
       new THREE.ShaderMaterial({
         vertexShader: beadVertex,
         fragmentShader: beadFragment,
-        uniforms: { uHidden: { value: new Array<number>(FEATURES.length).fill(0) }, uViewHeight: { value: 1 } },
+        uniforms: {
+          uHidden: { value: new Array<number>(FEATURES.length).fill(0) },
+          uViewHeight: { value: 1 },
+          uOrigin: { value: new THREE.Vector3() },
+          uStep: { value: new THREE.Vector3(1, 1, 1) },
+        },
       }),
     [],
   );
+  useEffect(() => () => material.dispose(), [material]);
+  material.uniforms.uOrigin.value.fromArray(parsed.origin);
+  material.uniforms.uStep.value.fromArray(parsed.step);
   const viewHeight = useThree((s) => s.size.height * s.viewport.dpr);
   material.uniforms.uViewHeight.value = Math.max(1, viewHeight);
   useMemo(() => {
@@ -319,13 +346,10 @@ function useMoving() {
 
 /** The printed part's bounding box. */
 function toolpathBox(parsed: PreviewGcode): THREE.Box3 {
-  const p = parsed.positions;
+  const b = parsed.featureBoxes;
   const box = new THREE.Box3();
-  const v = new THREE.Vector3();
-  if (!p.length) return box;
-  // Every 8th segment is plenty for a bounding box.
-  for (let i = 0; i < p.length; i += 48) box.expandByPoint(v.set(p[i], p[i + 1], p[i + 2]));
-  box.expandByPoint(v.set(p[p.length - 3], p[p.length - 2], p[p.length - 1]));
+  for (let f = 0; f < b.length; f += 6)
+    if (b[f] <= b[f + 3]) box.union(new THREE.Box3(new THREE.Vector3(b[f], b[f + 1], b[f + 2]), new THREE.Vector3(b[f + 3], b[f + 4], b[f + 5])));
   return box;
 }
 
@@ -334,7 +358,7 @@ function FitCamera({ parsed }: { parsed: PreviewGcode }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update(): void } | null;
   useEffect(() => {
-    if (!parsed.positions.length || !controls) return;
+    if (!parsed.features.length || !controls) return;
     const box = toolpathBox(parsed);
     const centre = box.getCenter(new THREE.Vector3());
     const radius = Math.max(box.getSize(new THREE.Vector3()).length() / 2, 20);
@@ -765,7 +789,7 @@ export function Preview() {
         <OrbitControls target={[w / 2, d / 2, 0]} makeDefault onChange={onCameraChange} />
         <CameraViews
           handle={views}
-          box={() => (parsed?.positions.length ? toolpathBox(parsed) : new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(w, d, 0)))}
+          box={() => (parsed?.features.length ? toolpathBox(parsed) : new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(w, d, 0)))}
         />
       </Canvas>
       <ViewButtons handle={views} className="over-slider" />
