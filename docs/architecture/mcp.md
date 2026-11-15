@@ -149,7 +149,7 @@ a tool needs it and closes a minute after the last use: no streaming in the back
 | Tool | What it does | Asks first |
 |---|---|---|
 | `printers` | The account's printers | |
-| `printer_status` | Printing or not, progress, temperatures, each head's filament, errors | |
+| `printer_status` | Printing or not, progress, temperatures, each head's filament (with its preset, below), errors | |
 | `printer_files` | Files on the printer, newest first | |
 | `printer_camera` | Still pictures, one per camera (at most 4; or one named camera): Moonraker's cameras, else the add-on's (the U1's own, woken with `camera.start_monitor` first); through the bridge as `bridge.snapshot`. No video | |
 | `send_to_printer` | Uploads the newest slice (the `.gcode.3mf` when the printer takes one) or a file; with `print`, starts it with the Send window's own plan (`device/print-plan.ts`: slot per filament, the printer's options, checks, start calls) | `print` only |
@@ -171,6 +171,17 @@ a tool needs it and closes a minute after the last use: no streaming in the back
   connection stays open while a command runs. The list lives in the add-on (5 newest,
   30 minutes), so it starts empty after the AI app restarts it. An AI
   app gives up on a tool after about a minute and drops the add-on (seen 2026-11-12).
+- **Loaded filaments and their presets**: each slot in `printer_status` carries what the
+  printer says (material, `subType` such as Matte or Basic, brand, colour, `tagged` when
+  read from the spool's tag, nozzle) plus `name` (brand + material + sub-type, the way
+  desktop builds it from the head's tag) and `preset`: the filament preset the slicer
+  would use, from the site's own `lib/filament-sync.ts` `syncPreset` (desktop's Sync
+  filaments: the preset of that name, else Generic <material>, else the closest of that
+  material), for the printer chosen in the slicer (`presetsFor`; `presetsNote` when the
+  printer's own preset differs). An AI app passes those presets and colours to
+  `choose_presets` to slice for what is loaded; before, it saw only "PLA" and couldn't
+  tell PLA Matte from PLA Basic (2026-11-15). The engine starts for this; when it can't,
+  the status comes back without presets.
 - Refused before asking: a print while the printer prints or isn't ready, a filament with
   no head or slot it can print from (the Send window's checks), moving while it prints, a
   printer whose add-on takes no commands (Bambu Lab: status, files and prints only).

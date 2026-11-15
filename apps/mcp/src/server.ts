@@ -22,6 +22,7 @@ import { canChangeFilament, codeLabel, layerOf, newCode } from '../../web/src/li
 import { VIEW_TYPES, type ColourBy } from '../../web/src/lib/preview-colours';
 import { i18n } from '../../web/src/i18n';
 import { newPrintId, withPrintTag } from '../../web/src/lib/prints';
+import { syncPreset, type PrinterFilament } from '../../web/src/lib/filament-sync';
 import type { StoredPreset } from '../../web/src/lib/preset-engines';
 import { Account } from './account';
 import { pngOf } from './png';
@@ -228,7 +229,8 @@ server.registerTool(
     title: 'Choose presets',
     description:
       'Chooses the printer, process (quality) and filament presets. Leave process out for the printer\'s default. ' +
-      'filaments and colours are per filament slot (slot 1 first); colours are "#RRGGBB". Returns the choice and what fits the printer.',
+      'filaments and colours are per filament slot (slot 1 first); colours are "#RRGGBB". ' +
+      'To slice for the filaments loaded in one of the person\'s printers, use each slot\'s preset and colour from printer_status. Returns the choice and what fits the printer.',
     inputSchema: {
       printer: z.string().optional().describe('Printer preset name, e.g. "Snapmaker U1 (0.4 nozzle)"'),
       process: z.string().optional().describe('Process preset name'),
@@ -746,10 +748,30 @@ server.registerTool(
   'printer_status',
   {
     title: 'Printer status',
-    description: 'How one of the person\'s printers is doing: printing or not, progress, temperatures, homed axes, the filaments it has loaded, errors, and "sent": the commands this add-on sent it lately and whether each finished, failed (and why) or is still running. Needs sign_in.',
+    description:
+      'How one of the person\'s printers is doing: printing or not, progress, temperatures, homed axes, the filaments it has loaded, errors, and "sent": the commands this add-on sent it lately and whether each finished, failed (and why) or is still running. ' +
+      'Each filament slot has material (PLA), subType (Matte, Basic, Silk...), brand, colour, loaded, tagged (read from the spool\'s tag), nozzle, ' +
+      'name (brand + material + subType, e.g. "Snapmaker PLA Matte") and preset: the filament preset the slicer would use for it, matched like desktop OrcaSlicer\'s Sync filaments ' +
+      '(the preset of that name, else Generic <material>, else the closest of that material) for the printer chosen in the slicer (presetsFor). ' +
+      'To slice for what is loaded, pass the presets and colours to choose_presets in slot order (printer first, when presetsFor isn\'t this printer\'s preset). Needs sign_in.',
     inputSchema: { printer: z.string().optional().describe('Printer name from printers; can be left out with only one printer') },
   },
-  ({ printer }) => run(() => printers.status(printer)),
+  ({ printer }) =>
+    run(async () => {
+      const p = await printers.find(printer);
+      // The slicer's lists match presets; when the engine can't start, the status still comes back without them.
+      const l = await slicer.engine().then(() => slicer.lists, () => null);
+      const fits = l?.filaments.filter((f) => f.compatible !== false) ?? [];
+      const presetFor = l ? (f: PrinterFilament) => syncPreset(fits, [], f, '') : undefined;
+      const status = await printers.status(p.id, presetFor);
+      if (!l || !status.filaments) return status;
+      const other = p.preset && p.preset !== l.selection.printer;
+      return {
+        ...status,
+        presetsFor: l.selection.printer,
+        ...(other && { presetsNote: `The presets fit ${l.selection.printer}, the printer chosen in the slicer. This printer's preset is ${p.preset}: choose_presets with it, then printer_status again for its own filament presets.` }),
+      };
+    }),
 );
 
 server.registerTool(
@@ -843,7 +865,7 @@ server.registerTool(
       'only do what the person asked for. Actions: print_file {file} (a file already on the printer), pause, resume, stop, skip_object {object}, ' +
       'home {axes?}, move {axis, mm}, extrude {mm, negative pulls back}, motors_off, heat {heater: "bed", "nozzle" or a name from printer_status, target °C, 0 = off}, ' +
       'fan {fan?, percent}, light {on}, speed {percent}, flow {percent}; Snapmaker U1 tool heads 1-4: load_filament {head}, unload_filament {head}, ' +
-      'set_head_filament {head, material, colour?, brand?, subType?}, pick_head {head}, park_head {head}. Needs sign_in.',
+      'set_head_filament {head, material, colour?, brand?, subType? (e.g. Matte, Basic, Silk; printer_status shows each head\'s)}, pick_head {head}, park_head {head}. Needs sign_in.',
     inputSchema: {
       printer: z.string().optional().describe('Printer name from printers; can be left out with only one printer'),
       action: z.enum([

@@ -133,6 +133,19 @@ test('lists the account\'s printers, and how one is doing through its bridge', a
     s.filaments.map((f) => [f.material, f.loaded]),
     [['PLA', true], ['PETG', true], ['PLA', true], ['not set', false]],
   );
+  // What an AI app needs to pick the filament preset: the sub-type, the name desktop
+  // matches presets by, and the preset the slicer would use (desktop's Sync filaments).
+  assert.deepEqual(
+    s.filaments.map((f) => [f.subType, f.brand, f.name, f.preset]),
+    [
+      ['Matte', 'Snapmaker', 'Snapmaker PLA Matte', 'Snapmaker PLA Matte @U1'],
+      ['Basic', 'Generic', 'Generic PETG Basic', 'Generic PETG'],
+      ['Basic', 'Generic', 'Generic PLA Basic', 'Generic PLA'],
+      [undefined, undefined, undefined, undefined],
+    ],
+  );
+  assert.equal(s.presetsFor, 'Snapmaker U1 (0.4 nozzle)');
+  assert.equal(s.presetsNote, undefined);
 });
 
 test('a still picture from the camera: the U1\'s own camera through the bridge; directly, every camera or a named one', async () => {
