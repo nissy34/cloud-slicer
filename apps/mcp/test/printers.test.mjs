@@ -319,3 +319,23 @@ test('an app that can\'t ask on screen asks in the chat: only a fresh code for t
   assert.equal(stopped.error, undefined, JSON.stringify(stopped));
   await until('the Voron to stop', () => voron.state.print_stats.state !== 'printing');
 });
+
+test('choose_presets fromPrinter syncs every slot from the printer\'s loaded filaments, like Sync filaments', async () => {
+  // replace: the slots become the loaded heads, head by head, with the printer's own preset.
+  const r = await tool(client, 'choose_presets', { fromPrinter: 'My U1', syncMode: 'replace' });
+  assert.equal(r.printer, 'Snapmaker U1 (0.4 nozzle)', JSON.stringify(r));
+  assert.equal(r.synced.mode, 'replace');
+  // Every loaded head, in order, with the preset printer_status names for it (earlier tests may have set T4).
+  const status = await tool(client, 'printer_status', { printer: 'My U1' });
+  const loaded = status.filaments.filter((f) => f.preset);
+  assert.deepEqual(r.filaments.map((f) => [f.name, f.colour]), loaded.map((f) => [f.preset, f.colour.toUpperCase()]));
+  assert.deepEqual(r.filaments.slice(0, 3).map((f) => f.name), ['Snapmaker PLA Matte @U1', 'Generic PETG', 'Generic PLA']);
+  assert.deepEqual(r.synced.slots.map((s) => s.head), loaded.map((f) => f.slot));
+  // A model open (the default is match): each slot keeps its place and takes the closest loaded filament of its material.
+  await tool(client, 'open_model', { path: resolve(fixtures, 'tetrahedron.stl') });
+  await tool(client, 'choose_presets', { filaments: ['Generic PETG'], colours: ['#FF0000'] });
+  const m = await tool(client, 'choose_presets', { fromPrinter: 'My U1' });
+  assert.equal(m.synced.mode, 'match');
+  assert.deepEqual(m.filaments.map((f) => [f.name, f.colour]), [['Generic PETG', '#E72F1D']]);
+  assert.match((await tool(client, 'choose_presets', { fromPrinter: 'My U1', filaments: ['Generic PLA'] })).error, /not both/);
+});

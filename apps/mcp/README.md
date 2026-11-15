@@ -58,7 +58,7 @@ walls and tell me the time and grams."
 | `open_model` | Opens an STL, 3MF, OBJ or AMF from your computer, or one Claude made in the chat (kept in `Cloud Slicer/From the chat` in your home folder; a 3MF brings its presets and settings); `add` puts it beside what is open; `engine` picks Snapmaker Orca or OrcaSlicer |
 | `model_info` | Objects by number, sizes, where each copy is; the chosen presets |
 | `find_printers` | Printer presets by brand and model |
-| `choose_presets` | Printer, process and filament per slot, colours |
+| `choose_presets` | Printer, process and filament per slot, colours; or every slot from a printer's loaded filaments (`fromPrinter`) |
 | `list_presets` | Processes and filaments that fit the printer |
 | `find_settings`, `read_settings`, `change_settings` | Settings by OrcaSlicer key, checked like the site's settings boxes |
 | `set_filament` | Which filament slot prints an object or one of its parts |

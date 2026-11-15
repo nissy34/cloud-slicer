@@ -22,7 +22,7 @@ import { canChangeFilament, codeLabel, layerOf, newCode } from '../../web/src/li
 import { VIEW_TYPES, type ColourBy } from '../../web/src/lib/preview-colours';
 import { i18n } from '../../web/src/i18n';
 import { newPrintId, withPrintTag } from '../../web/src/lib/prints';
-import { syncPreset, type PrinterFilament } from '../../web/src/lib/filament-sync';
+import { isLoaded, matchByColour, printerFilaments, syncPlan, syncPreset, type PrinterFilament, type SyncMode } from '../../web/src/lib/filament-sync';
 import type { StoredPreset } from '../../web/src/lib/preset-engines';
 import { Account } from './account';
 import { pngOf } from './png';
@@ -230,20 +230,77 @@ server.registerTool(
     description:
       'Chooses the printer, process (quality) and filament presets. Leave process out for the printer\'s default. ' +
       'filaments and colours are per filament slot (slot 1 first); colours are "#RRGGBB". ' +
-      'To slice for the filaments loaded in one of the person\'s printers, use each slot\'s preset and colour from printer_status. Returns the choice and what fits the printer.',
+      'To slice for the filaments loaded in one of the person\'s printers, use fromPrinter: the add-on matches every slot\'s preset and colour itself. Returns the choice and what fits the printer.',
     inputSchema: {
       printer: z.string().optional().describe('Printer preset name, e.g. "Snapmaker U1 (0.4 nozzle)"'),
       process: z.string().optional().describe('Process preset name'),
       filaments: z.array(z.string()).optional().describe('Filament preset name per slot'),
       colours: z.array(z.string()).optional().describe('Colour per slot, "#RRGGBB"'),
+      fromPrinter: z
+        .string()
+        .optional()
+        .describe(
+          'Sync filaments from one of the person\'s printers (name from printers; "" when they have one), like OrcaSlicer\'s Sync filaments: sets every slot\'s preset and colour from what it has loaded, ' +
+            'matched by the add-on. Leaves filaments and colours out; takes the printer\'s own preset too unless printer is given. Needs sign_in.',
+        ),
+      syncMode: z
+        .enum(['match', 'replace'])
+        .optional()
+        .describe(
+          'With fromPrinter. match: each slot keeps its place (and its objects) and takes the loaded filament of the same material with the closest colour. ' +
+            'replace: the slots become the printer\'s loaded filaments, head by head. Default: match when a model is open, replace when not.',
+        ),
     },
   },
-  (args) =>
+  ({ fromPrinter, syncMode, ...args }) =>
     run(async () => {
+      if (fromPrinter !== undefined) return syncFromPrinter(fromPrinter, syncMode, args);
       const { missing } = await slicer.select(args);
-      return { ...presets(), ...(missing.length && { notFound: missing.map((m) => `${m} isn't a preset for this printer, so it was not chosen`) }) };
+      return { ...presets(), ...notFound(missing) };
     }),
 );
+
+const notFound = (missing: string[]) => (missing.length ? { notFound: missing.map((m) => `${m} isn't a preset for this printer, so it was not chosen`) } : {});
+
+/**
+ * choose_presets fromPrinter: the site's Sync filaments (lib/filament-sync.ts, as
+ * components/FilamentSync.tsx and store syncFilaments use it) on the printer's
+ * loaded filaments. In replace, objects on slots past the loaded ones move like the
+ * site moves them; painted objects can't be moved here, so replace is refused then.
+ */
+async function syncFromPrinter(which: string, mode: SyncMode | undefined, args: { printer?: string; process?: string; filaments?: string[]; colours?: string[] }) {
+  if (args.filaments || args.colours) throw new Error('Give either fromPrinter or filaments and colours, not both.');
+  await slicer.engine();
+  const { printer: p, slots } = await printers.filaments(which || undefined);
+  const heads = printerFilaments(slots ?? []);
+  const loaded = heads.filter(isLoaded);
+  if (!loaded.length) throw new Error(`${p.name} has no filament loaded (or doesn't know its type).`);
+  const before = slicer.lists!.selection.printer;
+  const { missing } = await slicer.select({ printer: args.printer ?? p.preset ?? before, process: args.process });
+  const l = slicer.lists!;
+  const fits = l.filaments.filter((f) => f.compatible !== false);
+  const project = l.selection.filaments.map((name, i) => ({ colour: l.selection.colours[i] ?? '#FFFFFF', type: fits.find((f) => f.name === name)?.filamentType ?? '' }));
+  const objects = slicer.model?.objects ?? [];
+  const how: SyncMode = mode ?? (objects.length && l.selection.printer === before ? 'match' : 'replace');
+  const plan = syncPlan(how, project.length, heads, matchByColour(project, heads), false);
+  if (!plan.filaments.length) throw new Error(`Nothing on ${p.name} matches the project's filaments.`);
+  if (plan.remap) {
+    const moves = (e: number) => (e || 1) > plan.filaments.length;
+    if (objects.some((o) => o.volumes.some((v) => v.painted)) && project.length > plan.filaments.length)
+      throw new Error(`The model is painted with ${project.length} filaments and ${p.name} has ${plan.filaments.length} loaded; use syncMode match, which keeps every slot.`);
+    for (const [i, o] of objects.entries()) {
+      if (moves(o.extruder)) await slicer.setFilament(i, undefined, plan.remap[o.extruder - 1]);
+      for (const [j, v] of o.volumes.entries()) if (v.extruder && moves(v.extruder)) await slicer.setFilament(i, j, plan.remap[v.extruder - 1]);
+    }
+  }
+  const names = plan.filaments.map((f, i) => syncPreset(fits, [], f, l.selection.filaments[i] ?? l.selection.filaments.at(-1) ?? ''));
+  const chosen = await slicer.select({ filaments: names, colours: plan.filaments.map((f) => f.colour.toUpperCase()) });
+  return {
+    ...presets(),
+    synced: { from: p.name, mode: how, slots: plan.filaments.map((f, i) => ({ slot: i + 1, head: f.label, filament: f.name, preset: names[i], colour: f.colour.toUpperCase() })) },
+    ...notFound([...missing, ...chosen.missing]),
+  };
+}
 
 server.registerTool(
   'list_presets',
@@ -753,7 +810,7 @@ server.registerTool(
       'Each filament slot has material (PLA), subType (Matte, Basic, Silk...), brand, colour, loaded, tagged (read from the spool\'s tag), nozzle, ' +
       'name (brand + material + subType, e.g. "Snapmaker PLA Matte") and preset: the filament preset the slicer would use for it, matched like desktop OrcaSlicer\'s Sync filaments ' +
       '(the preset of that name, else Generic <material>, else the closest of that material) for the printer chosen in the slicer (presetsFor). ' +
-      'To slice for what is loaded, pass the presets and colours to choose_presets in slot order (printer first, when presetsFor isn\'t this printer\'s preset). Needs sign_in.',
+      'To slice for what is loaded, call choose_presets with fromPrinter (it does this matching for every slot in one step). Needs sign_in.',
     inputSchema: { printer: z.string().optional().describe('Printer name from printers; can be left out with only one printer') },
   },
   ({ printer }) =>

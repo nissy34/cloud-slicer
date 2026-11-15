@@ -274,6 +274,15 @@ export class Printers {
   }
 
   /** How the printer is doing: what it prints, temperatures, its filaments, its errors. */
+  /** The filaments the printer has, slot by slot (choose_presets fromPrinter). */
+  async filaments(which?: string) {
+    const p = await this.find(which);
+    const l = await this.connect(p);
+    const fil = l.session.addons.find((a) => a.filaments)?.filaments;
+    if (!fil) throw new Error(`${p.name} doesn't say which filaments it has loaded.`);
+    return { printer: p, slots: fil.read(l.objects) };
+  }
+
   /**
    * How the printer is doing. `presetFor` names the filament preset the slicer
    * would use for each loaded filament (server.ts, from the engine's lists).
