@@ -31,7 +31,7 @@ else goes over the internet.
 | The site's approval window for that sign-in | `apps/web/src/account/LinkProgramDialog.tsx` |
 | Their printers: status, files, send, the Device tab's controls | `apps/mcp/src/printers.ts`, with the site's `device/session.ts`, `link/bridge.ts`, `link/direct.ts`, add-ons, `device/print-plan.ts`, `device/saved.ts`, `device/commands.ts` |
 | Loading the engine, presets, brands, opening and slicing (shared with `slice.mjs` and the engine tests) | `engine/node/engine.mjs` |
-| The site's own rules it reuses | `lib/project-import.ts` (a 3MF's own settings), `lib/presets.ts` (matching filaments), `lib/option-check.ts` (checking typed values), `lib/thumbnail.ts` (picture camera and colours), `lib/format.ts` |
+| The site's own rules it reuses | `lib/project-import.ts` (a 3MF's own settings), `lib/presets.ts` (matching filaments), `lib/filament-sync.ts` (a printer's loaded filaments to presets), `lib/option-check.ts` (checking typed values), `lib/thumbnail.ts` (picture camera and colours), `lib/format.ts` |
 | Build: one bundle plus both engines and their presets | `apps/mcp/build.mjs` → `apps/mcp/dist/` |
 | Install files: Claude Desktop extension and `npx` package, on the `mcp` release | `apps/mcp/pack.mjs` → `apps/mcp/release/`; CI job `mcp` publishes on main |
 
@@ -149,7 +149,7 @@ a tool needs it and closes a minute after the last use: no streaming in the back
 | Tool | What it does | Asks first |
 |---|---|---|
 | `printers` | The account's printers | |
-| `printer_status` | Printing or not, progress, temperatures, each head's filament, errors | |
+| `printer_status` | Printing or not, progress, temperatures, each head's filament (with its preset, below), errors | |
 | `printer_files` | Files on the printer, newest first | |
 | `printer_camera` | Still pictures, one per camera (at most 4; or one named camera): Moonraker's cameras, else the add-on's (the U1's own, woken with `camera.start_monitor` first); through the bridge as `bridge.snapshot`. No video | |
 | `send_to_printer` | Uploads the newest slice (the `.gcode.3mf` when the printer takes one) or a file; with `print`, starts it with the Send window's own plan (`device/print-plan.ts`: slot per filament, the printer's options, checks, start calls) | `print` only |
@@ -171,6 +171,24 @@ a tool needs it and closes a minute after the last use: no streaming in the back
   connection stays open while a command runs. The list lives in the add-on (5 newest,
   30 minutes), so it starts empty after the AI app restarts it. An AI
   app gives up on a tool after about a minute and drops the add-on (seen 2026-11-12).
+- **Loaded filaments and their presets**: each slot in `printer_status` carries what the
+  printer says (material, `subType` such as Matte or Basic, brand, colour, `tagged` when
+  read from the spool's tag, nozzle) plus `name` (brand + material + sub-type, the way
+  desktop builds it from the head's tag) and `preset`: the filament preset the slicer
+  would use, from the site's own `lib/filament-sync.ts` `syncPreset` (desktop's Sync
+  filaments: the preset of that name, else Generic <material>, else the closest of that
+  material), for the printer chosen in the slicer (`presetsFor`; `presetsNote` when the
+  printer's own preset differs). An AI app passes those presets and colours to
+  tell PLA Matte from PLA Basic (2026-11-15). The engine starts for this; when it can't,
+  the status comes back without presets.
+- **Sync filaments in one step**: `choose_presets` with `fromPrinter` does the matching
+  itself (the AI app asked for it: it can't get it wrong then). It takes the printer's own
+  preset unless `printer` is given, then runs the site's Sync filaments
+  (`syncPlan`, `matchByColour`, `syncPreset`): `match` (default with a model open) keeps
+  every slot and gives it the loaded filament of the same material with the closest
+  colour; `replace` (default with nothing open) makes the slots the loaded heads, objects
+  on slots past them moving like the site moves them. A painted model with more slots
+  than loaded heads is refused in replace (paint can't be moved here; match works).
 - Refused before asking: a print while the printer prints or isn't ready, a filament with
   no head or slot it can print from (the Send window's checks), moving while it prints, a
   printer whose add-on takes no commands (Bambu Lab: status, files and prints only).

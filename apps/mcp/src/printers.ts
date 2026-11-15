@@ -22,6 +22,7 @@ import { printerFromDevice, runCalls, type SavedPrinter } from '../../web/src/de
 import { PrinterSession, RpcError, type ConnState } from '../../web/src/device/session';
 import { fans, heaters, job, klippyMessage, klippyState, lights, motion, type KlipperObjects } from '../../web/src/device/status';
 import type { PrinterError } from '../../web/src/device/addons';
+import { isLoaded, printerFilaments, type PrinterFilament } from '../../web/src/lib/filament-sync';
 import { ApiError, type Account } from './account';
 
 /** How long to wait for a printer to come online before saying it can't be reached. */
@@ -273,11 +274,24 @@ export class Printers {
   }
 
   /** How the printer is doing: what it prints, temperatures, its filaments, its errors. */
-  async status(which?: string) {
+  /** The filaments the printer has, slot by slot (choose_presets fromPrinter). */
+  async filaments(which?: string) {
+    const p = await this.find(which);
+    const l = await this.connect(p);
+    const fil = l.session.addons.find((a) => a.filaments)?.filaments;
+    if (!fil) throw new Error(`${p.name} doesn't say which filaments it has loaded.`);
+    return { printer: p, slots: fil.read(l.objects) };
+  }
+
+  /**
+   * How the printer is doing. `presetFor` names the filament preset the slicer
+   * would use for each loaded filament (server.ts, from the engine's lists).
+   */
+  async status(which?: string, presetFor?: (f: PrinterFilament) => string) {
     const p = await this.find(which);
     const l = await this.connect(p);
     const sent = this.recent(p.id);
-    return { ...describe(l), ...(sent.length && { sent }) };
+    return { ...describe(l, presetFor), ...(sent.length && { sent }) };
   }
 
   /**
@@ -537,7 +551,7 @@ export class Printers {
   }
 }
 
-function describe(l: Live) {
+function describe(l: Live, presetFor?: (f: PrinterFilament) => string) {
   const j = job(l.objects);
   const fil = l.session.addons.find((a) => a.filaments)?.filaments;
   const slots = fil?.read(l.objects) ?? [];
@@ -557,7 +571,23 @@ function describe(l: Live) {
     ...(motion(l.objects).homed !== undefined && { homedAxes: motion(l.objects).homed || 'none' }),
     temperatures: heaters(l.objects).map((h) => ({ name: h.label, now: round(h.temp), target: round(h.target) })),
     ...(slots.length && {
-      filaments: slots.map((s) => ({ slot: s.label, material: s.material || 'not set', colour: s.colour, ...(s.vendor && { brand: s.vendor }), loaded: s.ready })),
+      filaments: slots.map((s) => {
+        // The name desktop's Sync filaments matches presets by ("Snapmaker PLA Matte"), and the preset that gives.
+        const f = printerFilaments([s])[0];
+        const preset = isLoaded(f) && presetFor ? presetFor(f) : '';
+        return {
+          slot: s.label,
+          material: s.material || 'not set',
+          ...(s.subType && { subType: s.subType }),
+          ...(s.vendor && { brand: s.vendor }),
+          colour: s.colour,
+          loaded: s.ready,
+          ...(isLoaded(f) && { name: f.name }),
+          ...(preset && { preset }),
+          ...(s.official && { tagged: true }),
+          ...(s.nozzle && { nozzle: { diameterMm: s.nozzle.diameter, ...(s.nozzle.volumeType !== 'standard' && { type: s.nozzle.volumeType }) } }),
+        };
+      }),
     }),
     ...(l.errors.length && { errors: l.errors.map((e) => `${e.title}: ${e.text}`) }),
   };
