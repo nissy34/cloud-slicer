@@ -4,7 +4,7 @@
 // line type, filament, speed, layer height, line width, flow, layer time, fan,
 // temperature. Each extrusion is drawn as a rounded bead, lit from the upper left.
 import * as THREE from 'three';
-import { FEATURE_COLOURS, FEATURES, orderForPreview, parseGcode, type PreviewGcode } from '../../web/src/lib/gcode';
+import { FEATURE_COLOURS, FEATURES, isGap, orderForPreview, parseGcode, pointAt, segmentWidth, type PreviewGcode } from '../../web/src/lib/gcode';
 import { formatValue, isRangeView, segmentColours, valueAt, valueRange, VIEW_TYPES, rangeColour, type ColourBy } from '../../web/src/lib/preview-colours';
 import { downsample, thumbnailCamera } from '../../web/src/lib/thumbnail';
 import { i18n } from '../../web/src/i18n';
@@ -75,7 +75,7 @@ export function drawToolpaths(text: string, opts: ToolpathOptions) {
   const filamentColours = gcodeColours(text);
   const colours = filamentColours.length ? filamentColours : opts.colours;
   const range = valueRange(p, opts.colourBy, hidden);
-  const col = segmentColours(p, opts.colourBy, colours, range);
+  const { index: colourIndex, palette } = segmentColours(p, opts.colourBy, colours, range);
 
   // The segments shown: layers from..to, line types not hidden.
   const shown: number[] = [];
@@ -85,16 +85,17 @@ export function drawToolpaths(text: string, opts: ToolpathOptions) {
   for (let k = from - 1; k < to; k++)
     for (const [a, b] of [[p.shellStarts[k], p.shellStarts[k + 1]], [p.innerStarts[k], p.innerStarts[k + 1]]])
       for (let s = a; s < b; s++) {
-        if (hidden.has(p.features[s])) continue;
+        if (hidden.has(p.features[s]) || isGap(p, s)) continue;
         shown.push(s);
         used.add(opts.colourBy === 'filament' ? p.tools[s] : p.features[s]);
-        box.expandByPoint(v.fromArray(p.positions, s * 6));
-        box.expandByPoint(v.fromArray(p.positions, s * 6 + 3));
+        box.expandByPoint(v.fromArray(pointAt(p, s)));
+        box.expandByPoint(v.fromArray(pointAt(p, s + 1)));
       }
   if (!shown.length) throw new Error('Nothing to show with those layers and line types.');
   // Frame the whole print, so pictures of different layer ranges line up.
   const whole = new THREE.Box3();
-  for (let s = 0; s < p.features.length; s++) if (!hidden.has(p.features[s])) whole.expandByPoint(v.fromArray(p.positions, s * 6)).expandByPoint(v.fromArray(p.positions, s * 6 + 3));
+  for (let s = 0; s < p.features.length; s++)
+    if (!hidden.has(p.features[s]) && !isGap(p, s)) whole.expandByPoint(v.fromArray(pointAt(p, s))).expandByPoint(v.fromArray(pointAt(p, s + 1)));
 
   const w = opts.size * SUPERSAMPLE, h = opts.size * SUPERSAMPLE;
   const cam = camera(whole.isEmpty() ? box : whole, opts.view, w, h);
@@ -108,15 +109,16 @@ export function drawToolpaths(text: string, opts: ToolpathOptions) {
   // The bead's depth bulge in clip units per pixel of radius.
   const zPerPx = 2 / ((cam.far - cam.near) * pxPerMm);
   for (const s of shown) {
-    a.fromArray(p.positions, s * 6).applyMatrix4(toClip);
-    b.fromArray(p.positions, s * 6 + 3).applyMatrix4(toClip);
+    a.fromArray(pointAt(p, s)).applyMatrix4(toClip);
+    b.fromArray(pointAt(p, s + 1)).applyMatrix4(toClip);
     const ax = ((a.x + 1) / 2) * w, ay = ((a.y + 1) / 2) * h, bx = ((b.x + 1) / 2) * w, by = ((b.y + 1) / 2) * h;
-    const r = Math.max(0.75, (p.sizes[s * 2] || 0.4) * pxPerMm * 0.5);
+    const r = Math.max(0.75, (segmentWidth(p, s) || 0.4) * pxPerMm * 0.5);
     const dx = bx - ax, dy = by - ay;
     const len2 = dx * dx + dy * dy;
     const x0 = Math.max(0, Math.floor(Math.min(ax, bx) - r)), x1 = Math.min(w - 1, Math.ceil(Math.max(ax, bx) + r));
     const y0 = Math.max(0, Math.floor(Math.min(ay, by) - r)), y1 = Math.min(h - 1, Math.ceil(Math.max(ay, by) + r));
-    const cr = col[s * 3] / 255, cg = col[s * 3 + 1] / 255, cb = col[s * 3 + 2] / 255;
+    const c = colourIndex[s] * 3;
+    const cr = palette[c] / 255, cg = palette[c + 1] / 255, cb = palette[c + 2] / 255;
     for (let y = y0; y <= y1; y++) {
       const py = y + 0.5;
       for (let x = x0; x <= x1; x++) {

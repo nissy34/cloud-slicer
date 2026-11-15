@@ -6,6 +6,8 @@
     "cost": "Chi phí",
     "costHint": "Hãy đặt Giá trong cài đặt filament, hoặc Chi phí thời gian trong cài đặt máy in, để xem chi phí.",
     "drawing": "Đang vẽ bản xem trước",
+    "failedHint": "Vẫn có thể gửi hoặc tải G-code như bình thường; chỉ bản xem trước không hiển thị được.",
+    "failedTitle": "Không thể hiển thị bản xem trước",
     "filament": "Filament",
     "filamentChanges": "Lần đổi filament",
     "filamentN": "Filament {{n}}",

@@ -33,6 +33,20 @@ come from the statistics Orca writes at the end of the file. The engine's own
 
 ## Rules
 
+- The G-code worker streams the file in pieces (`gcodeReader`), never one string: past
+  ~512 MB (a 216 mm cube with gyroid infill is ~780 MB) `Blob.text()` gives an empty
+  string or fails, which drew an empty Preview with no error.
+- Toolpaths reach the GPU packed (`PreviewGcode` in `lib/gcode.ts`): segment s runs from
+  corner s to corner s + 1, so a path shares its corners (16-bit steps across the print's
+  box), with width and height as 16-bit 0.1 µm steps, the line type, and RGB bytes. A gap
+  segment (height 0, not drawn) joins one path to the next. 14 bytes a segment instead
+  of 36: a 216 mm gyroid cube (27.8M segments) takes ~390 MB instead of ~1 GB.
+  Tried and dropped: joining nearly-straight segments (Orca already simplifies curves to
+  ~0.05 mm, so it joined almost none) and a one-byte colour read from a palette in the
+  vertex shader (a third slower to draw).
+- When the G-code can't be read, or the browser takes the 3D view away (WebGL context
+  lost, most often a huge print needing more graphics memory than the page gets), the
+  Preview says so with the error and a Copy button instead of staying blank.
 - Both 3D views redraw only on demand (`frameloop="demand"`), never continuously.
 - Everything is drawn while the view turns, as on desktop. Only prints over
   `HEAVY_SEGMENTS` (1 million lines) leave out infill and inner walls while the view

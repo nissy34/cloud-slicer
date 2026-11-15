@@ -6,6 +6,8 @@
     "cost": "Koszt",
     "costHint": "Ustaw Cenę w ustawieniach filamentu lub Koszt czasu w ustawieniach drukarki, aby zobaczyć koszt.",
     "drawing": "Rysowanie podglądu",
+    "failedHint": "G-code można wysłać lub pobrać bez problemu; tylko podgląd nie może go pokazać.",
+    "failedTitle": "Nie można wyświetlić podglądu",
     "filament": "Filament",
     "filamentChanges": "Zmiany filamentu",
     "filamentN": "Filament {{n}}",

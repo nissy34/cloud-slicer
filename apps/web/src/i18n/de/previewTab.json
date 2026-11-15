@@ -6,6 +6,8 @@
     "cost": "Kosten",
     "costHint": "Legen Sie den Preis in den Filamenteinstellungen oder die Zeitkosten in den Druckereinstellungen fest, um die Kosten zu sehen.",
     "drawing": "Die Vorschau wird gezeichnet",
+    "failedHint": "Der G-Code kann problemlos gesendet oder heruntergeladen werden; nur die Vorschau kann ihn nicht zeigen.",
+    "failedTitle": "Die Vorschau kann nicht angezeigt werden",
     "filament": "Filament",
     "filamentChanges": "Filamentwechsel",
     "filamentN": "Filament {{n}}",

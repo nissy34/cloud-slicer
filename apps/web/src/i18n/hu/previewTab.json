@@ -6,6 +6,8 @@
     "cost": "Költség",
     "costHint": "A költség megjelenítéséhez adja meg az Árat a filamentbeállításokban, vagy az Időköltséget a nyomtatóbeállításokban.",
     "drawing": "Az előnézet rajzolása",
+    "failedHint": "A G-kód gond nélkül elküldhető vagy letölthető; csak az előnézet nem tudja megjeleníteni.",
+    "failedTitle": "Az előnézet nem jeleníthető meg",
     "filament": "Filament",
     "filamentChanges": "Filamentváltások",
     "filamentN": "{{n}}. filament",

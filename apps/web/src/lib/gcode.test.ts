@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEATURES, orderForPreview, parseGcode } from './gcode';
+import { FEATURES, filamentDiameters, gcodeReader, isGap, orderForPreview, parseGcode, pointAt, segmentHeight, segmentWidth } from './gcode';
 
 const sample = `
 G90
@@ -113,17 +113,37 @@ describe('orderForPreview', () => {
   const parsed = parseGcode(sample);
   const g = orderForPreview(parsed);
   const arc = parsed.features.length - 3; // the top surface arc, in chords
+  const drawn = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => from + i).filter((s) => !isGap(g, s));
   it('puts every layer\'s shell first, then the inner segments, layer by layer', () => {
-    const names = Array.from(g.features, (f) => FEATURES[f]);
+    const names = drawn(0, g.features.length).map((s) => FEATURES[g.features[s]]);
     expect(names).toEqual(['Outer wall', 'Outer wall', ...Array(arc).fill('Top surface'), 'Sparse infill']);
-    expect(Array.from(g.shellStarts)).toEqual([0, 2, 2 + arc]);
-    expect(Array.from(g.innerStarts)).toEqual([2 + arc, 3 + arc, 3 + arc]);
+    // A gap goes before the arc (it starts away from the walls) and before the infill
+    // (it starts where the walls ended, not where the arc did); each belongs to the run after it.
+    expect(Array.from(g.shellStarts)).toEqual([0, 2, 3 + arc]);
+    expect(Array.from(g.innerStarts)).toEqual([3 + arc, 5 + arc, 5 + arc]);
+    expect(drawn(0, 2)).toEqual([0, 1]);
+    expect(isGap(g, 2)).toBe(true);
+    expect(isGap(g, 3 + arc)).toBe(true);
   });
-  it('keeps each segment\'s data together', () => {
-    const last = parsed.features.length - 1;
-    expect(Array.from(g.positions.subarray(last * 6, last * 6 + 6))).toEqual(Array.from(parsed.positions.subarray(12, 18)));
-    expect(g.tools[2]).toBe(1);
+  it('shares the corners of a path and keeps each segment\'s data together', () => {
+    const close = (a: number[], b: number[]) => a.forEach((v, i) => expect(v).toBeCloseTo(b[i], 2));
+    // The two walls: 10,10 -> 20,10 -> 20,20.
+    close(pointAt(g, 0), [10, 10, 0.2]);
+    close(pointAt(g, 1), [20, 10, 0.2]);
+    close(pointAt(g, 2), [20, 20, 0.2]);
+    // The infill, last: 20,20 -> 10,20.
+    const last = g.features.length - 1;
+    close(pointAt(g, last), Array.from(parsed.positions.subarray(12, 15)));
+    close(pointAt(g, last + 1), Array.from(parsed.positions.subarray(15, 18)));
+    expect(g.points.length).toBe((g.features.length + 1) * 3);
+    expect(g.tools[3]).toBe(1);
     expect(g.tools[last]).toBe(0);
+    expect(segmentWidth(g, 0)).toBeCloseTo(0.42);
+    expect(segmentHeight(g, 0)).toBeCloseTo(0.2);
+  });
+  it('keeps each line type\'s bounding box', () => {
+    const wall = FEATURES.indexOf('Outer wall') * 6;
+    expect(Array.from(g.featureBoxes.subarray(wall, wall + 6)).map((v) => +v.toFixed(3))).toEqual([10, 10, 0.2, 20, 20, 0.2]);
   });
 });
 
@@ -205,8 +225,32 @@ G1 X10 Y0 E0.5
   });
   it('keeps the values with their segments in drawing order', () => {
     const p = orderForPreview(g);
-    expect(Array.from(p.temps)).toEqual(Array.from(g.temps));
+    // Gaps (joining one path to the next) aren't drawn; the drawn segments keep their order here.
+    expect(Array.from(p.temps).filter((_, s) => !isGap(p, s))).toEqual(Array.from(g.temps));
     expect(p.layerTimes).toBe(g.layerTimes);
     expect(p.stats).toBe(g.stats);
+  });
+});
+
+// A big print's G-code is streamed in pieces (one string can't hold ~780 MB),
+// cut anywhere: mid-line, mid-number, right after a newline, or at CRLF.
+describe('gcodeReader', () => {
+  const text = (sample + sample.replace(/;Z:0\.4/, ';Z:0.6')).replace(/\n/g, '\r\n') + 'G1 X1 Y1 E0.2';
+  const whole = parseGcode(text);
+  for (const size of [1, 2, 3, 7, 64]) {
+    it(`reads ${size}-character pieces like the whole text`, () => {
+      const reader = gcodeReader(filamentDiameters(text, text));
+      for (let at = 0; at < text.length; at += size) reader.read(text.slice(at, at + size));
+      const g = reader.finish();
+      expect(Array.from(g.positions)).toEqual(Array.from(whole.positions));
+      expect(Array.from(g.features)).toEqual(Array.from(whole.features));
+      expect(Array.from(g.tools)).toEqual(Array.from(whole.tools));
+      expect(Array.from(g.layerStarts)).toEqual(Array.from(whole.layerStarts));
+      expect(Array.from(g.layerZ)).toEqual(Array.from(whole.layerZ));
+      expect(g.stats).toEqual(whole.stats);
+    });
+  }
+  it('reads a last line with no newline', () => {
+    expect(whole.positions.length / 6).toBe(parseGcode(text + '\n').positions.length / 6);
   });
 });

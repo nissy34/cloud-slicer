@@ -70,10 +70,17 @@ function durationSeconds(text: string): number {
 
 const numbers = (text: string) => text.split(/[,;]/).map((v) => Number(v.trim()) || 0);
 
-/** Filament diameters per tool: the header's "; filament_diameter: 1.75,1.75", else the config block's. */
-function filamentDiameters(text: string): number[] {
-  const m = /^; filament_diameter\s*[:=]\s*(.*)$/m.exec(text.slice(0, 64 * 1024)) ??
-    /^; filament_diameter\s*=\s*(.*)$/m.exec(text.slice(Math.max(0, text.length - 1024 * 1024)));
+/** How much of the start and the end of the file `filamentDiameters` looks at. */
+export const HEAD_BYTES = 64 * 1024;
+export const TAIL_BYTES = 1024 * 1024;
+
+/**
+ * Filament diameters per tool: the header's "; filament_diameter: 1.75,1.75",
+ * else the config block's. `head` and `tail` are the file's first HEAD_BYTES
+ * and last TAIL_BYTES.
+ */
+export function filamentDiameters(head: string, tail: string): number[] {
+  const m = /^; filament_diameter\s*[:=]\s*(.*)$/m.exec(head) ?? /^; filament_diameter\s*=\s*(.*)$/m.exec(tail);
   const d = m ? numbers(m[1]).filter((v) => v > 0) : [];
   return d.length ? d : [1.75];
 }
@@ -83,6 +90,27 @@ const OTHER = FEATURES.length - 1;
 
 /** `onProgress` gets the share of the text read so far (0..1), about every 2 MB. */
 export function parseGcode(text: string, onProgress?: (done: number) => void): ParsedGcode {
+  const reader = gcodeReader(filamentDiameters(text.slice(0, HEAD_BYTES), text.slice(Math.max(0, text.length - TAIL_BYTES))));
+  const STEP = 2 << 20;
+  for (let at = 0; at < text.length; at += STEP) {
+    if (onProgress && at) onProgress(at / text.length);
+    reader.read(text.slice(at, at + STEP));
+  }
+  return reader.finish();
+}
+
+export interface GcodeReader {
+  /** The next piece of the file, cut anywhere (even mid-line). */
+  read(chunk: string): void;
+  /** The segments; the arrays are views of larger buffers (orderForPreview copies them out). */
+  finish(): ParsedGcode;
+}
+
+/**
+ * Reads G-code a piece at a time, so a file too big for one string (browsers
+ * stop at about 512 MB) can be streamed in. `diameters` from filamentDiameters.
+ */
+export function gcodeReader(diameters: number[]): GcodeReader {
   let pos = new Float32Array(1 << 20);
   let feat = new Uint8Array(1 << 17);
   let tool = new Uint8Array(1 << 17);
@@ -98,7 +126,7 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
   // Seconds of moves per layer as it was read (dropped empty layers fold into the one before).
   const layerSeconds: number[] = [];
   let preludeSeconds = 0;
-  const areas = filamentDiameters(text).map((d) => (Math.PI * d * d) / 4);
+  const areas = diameters.map((d) => (Math.PI * d * d) / 4);
   const area = (tool: number) => areas[tool] ?? areas[0];
   let feedrate = 0; // mm/min
   let fanPct = 0;
@@ -170,10 +198,6 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
     layerOpen = true;
   };
 
-  let start = 0;
-  const len = text.length;
-  const STEP = 2 << 20;
-  let nextReport = STEP;
   const addSeconds = (sec: number) => {
     if (!(sec > 0) || !Number.isFinite(sec)) return;
     if (layerSeconds.length) layerSeconds[layerSeconds.length - 1] += sec;
@@ -183,16 +207,9 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
     for (let k = 1; k < word.length; k++) if ((word[k].charCodeAt(0) | 32) === letter) return parseFloat(word[k].slice(1));
     return NaN;
   };
-  while (start < len) {
-    if (onProgress && start >= nextReport) {
-      onProgress(start / len);
-      nextReport = start + STEP;
-    }
-    let end = text.indexOf('\n', start);
-    if (end < 0) end = len;
-    const line = text.slice(start, end).trim();
-    start = end + 1;
-    if (!line) continue;
+  const readLine = (raw: string) => {
+    const line = raw.trim();
+    if (!line) return;
 
     if (line.charCodeAt(0) === 59 /* ; */) {
       if (line.startsWith(';LAYER_CHANGE') || line.startsWith('; CHANGE_LAYER')) {
@@ -219,7 +236,7 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
       else if (line.startsWith('; total filament used [g] =')) footer.totalGrams = Number(line.slice(27)) || 0;
       else if (line.startsWith('; total filament cost =')) footer.totalCost = Number(line.slice(23)) || 0;
       else if (line.startsWith('; estimated printing time (normal mode) =')) footer.seconds = durationSeconds(line.slice(41));
-      continue;
+      return;
     }
 
     const semi = line.indexOf(';');
@@ -316,53 +333,78 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
       const n = Number(cmd.slice(1));
       if (n < 255) t = n;
     }
-  }
-
-  // Drop layers that ended up empty.
-  const starts: number[] = [];
-  const zs: number[] = [];
-  const secs: number[] = [];
-  for (let k = 0; k < layerStarts.length; k++) {
-    const next = k + 1 < layerStarts.length ? layerStarts[k + 1] : n;
-    if (next > layerStarts[k]) {
-      starts.push(layerStarts[k]);
-      zs.push(layerZ[k]);
-      secs.push(layerSeconds[k]);
-    } else if (secs.length) secs[secs.length - 1] += layerSeconds[k];
-    else preludeSeconds += layerSeconds[k];
-  }
-  starts.push(n);
-  // Moves alone leave out acceleration; Orca's estimate has it, so the layers
-  // share its total the way they share the moves' time.
-  const moveSeconds = preludeSeconds + secs.reduce((a, b) => a + b, 0);
-  const scale = footer.seconds > 0 && moveSeconds > 0 ? footer.seconds / moveSeconds : 1;
-  const tools = Math.max(footer.mm.length, footer.grams.length, footer.cost.length);
-  const filaments: FilamentUse[] = Array.from({ length: tools }, (_, k) => ({
-    mm: footer.mm[k] ?? 0,
-    grams: footer.grams[k] ?? 0,
-    cost: footer.cost[k] ?? 0,
-  }));
-  return {
-    positions: pos.slice(0, n * 6),
-    features: feat.slice(0, n),
-    tools: tool.slice(0, n),
-    sizes: size.slice(0, n * 2),
-    layerStarts: Uint32Array.from(starts),
-    layerZ: Float32Array.from(zs),
-    toolsUsed: [...toolsUsed].sort((a, b) => a - b),
-    speeds: speed.slice(0, n),
-    flows: flow.slice(0, n),
-    fans: fan.slice(0, n),
-    temps: temp.slice(0, n),
-    layerTimes: Float32Array.from(secs, (v) => v * scale),
-    stats: {
-      filaments,
-      totalGrams: footer.totalGrams || filaments.reduce((a, f) => a + f.grams, 0),
-      totalCost: footer.totalCost || filaments.reduce((a, f) => a + f.cost, 0),
-      toolChanges,
-      seconds: footer.seconds,
-    },
   };
+
+  // The end of the last piece when it stopped mid-line.
+  let rest = '';
+  const read = (chunk: string) => {
+    let start = 0;
+    let end = chunk.indexOf('\n');
+    if (end >= 0 && rest) {
+      readLine(rest + chunk.slice(0, end));
+      rest = '';
+      start = end + 1;
+      end = chunk.indexOf('\n', start);
+    }
+    while (end >= 0) {
+      readLine(chunk.slice(start, end));
+      start = end + 1;
+      end = chunk.indexOf('\n', start);
+    }
+    rest += chunk.slice(start);
+  };
+
+  const finish = (): ParsedGcode => {
+    if (rest) readLine(rest);
+    rest = '';
+    // Drop layers that ended up empty.
+    const starts: number[] = [];
+    const zs: number[] = [];
+    const secs: number[] = [];
+    for (let k = 0; k < layerStarts.length; k++) {
+      const next = k + 1 < layerStarts.length ? layerStarts[k + 1] : n;
+      if (next > layerStarts[k]) {
+        starts.push(layerStarts[k]);
+        zs.push(layerZ[k]);
+        secs.push(layerSeconds[k]);
+      } else if (secs.length) secs[secs.length - 1] += layerSeconds[k];
+      else preludeSeconds += layerSeconds[k];
+    }
+    starts.push(n);
+    // Moves alone leave out acceleration; Orca's estimate has it, so the layers
+    // share its total the way they share the moves' time.
+    const moveSeconds = preludeSeconds + secs.reduce((a, b) => a + b, 0);
+    const scale = footer.seconds > 0 && moveSeconds > 0 ? footer.seconds / moveSeconds : 1;
+    const tools = Math.max(footer.mm.length, footer.grams.length, footer.cost.length);
+    const filaments: FilamentUse[] = Array.from({ length: tools }, (_, k) => ({
+      mm: footer.mm[k] ?? 0,
+      grams: footer.grams[k] ?? 0,
+      cost: footer.cost[k] ?? 0,
+    }));
+    // Views, not copies: a big print's arrays run to hundreds of MB each.
+    return {
+      positions: pos.subarray(0, n * 6),
+      features: feat.subarray(0, n),
+      tools: tool.subarray(0, n),
+      sizes: size.subarray(0, n * 2),
+      layerStarts: Uint32Array.from(starts),
+      layerZ: Float32Array.from(zs),
+      toolsUsed: [...toolsUsed].sort((a, b) => a - b),
+      speeds: speed.subarray(0, n),
+      flows: flow.subarray(0, n),
+      fans: fan.subarray(0, n),
+      temps: temp.subarray(0, n),
+      layerTimes: Float32Array.from(secs, (v) => v * scale),
+      stats: {
+        filaments,
+        totalGrams: footer.totalGrams || filaments.reduce((a, f) => a + f.grams, 0),
+        totalCost: footer.totalCost || filaments.reduce((a, f) => a + f.cost, 0),
+        toolChanges,
+        seconds: footer.seconds,
+      },
+    };
+  };
+  return { read, finish };
 }
 
 /** Features that outer walls and the layers above hide; on big prints the Preview leaves them out while the view moves. */
@@ -373,51 +415,141 @@ export const INNER_FEATURES = new Set(
 );
 
 /**
- * Segments in the Preview's drawing order: every layer's shell (what can be
- * seen from outside) first, then every layer's inner segments, so each group
- * up to a layer is one contiguous run that one draw call covers.
+ * Segments in the Preview's drawing order, packed small for the graphics card
+ * (a big print has tens of millions): every layer's shell (what can be seen
+ * from outside) first, then every layer's inner segments, so each group up to
+ * a layer is one contiguous run that one draw call covers.
+ *
+ * Segment s is drawn from point s to point s + 1, so a path's segments share
+ * their corners. Where one path ends and the next starts elsewhere, a gap
+ * segment joins them; it has height 0 (`isGap`) and isn't drawn.
  */
-export interface PreviewGcode extends Omit<ParsedGcode, 'layerStarts'> {
+export interface PreviewGcode extends Omit<ParsedGcode, 'layerStarts' | 'positions' | 'sizes'> {
+  /** Corners as x y z steps from `origin`, `step` mm apiece: segments + 1 of them. */
+  points: Uint16Array;
+  origin: [number, number, number];
+  step: [number, number, number];
+  /** Width and height per segment in SIZE_UNIT steps (0.1 µm, up to 6.5 mm); height 0 for a gap. */
+  sizes: Uint16Array;
+  /** Bounding box (minX minY minZ maxX maxY maxZ) of each line type's segments, by FEATURES index; empty ones are Infinity/-Infinity. */
+  featureBoxes: Float64Array;
   /** Index of the first shell segment of each layer, plus a final end index (= innerStarts[0]). */
   shellStarts: Uint32Array;
   /** Index of the first inner segment of each layer, plus a final end index. */
   innerStarts: Uint32Array;
 }
 
+/** A segment that only joins two paths and isn't drawn. */
+export const isGap = (p: Pick<PreviewGcode, 'sizes'>, s: number) => p.sizes[s * 2 + 1] === 0;
+
+/** Corner i in mm: segment s runs from corner s to corner s + 1. */
+export const pointAt = (p: Pick<PreviewGcode, 'points' | 'origin' | 'step'>, i: number): [number, number, number] => [
+  p.origin[0] + p.points[i * 3] * p.step[0],
+  p.origin[1] + p.points[i * 3 + 1] * p.step[1],
+  p.origin[2] + p.points[i * 3 + 2] * p.step[2],
+];
+
+/** Segment s's width and height (mm). */
+export const SIZE_UNIT = 1e-4;
+export const segmentWidth = (p: Pick<PreviewGcode, 'sizes'>, s: number) => p.sizes[s * 2] * SIZE_UNIT;
+export const segmentHeight = (p: Pick<PreviewGcode, 'sizes'>, s: number) => p.sizes[s * 2 + 1] * SIZE_UNIT;
+
 export function orderForPreview(p: ParsedGcode): PreviewGcode {
   const n = p.features.length;
   const layers = p.layerZ.length;
-  const positions = new Float32Array(n * 6);
-  const features = new Uint8Array(n);
-  const tools = new Uint8Array(n);
-  const sizes = new Float32Array(n * 2);
-  const speeds = new Uint16Array(n);
-  const flows = new Uint16Array(n);
-  const fans = new Uint8Array(n);
-  const temps = new Uint16Array(n);
+  const pos = p.positions;
+  // The corners' box sets the steps: 65535 of them across it (~0.004 mm on a 270 mm bed).
+  const featureBoxes = new Float64Array(FEATURES.length * 6);
+  for (let f = 0; f < FEATURES.length; f++) featureBoxes.set([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity], f * 6);
+  for (let s = 0; s < n; s++) {
+    const b = p.features[s] * 6;
+    for (let i = s * 6; i < s * 6 + 6; i += 3)
+      for (let a = 0; a < 3; a++) {
+        const v = pos[i + a];
+        if (v < featureBoxes[b + a]) featureBoxes[b + a] = v;
+        if (v > featureBoxes[b + 3 + a]) featureBoxes[b + 3 + a] = v;
+      }
+  }
+  const origin: [number, number, number] = [Infinity, Infinity, Infinity];
+  const top = [-Infinity, -Infinity, -Infinity];
+  for (let f = 0; f < FEATURES.length; f++)
+    for (let a = 0; a < 3; a++) {
+      origin[a] = Math.min(origin[a], featureBoxes[f * 6 + a]);
+      top[a] = Math.max(top[a], featureBoxes[f * 6 + 3 + a]);
+    }
+  if (!n) origin.fill(0), top.fill(0);
+  const step = origin.map((o, a) => (top[a] > o ? (top[a] - o) / 65535 : 1)) as [number, number, number];
+  const q = (v: number, a: number) => Math.round((v - origin[a]) / step[a]);
+
+  // The drawing order: each layer's shell, then each layer's inner segments.
+  const inOrder = (fn: (s: number) => void) => {
+    for (const inner of [false, true])
+      for (let k = 0; k < layers; k++)
+        for (let s = p.layerStarts[k]; s < p.layerStarts[k + 1]; s++) if (INNER_FEATURES.has(p.features[s]) === inner) fn(s);
+  };
+  // Whether segment s starts where the last one drawn ended.
+  let lx = -1, ly = -1, lz = -1;
+  const follows = (s: number) => q(pos[s * 6], 0) === lx && q(pos[s * 6 + 1], 1) === ly && q(pos[s * 6 + 2], 2) === lz;
+  const endAt = (s: number) => {
+    lx = q(pos[s * 6 + 3], 0);
+    ly = q(pos[s * 6 + 4], 1);
+    lz = q(pos[s * 6 + 5], 2);
+  };
+  let count = 0;
+  inOrder((s) => {
+    if (count && !follows(s)) count++;
+    count++;
+    endAt(s);
+  });
+
+  const points = new Uint16Array((count + 1) * 3);
+  const features = new Uint8Array(count);
+  const tools = new Uint8Array(count);
+  const sizes = new Uint16Array(count * 2);
+  const speeds = new Uint16Array(count);
+  const flows = new Uint16Array(count);
+  const fans = new Uint8Array(count);
+  const temps = new Uint16Array(count);
   const shellStarts = new Uint32Array(layers + 1);
   const innerStarts = new Uint32Array(layers + 1);
-  let shellCount = 0;
-  for (let s = 0; s < n; s++) if (!INNER_FEATURES.has(p.features[s])) shellCount++;
-  let shell = 0, inner = shellCount;
-  for (let k = 0; k < layers; k++) {
-    shellStarts[k] = shell;
-    innerStarts[k] = inner;
-    for (let s = p.layerStarts[k]; s < p.layerStarts[k + 1]; s++) {
-      const to = INNER_FEATURES.has(p.features[s]) ? inner++ : shell++;
-      positions.set(p.positions.subarray(s * 6, s * 6 + 6), to * 6);
-      sizes[to * 2] = p.sizes[s * 2];
-      sizes[to * 2 + 1] = p.sizes[s * 2 + 1];
-      features[to] = p.features[s];
-      tools[to] = p.tools[s];
-      speeds[to] = p.speeds[s];
-      flows[to] = p.flows[s];
-      fans[to] = p.fans[s];
-      temps[to] = p.temps[s];
+  const um = (mm: number) => Math.max(1, Math.min(65535, Math.round(mm / SIZE_UNIT)));
+  // Segment `to` takes segment s's values; a gap before s takes them too, at height 0.
+  const copy = (to: number, s: number, gap: boolean) => {
+    features[to] = p.features[s];
+    tools[to] = p.tools[s];
+    sizes[to * 2] = gap ? 0 : um(p.sizes[s * 2]);
+    sizes[to * 2 + 1] = gap ? 0 : um(p.sizes[s * 2 + 1]);
+    speeds[to] = p.speeds[s];
+    flows[to] = p.flows[s];
+    fans[to] = p.fans[s];
+    temps[to] = p.temps[s];
+  };
+  let at = 0; // segments written
+  lx = ly = lz = -1;
+  for (const inner of [false, true]) {
+    const starts = inner ? innerStarts : shellStarts;
+    for (let k = 0; k < layers; k++) {
+      // A run starts at its first segment written, a gap before it included.
+      starts[k] = at;
+      for (let s = p.layerStarts[k]; s < p.layerStarts[k + 1]; s++) {
+        if (INNER_FEATURES.has(p.features[s]) !== inner) continue;
+        if (at === 0) {
+          for (let a = 0; a < 3; a++) points[a] = q(pos[s * 6 + a], a);
+        } else if (!follows(s)) {
+          for (let a = 0; a < 3; a++) points[(at + 1) * 3 + a] = q(pos[s * 6 + a], a);
+          copy(at++, s, true);
+        }
+        for (let a = 0; a < 3; a++) points[(at + 1) * 3 + a] = q(pos[s * 6 + 3 + a], a);
+        copy(at++, s, false);
+        endAt(s);
+      }
     }
+    starts[layers] = at;
   }
-  shellStarts[layers] = shell;
-  innerStarts[layers] = inner;
   const { layerZ, toolsUsed, layerTimes, stats } = p;
-  return { positions, features, tools, sizes, speeds, flows, fans, temps, shellStarts, innerStarts, layerZ, toolsUsed, layerTimes, stats };
+  return {
+    points, origin, step, featureBoxes,
+    features, tools, sizes, speeds, flows, fans, temps,
+    shellStarts, innerStarts, layerZ, toolsUsed, layerTimes, stats,
+  };
 }

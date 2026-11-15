@@ -6,6 +6,8 @@
     "cost": "Coût",
     "costHint": "Réglez le Prix dans les réglages du filament, ou le Coût horaire dans les réglages de l’imprimante, pour voir le coût.",
     "drawing": "Dessin de l’aperçu",
+    "failedHint": "Le G-code peut être envoyé ou téléchargé sans souci ; seul l’aperçu ne peut pas l’afficher.",
+    "failedTitle": "Impossible d’afficher l’aperçu",
     "filament": "Filament",
     "filamentChanges": "Changements de filament",
     "filamentN": "Filament {{n}}",

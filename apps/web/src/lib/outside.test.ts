@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEATURES, parseGcode } from './gcode';
+import { FEATURES, orderForPreview, parseGcode } from './gcode';
 import { blocksPrinting, objectsOutside, plateBounds, printedObjects, toolpathWarnings } from './outside';
 
 const U1 = plateBounds('0x0,270x0,270x270,0x270', '270');
@@ -55,7 +55,7 @@ describe('printedObjects', () => {
 });
 
 describe('toolpathWarnings', () => {
-  const gcode = (body: string) => parseGcode(`G90\nM83\n;LAYER_CHANGE\n;Z:0.2\nG1 Z0.2\n${body}`);
+  const gcode = (body: string) => orderForPreview(parseGcode(`G90\nM83\n;LAYER_CHANGE\n;Z:0.2\nG1 Z0.2\n${body}`));
   it('passes paths on the plate', () => {
     expect(toolpathWarnings(gcode(';TYPE:Outer wall\nG1 X10 Y10\nG1 X260 Y10 E1\n'), U1)).toEqual([]);
   });
@@ -72,6 +72,6 @@ describe('toolpathWarnings', () => {
   it('skips segments with no feature type (the start G-code)', () => {
     const parsed = parseGcode('G90\nM83\nG1 Z0.2\nG1 X-3 Y-3\nG1 X50 Y-3 E3\n');
     expect(Array.from(parsed.features)).toEqual([FEATURES.indexOf('Other')]);
-    expect(toolpathWarnings(parsed, U1)).toEqual([]);
+    expect(toolpathWarnings(orderForPreview(parsed), U1)).toEqual([]);
   });
 });

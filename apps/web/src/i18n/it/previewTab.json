@@ -6,6 +6,8 @@
     "cost": "Costo",
     "costHint": "Imposta il Prezzo nelle impostazioni del filamento, o il Costo orario nelle impostazioni della stampante, per vedere il costo.",
     "drawing": "Disegno dell'anteprima",
+    "failedHint": "Il G-code si può inviare o scaricare senza problemi; solo l'anteprima non riesce a mostrarlo.",
+    "failedTitle": "Impossibile mostrare l'anteprima",
     "filament": "Filamento",
     "filamentChanges": "Cambi di filamento",
     "filamentN": "Filamento {{n}}",
