@@ -48,6 +48,12 @@ come from the statistics Orca writes at the end of the file. The engine's own
   lost, most often a huge print needing more graphics memory than the page gets), the
   Preview says so with the error and a Copy button instead of staying blank.
 - Both 3D views redraw only on demand (`frameloop="demand"`), never continuously.
+- Everything is drawn while the view turns, as on desktop. Only prints over
+  `HEAVY_SEGMENTS` (1 million lines) leave out infill and inner walls while the view
+  is being dragged, pinched or zoomed (all but the top layer's), so a phone can turn them
+  smoothly; they come back the moment the gesture ends, not after the glide. Doing it on
+  every print, with a timer after the last camera change, made the inside of open-top
+  models blink and flicker while turning.
 - Beads stay at least 1.5 px wide, or thin first-layer lines vanish.
 - The loading card over the Preview has no blur: a blur over a WebGL canvas made big
   files several times slower.

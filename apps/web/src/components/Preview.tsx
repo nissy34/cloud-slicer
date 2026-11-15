@@ -253,10 +253,17 @@ function useBeads(parsed: PreviewGcode, from: number, to: number, colour: Uint8A
 }
 
 /**
+ * Prints with more lines than this leave out their inner segments while the
+ * view moves, so a phone can still turn them smoothly. Below it everything is
+ * drawn all the time, as on desktop: the inside shows through open tops and
+ * sparse top layers, and it must not blink out while turning.
+ */
+const HEAVY_SEGMENTS = 1_000_000;
+
+/**
  * The toolpaths up to layer `upTo`: the shell (what shows from outside) always,
- * the inner segments (infill, inner walls) only while the view holds still,
- * since they are most of a print and almost all hidden. While the view moves,
- * only the top layer keeps its inner segments.
+ * the inner segments (infill, inner walls) too, except on heavy prints while
+ * the view moves: then only the top layer keeps its inner segments.
  */
 function Toolpaths({
   parsed,
@@ -294,6 +301,7 @@ function Toolpaths({
   const shell = useBeads(parsed, 0, shellEnd, colour);
   const inner = useBeads(parsed, shellEnd, innerStarts[last], colour);
   const topInner = useBeads(parsed, innerStarts[top], innerStarts[top + 1], colour);
+  const lighter = moving && innerStarts[last] > HEAVY_SEGMENTS;
   shell.instanceCount = shellStarts[top + 1];
   inner.instanceCount = innerStarts[top + 1] - shellEnd;
   topInner.instanceCount = innerStarts[top + 1] - innerStarts[top];
@@ -325,23 +333,23 @@ function Toolpaths({
   return (
     <>
       <mesh geometry={shell} material={material} frustumCulled={false} />
-      <mesh geometry={inner} material={material} frustumCulled={false} visible={!moving} />
-      <mesh geometry={topInner} material={material} frustumCulled={false} visible={moving} />
+      <mesh geometry={inner} material={material} frustumCulled={false} visible={!lighter} />
+      <mesh geometry={topInner} material={material} frustumCulled={false} visible={lighter} />
     </>
   );
 }
 
-/** Whether the camera is moving: from the first change until it has been still for a moment. */
+/**
+ * Whether the camera is being moved: from the moment a drag, pinch or wheel
+ * turn starts until it ends. Not the glide after release and no timer, so a
+ * slow drag never flips back and forth and the full print returns as soon as
+ * the finger lifts.
+ */
 function useMoving() {
   const [moving, setMoving] = useState(false);
-  const timer = useRef(0);
-  useEffect(() => () => clearTimeout(timer.current), []);
-  const onChange = () => {
-    setMoving(true);
-    clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setMoving(false), 250);
-  };
-  return [moving, onChange] as const;
+  const onStart = useCallback(() => setMoving(true), []);
+  const onEnd = useCallback(() => setMoving(false), []);
+  return [moving, onStart, onEnd] as const;
 }
 
 /** The printed part's bounding box. */
@@ -709,7 +717,7 @@ export function Preview() {
   });
   const upTo = Math.min(layer, layers - 1);
   const scene = useSceneColours();
-  const [moving, onCameraChange] = useMoving();
+  const [moving, onMoveStart, onMoveEnd] = useMoving();
   const views: ViewHandle = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const codes = useLayerCodes();
@@ -786,7 +794,7 @@ export function Preview() {
         )}
         {parsed && !ready && <DrawnSignal onDrawn={() => setDrawn(parsed)} />}
         {parsed && <FitCamera parsed={parsed} />}
-        <OrbitControls target={[w / 2, d / 2, 0]} makeDefault onChange={onCameraChange} />
+        <OrbitControls target={[w / 2, d / 2, 0]} makeDefault onStart={onMoveStart} onEnd={onMoveEnd} />
         <CameraViews
           handle={views}
           box={() => (parsed?.features.length ? toolpathBox(parsed) : new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(w, d, 0)))}
