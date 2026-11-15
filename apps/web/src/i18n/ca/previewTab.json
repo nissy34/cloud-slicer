@@ -6,6 +6,8 @@
     "cost": "Cost",
     "costHint": "Definiu el Preu a la configuració del filament, o el Cost de temps a la configuració de la impressora, per veure el cost.",
     "drawing": "Dibuixant la previsualització",
+    "failedHint": "El G-code es pot enviar o baixar sense problema; només la previsualització no el pot mostrar.",
+    "failedTitle": "No es pot mostrar la previsualització",
     "filament": "Filament",
     "filamentChanges": "Canvis de filament",
     "filamentN": "Filament {{n}}",

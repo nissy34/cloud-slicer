@@ -1,6 +1,6 @@
 import { OrbitControls } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { bedSize, rgb } from '../lib/colour';
@@ -35,23 +35,56 @@ import { ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
 import { Slider } from './Slider';
 import { Picker } from './Picker';
 
-/** The G-code read in a worker: progress (0..1) while reading, then the segments. */
+/** The G-code read in a worker: progress (0..1) while reading, then the segments, or why it couldn't. */
 function useParsed(gcode: Blob | null) {
   const [parsed, setParsed] = useState<PreviewGcode | null>(null);
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     setParsed(null);
     setProgress(0);
+    setError(null);
     if (!gcode) return;
     const worker = new Worker(new URL('../engine/gcode-worker.ts', import.meta.url), { type: 'module' });
     worker.onmessage = ({ data }: MessageEvent<GcodeWorkerMessage>) => {
       if ('progress' in data) setProgress(data.progress);
+      else if ('error' in data) setError(data.error);
       else setParsed(data.parsed);
+    };
+    // The worker itself failing (it couldn't load, or ran out of memory outside the reader).
+    worker.onerror = (e) => {
+      e.preventDefault();
+      setError(e.message || 'The G-code reader stopped');
     };
     worker.postMessage({ gcode });
     return () => worker.terminate();
   }, [gcode]);
-  return { parsed, progress };
+  return { parsed, progress, error };
+}
+
+/** The Preview couldn't read or draw the G-code: says so, with the error and a Copy button for a bug report. */
+function PreviewFailed({ error, size }: { error: string; size: number }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  const report = [`The preview could not show the G-code (${formatMegabytes(size)}): ${error}`, `Browser: ${navigator.userAgent}`].join('\n');
+  const copy = () =>
+    navigator.clipboard.writeText(report).then(
+      () => setCopied(true),
+      () => setCopied(false),
+    );
+  return (
+    <div className="coming-soon preview-failed" role="alert">
+      <PlateTabs />
+      <h1>{t('previewTab.failedTitle')}</h1>
+      <p>{t('previewTab.failedHint')}</p>
+      <pre className="error-details" data-testid="preview-error">
+        {error}
+      </pre>
+      <button className="secondary" onClick={() => void copy()}>
+        {copied ? t('common.copied') : t('common.copyError')}
+      </button>
+    </div>
+  );
 }
 
 /**
@@ -69,6 +102,19 @@ function useAfterPaint<T>(value: T) {
     return () => cancelAnimationFrame(frame);
   }, [value]);
   return shown;
+}
+
+/**
+ * Calls `onLost` when the browser takes the 3D view away. Listens only while
+ * mounted: the Canvas drops its own context on purpose when it goes away.
+ */
+function ContextLostSignal({ onLost }: { onLost: () => void }) {
+  const canvas = useThree((s) => s.gl.domElement);
+  useEffect(() => {
+    canvas.addEventListener('webglcontextlost', onLost);
+    return () => canvas.removeEventListener('webglcontextlost', onLost);
+  }, [canvas, onLost]);
+  return null;
 }
 
 /** Calls `onDrawn` once, just after the first frame with the toolpaths in it has been drawn. */
@@ -599,7 +645,17 @@ export function Preview() {
   const setTab = useSlicer((s) => s.setTab);
   const { w, d } = bedSize(useOption('printable_area'));
   const gcode = job.kind === 'sliced' ? job.gcode : null;
-  const { parsed: read, progress } = useParsed(gcode);
+  const { parsed: read, progress, error: readError } = useParsed(gcode);
+  // The browser can take the 3D view away (WebGL context lost), most often when a
+  // huge print needs more graphics memory than it gives a page: say so, don't go blank.
+  const [lost, setLost] = useState<string | null>(null);
+  useEffect(() => setLost(null), [gcode]);
+  const segmentsRef = useRef(0);
+  segmentsRef.current = read?.features.length ?? 0;
+  const onContextLost = useCallback(
+    () => setLost(`The browser stopped the 3D view (WebGL context lost) while drawing ${segmentsRef.current.toLocaleString('en')} lines.`),
+    [],
+  );
   const parsed = useAfterPaint(read);
   // Desktop checks the toolpaths against the plate when it reads the G-code.
   const area = useOption('printable_area');
@@ -683,15 +739,24 @@ export function Preview() {
     );
   }
 
+  const failed = readError ?? lost;
+  if (failed) return <PreviewFailed error={failed} size={gcode.size} />;
+
   const usedFeatures = parsed ? [...new Set(parsed.features)].sort((a, b) => a - b) : [];
   return (
     <div className={menuOpen ? 'preview layer-menu-open' : 'preview'}>
-      <Canvas className="viewport" frameloop="demand" camera={{ position: [w / 2, -d * 0.6, d * 0.7], fov: 40, near: 1, far: 5000 }} data-testid="gcode-preview">
+      <Canvas
+        className="viewport"
+        frameloop="demand"
+        camera={{ position: [w / 2, -d * 0.6, d * 0.7], fov: 40, near: 1, far: 5000 }}
+        data-testid="gcode-preview"
+      >
         <color attach="background" args={[scene.background]} />
         {/* The same light as Prepare: without it the bed shape and plate draw black. */}
         <hemisphereLight args={['#ffffff', scene.ground, 0.9]} />
         <directionalLight position={[w, -d, d * 2]} intensity={1.6} />
         <Bed />
+        <ContextLostSignal onLost={onContextLost} />
         {parsed && (
           <Toolpaths parsed={parsed} upTo={upTo} colourBy={colourBy} colours={colours} range={range} hidden={hidden} moving={moving} />
         )}

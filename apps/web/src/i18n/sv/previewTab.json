@@ -6,6 +6,8 @@
     "cost": "Kostnad",
     "costHint": "Ange Pris i filamentinställningarna, eller Tidskostnad i skrivarinställningarna, för att se kostnaden.",
     "drawing": "Ritar förhandsvisningen",
+    "failedHint": "G-koden går bra att skicka eller ladda ner; det är bara förhandsvisningen som inte kan visa den.",
+    "failedTitle": "Förhandsvisningen kan inte visas",
     "filament": "Filament",
     "filamentChanges": "Filamentbyten",
     "filamentN": "Filament {{n}}",

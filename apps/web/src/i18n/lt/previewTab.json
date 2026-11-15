@@ -6,6 +6,8 @@
     "cost": "Kaina",
     "costHint": "Nustatykite Kainą gijos parametruose arba Laiko kainą spausdintuvo parametruose, kad pamatytumėte kainą.",
     "drawing": "Braižoma peržiūra",
+    "failedHint": "G-kodą galima siųsti ar atsisiųsti; tik peržiūra negali jo parodyti.",
+    "failedTitle": "Nepavyksta parodyti peržiūros",
     "filament": "Gija",
     "filamentChanges": "Gijos keitimai",
     "filamentN": "Gija {{n}}",

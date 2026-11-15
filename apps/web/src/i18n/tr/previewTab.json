@@ -6,6 +6,8 @@
     "cost": "Maliyet",
     "costHint": "Maliyeti görmek için filament ayarlarında Fiyat'ı veya yazıcı ayarlarında Zaman maliyeti'ni ayarlayın.",
     "drawing": "Önizleme çiziliyor",
+    "failedHint": "G-code sorunsuzca gönderilebilir veya indirilebilir; yalnızca önizleme onu gösteremiyor.",
+    "failedTitle": "Önizleme gösterilemiyor",
     "filament": "Filament",
     "filamentChanges": "Filament değişimleri",
     "filamentN": "Filament {{n}}",

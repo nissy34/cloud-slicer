@@ -6,6 +6,8 @@
     "cost": "Náklady",
     "costHint": "Pro zobrazení nákladů nastavte Cenu v nastavení filamentu nebo Náklady na čas v nastavení tiskárny.",
     "drawing": "Kreslení náhledu",
+    "failedHint": "G-code můžete bez obav odeslat nebo stáhnout; jen náhled ho nedokáže zobrazit.",
+    "failedTitle": "Náhled nelze zobrazit",
     "filament": "Filament",
     "filamentChanges": "Výměny filamentu",
     "filamentN": "Filament {{n}}",

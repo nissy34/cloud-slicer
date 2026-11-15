@@ -6,6 +6,8 @@
     "cost": "Kostua",
     "costHint": "Ezarri Prezioa filament-ezarpenetan, edo Denbora-kostua inprimagailu-ezarpenetan, kostua ikusteko.",
     "drawing": "Aurrebista marrazten",
+    "failedHint": "G-code-a arazorik gabe bidal edo deskarga daiteke; aurrebistak bakarrik ezin du erakutsi.",
+    "failedTitle": "Ezin da aurrebista erakutsi",
     "filament": "Filamentua",
     "filamentChanges": "Filament-aldaketak",
     "filamentN": "{{n}}. filamentua",

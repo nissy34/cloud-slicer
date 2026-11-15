@@ -33,6 +33,12 @@ come from the statistics Orca writes at the end of the file. The engine's own
 
 ## Rules
 
+- The G-code worker streams the file in pieces (`gcodeReader`), never one string: past
+  ~512 MB (a 216 mm cube with gyroid infill is ~780 MB) `Blob.text()` gives an empty
+  string or fails, which drew an empty Preview with no error.
+- When the G-code can't be read, or the browser takes the 3D view away (WebGL context
+  lost, most often a huge print needing more graphics memory than the page gets), the
+  Preview says so with the error and a Copy button instead of staying blank.
 - Both 3D views redraw only on demand (`frameloop="demand"`), never continuously.
 - Beads stay at least 1.5 px wide, or thin first-layer lines vanish.
 - The loading card over the Preview has no blur: a blur over a WebGL canvas made big

@@ -6,6 +6,8 @@
     "cost": "Coste",
     "costHint": "Defina el Precio en los ajustes del filamento, o el Coste por tiempo en los ajustes de la impresora, para ver el coste.",
     "drawing": "Dibujando la previsualización",
+    "failedHint": "El G-code se puede enviar o descargar sin problema; solo la previsualización no puede mostrarlo.",
+    "failedTitle": "No se puede mostrar la previsualización",
     "filament": "Filamento",
     "filamentChanges": "Cambios de filamento",
     "filamentN": "Filamento {{n}}",

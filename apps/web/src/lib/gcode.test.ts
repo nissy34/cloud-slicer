@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEATURES, orderForPreview, parseGcode } from './gcode';
+import { FEATURES, filamentDiameters, gcodeReader, orderForPreview, parseGcode } from './gcode';
 
 const sample = `
 G90
@@ -208,5 +208,28 @@ G1 X10 Y0 E0.5
     expect(Array.from(p.temps)).toEqual(Array.from(g.temps));
     expect(p.layerTimes).toBe(g.layerTimes);
     expect(p.stats).toBe(g.stats);
+  });
+});
+
+// A big print's G-code is streamed in pieces (one string can't hold ~780 MB),
+// cut anywhere: mid-line, mid-number, right after a newline, or at CRLF.
+describe('gcodeReader', () => {
+  const text = (sample + sample.replace(/;Z:0\.4/, ';Z:0.6')).replace(/\n/g, '\r\n') + 'G1 X1 Y1 E0.2';
+  const whole = parseGcode(text);
+  for (const size of [1, 2, 3, 7, 64]) {
+    it(`reads ${size}-character pieces like the whole text`, () => {
+      const reader = gcodeReader(filamentDiameters(text, text));
+      for (let at = 0; at < text.length; at += size) reader.read(text.slice(at, at + size));
+      const g = reader.finish();
+      expect(Array.from(g.positions)).toEqual(Array.from(whole.positions));
+      expect(Array.from(g.features)).toEqual(Array.from(whole.features));
+      expect(Array.from(g.tools)).toEqual(Array.from(whole.tools));
+      expect(Array.from(g.layerStarts)).toEqual(Array.from(whole.layerStarts));
+      expect(Array.from(g.layerZ)).toEqual(Array.from(whole.layerZ));
+      expect(g.stats).toEqual(whole.stats);
+    });
+  }
+  it('reads a last line with no newline', () => {
+    expect(whole.positions.length / 6).toBe(parseGcode(text + '\n').positions.length / 6);
   });
 });

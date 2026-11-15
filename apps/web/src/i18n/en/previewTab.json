@@ -6,6 +6,8 @@
     "cost": "Cost",
     "costHint": "Set the Price in the filament settings, or the Time cost in the printer settings, to see the cost.",
     "drawing": "Drawing the preview",
+    "failedHint": "The G-code is fine to send or download; only the preview can't show it.",
+    "failedTitle": "Can't show the preview",
     "filament": "Filament",
     "filamentChanges": "Filament changes",
     "filamentN": "Filament {{n}}",

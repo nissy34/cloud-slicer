@@ -6,6 +6,8 @@
     "cost": "成本",
     "costHint": "在線材設定中設定「價格」，或在列印裝置設定中設定「時間成本」，即可看到成本。",
     "drawing": "正在繪製預覽",
+    "failedHint": "G-code 可以正常傳送或下載，只是預覽無法顯示它。",
+    "failedTitle": "無法顯示預覽",
     "filament": "線材",
     "filamentChanges": "換線材次數",
     "filamentN": "線材 {{n}}",

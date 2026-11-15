@@ -70,10 +70,17 @@ function durationSeconds(text: string): number {
 
 const numbers = (text: string) => text.split(/[,;]/).map((v) => Number(v.trim()) || 0);
 
-/** Filament diameters per tool: the header's "; filament_diameter: 1.75,1.75", else the config block's. */
-function filamentDiameters(text: string): number[] {
-  const m = /^; filament_diameter\s*[:=]\s*(.*)$/m.exec(text.slice(0, 64 * 1024)) ??
-    /^; filament_diameter\s*=\s*(.*)$/m.exec(text.slice(Math.max(0, text.length - 1024 * 1024)));
+/** How much of the start and the end of the file `filamentDiameters` looks at. */
+export const HEAD_BYTES = 64 * 1024;
+export const TAIL_BYTES = 1024 * 1024;
+
+/**
+ * Filament diameters per tool: the header's "; filament_diameter: 1.75,1.75",
+ * else the config block's. `head` and `tail` are the file's first HEAD_BYTES
+ * and last TAIL_BYTES.
+ */
+export function filamentDiameters(head: string, tail: string): number[] {
+  const m = /^; filament_diameter\s*[:=]\s*(.*)$/m.exec(head) ?? /^; filament_diameter\s*=\s*(.*)$/m.exec(tail);
   const d = m ? numbers(m[1]).filter((v) => v > 0) : [];
   return d.length ? d : [1.75];
 }
@@ -83,6 +90,27 @@ const OTHER = FEATURES.length - 1;
 
 /** `onProgress` gets the share of the text read so far (0..1), about every 2 MB. */
 export function parseGcode(text: string, onProgress?: (done: number) => void): ParsedGcode {
+  const reader = gcodeReader(filamentDiameters(text.slice(0, HEAD_BYTES), text.slice(Math.max(0, text.length - TAIL_BYTES))));
+  const STEP = 2 << 20;
+  for (let at = 0; at < text.length; at += STEP) {
+    if (onProgress && at) onProgress(at / text.length);
+    reader.read(text.slice(at, at + STEP));
+  }
+  return reader.finish();
+}
+
+export interface GcodeReader {
+  /** The next piece of the file, cut anywhere (even mid-line). */
+  read(chunk: string): void;
+  /** The segments; the arrays are views of larger buffers (orderForPreview copies them out). */
+  finish(): ParsedGcode;
+}
+
+/**
+ * Reads G-code a piece at a time, so a file too big for one string (browsers
+ * stop at about 512 MB) can be streamed in. `diameters` from filamentDiameters.
+ */
+export function gcodeReader(diameters: number[]): GcodeReader {
   let pos = new Float32Array(1 << 20);
   let feat = new Uint8Array(1 << 17);
   let tool = new Uint8Array(1 << 17);
@@ -98,7 +126,7 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
   // Seconds of moves per layer as it was read (dropped empty layers fold into the one before).
   const layerSeconds: number[] = [];
   let preludeSeconds = 0;
-  const areas = filamentDiameters(text).map((d) => (Math.PI * d * d) / 4);
+  const areas = diameters.map((d) => (Math.PI * d * d) / 4);
   const area = (tool: number) => areas[tool] ?? areas[0];
   let feedrate = 0; // mm/min
   let fanPct = 0;
@@ -170,10 +198,6 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
     layerOpen = true;
   };
 
-  let start = 0;
-  const len = text.length;
-  const STEP = 2 << 20;
-  let nextReport = STEP;
   const addSeconds = (sec: number) => {
     if (!(sec > 0) || !Number.isFinite(sec)) return;
     if (layerSeconds.length) layerSeconds[layerSeconds.length - 1] += sec;
@@ -183,16 +207,9 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
     for (let k = 1; k < word.length; k++) if ((word[k].charCodeAt(0) | 32) === letter) return parseFloat(word[k].slice(1));
     return NaN;
   };
-  while (start < len) {
-    if (onProgress && start >= nextReport) {
-      onProgress(start / len);
-      nextReport = start + STEP;
-    }
-    let end = text.indexOf('\n', start);
-    if (end < 0) end = len;
-    const line = text.slice(start, end).trim();
-    start = end + 1;
-    if (!line) continue;
+  const readLine = (raw: string) => {
+    const line = raw.trim();
+    if (!line) return;
 
     if (line.charCodeAt(0) === 59 /* ; */) {
       if (line.startsWith(';LAYER_CHANGE') || line.startsWith('; CHANGE_LAYER')) {
@@ -219,7 +236,7 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
       else if (line.startsWith('; total filament used [g] =')) footer.totalGrams = Number(line.slice(27)) || 0;
       else if (line.startsWith('; total filament cost =')) footer.totalCost = Number(line.slice(23)) || 0;
       else if (line.startsWith('; estimated printing time (normal mode) =')) footer.seconds = durationSeconds(line.slice(41));
-      continue;
+      return;
     }
 
     const semi = line.indexOf(';');
@@ -316,53 +333,78 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
       const n = Number(cmd.slice(1));
       if (n < 255) t = n;
     }
-  }
-
-  // Drop layers that ended up empty.
-  const starts: number[] = [];
-  const zs: number[] = [];
-  const secs: number[] = [];
-  for (let k = 0; k < layerStarts.length; k++) {
-    const next = k + 1 < layerStarts.length ? layerStarts[k + 1] : n;
-    if (next > layerStarts[k]) {
-      starts.push(layerStarts[k]);
-      zs.push(layerZ[k]);
-      secs.push(layerSeconds[k]);
-    } else if (secs.length) secs[secs.length - 1] += layerSeconds[k];
-    else preludeSeconds += layerSeconds[k];
-  }
-  starts.push(n);
-  // Moves alone leave out acceleration; Orca's estimate has it, so the layers
-  // share its total the way they share the moves' time.
-  const moveSeconds = preludeSeconds + secs.reduce((a, b) => a + b, 0);
-  const scale = footer.seconds > 0 && moveSeconds > 0 ? footer.seconds / moveSeconds : 1;
-  const tools = Math.max(footer.mm.length, footer.grams.length, footer.cost.length);
-  const filaments: FilamentUse[] = Array.from({ length: tools }, (_, k) => ({
-    mm: footer.mm[k] ?? 0,
-    grams: footer.grams[k] ?? 0,
-    cost: footer.cost[k] ?? 0,
-  }));
-  return {
-    positions: pos.slice(0, n * 6),
-    features: feat.slice(0, n),
-    tools: tool.slice(0, n),
-    sizes: size.slice(0, n * 2),
-    layerStarts: Uint32Array.from(starts),
-    layerZ: Float32Array.from(zs),
-    toolsUsed: [...toolsUsed].sort((a, b) => a - b),
-    speeds: speed.slice(0, n),
-    flows: flow.slice(0, n),
-    fans: fan.slice(0, n),
-    temps: temp.slice(0, n),
-    layerTimes: Float32Array.from(secs, (v) => v * scale),
-    stats: {
-      filaments,
-      totalGrams: footer.totalGrams || filaments.reduce((a, f) => a + f.grams, 0),
-      totalCost: footer.totalCost || filaments.reduce((a, f) => a + f.cost, 0),
-      toolChanges,
-      seconds: footer.seconds,
-    },
   };
+
+  // The end of the last piece when it stopped mid-line.
+  let rest = '';
+  const read = (chunk: string) => {
+    let start = 0;
+    let end = chunk.indexOf('\n');
+    if (end >= 0 && rest) {
+      readLine(rest + chunk.slice(0, end));
+      rest = '';
+      start = end + 1;
+      end = chunk.indexOf('\n', start);
+    }
+    while (end >= 0) {
+      readLine(chunk.slice(start, end));
+      start = end + 1;
+      end = chunk.indexOf('\n', start);
+    }
+    rest += chunk.slice(start);
+  };
+
+  const finish = (): ParsedGcode => {
+    if (rest) readLine(rest);
+    rest = '';
+    // Drop layers that ended up empty.
+    const starts: number[] = [];
+    const zs: number[] = [];
+    const secs: number[] = [];
+    for (let k = 0; k < layerStarts.length; k++) {
+      const next = k + 1 < layerStarts.length ? layerStarts[k + 1] : n;
+      if (next > layerStarts[k]) {
+        starts.push(layerStarts[k]);
+        zs.push(layerZ[k]);
+        secs.push(layerSeconds[k]);
+      } else if (secs.length) secs[secs.length - 1] += layerSeconds[k];
+      else preludeSeconds += layerSeconds[k];
+    }
+    starts.push(n);
+    // Moves alone leave out acceleration; Orca's estimate has it, so the layers
+    // share its total the way they share the moves' time.
+    const moveSeconds = preludeSeconds + secs.reduce((a, b) => a + b, 0);
+    const scale = footer.seconds > 0 && moveSeconds > 0 ? footer.seconds / moveSeconds : 1;
+    const tools = Math.max(footer.mm.length, footer.grams.length, footer.cost.length);
+    const filaments: FilamentUse[] = Array.from({ length: tools }, (_, k) => ({
+      mm: footer.mm[k] ?? 0,
+      grams: footer.grams[k] ?? 0,
+      cost: footer.cost[k] ?? 0,
+    }));
+    // Views, not copies: a big print's arrays run to hundreds of MB each.
+    return {
+      positions: pos.subarray(0, n * 6),
+      features: feat.subarray(0, n),
+      tools: tool.subarray(0, n),
+      sizes: size.subarray(0, n * 2),
+      layerStarts: Uint32Array.from(starts),
+      layerZ: Float32Array.from(zs),
+      toolsUsed: [...toolsUsed].sort((a, b) => a - b),
+      speeds: speed.subarray(0, n),
+      flows: flow.subarray(0, n),
+      fans: fan.subarray(0, n),
+      temps: temp.subarray(0, n),
+      layerTimes: Float32Array.from(secs, (v) => v * scale),
+      stats: {
+        filaments,
+        totalGrams: footer.totalGrams || filaments.reduce((a, f) => a + f.grams, 0),
+        totalCost: footer.totalCost || filaments.reduce((a, f) => a + f.cost, 0),
+        toolChanges,
+        seconds: footer.seconds,
+      },
+    };
+  };
+  return { read, finish };
 }
 
 /** Features that outer walls and the layers above hide; the Preview leaves them out while the view moves. */

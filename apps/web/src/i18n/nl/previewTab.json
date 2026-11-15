@@ -6,6 +6,8 @@
     "cost": "Kosten",
     "costHint": "Stel de Prijs in bij de filamentinstellingen, of de Tijdkosten bij de printerinstellingen, om de kosten te zien.",
     "drawing": "Het voorbeeld wordt getekend",
+    "failedHint": "De G-code kun je gewoon versturen of downloaden; alleen het voorbeeld kan hem niet tonen.",
+    "failedTitle": "Het voorbeeld kan niet worden getoond",
     "filament": "Filament",
     "filamentChanges": "Filamentwissels",
     "filamentN": "Filament {{n}}",

@@ -350,6 +350,13 @@
 .coming-soon p {
   margin: 4px 0;
 }
+.preview-failed .error-details {
+  text-align: start;
+  margin-bottom: 12px;
+}
+.preview-failed > button {
+  justify-self: center;
+}
 
 /* Sidebar details */
 .sr-only {
