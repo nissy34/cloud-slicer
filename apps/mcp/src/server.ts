@@ -806,7 +806,10 @@ server.registerTool(
   {
     title: 'Printer status',
     description:
-      'How one of the person\'s printers is doing: printing or not, progress, temperatures, homed axes, the filaments it has loaded, errors, and "sent": the commands this add-on sent it lately and whether each finished, failed (and why) or is still running. ' +
+      'How one of the person\'s printers is doing: printing or not, progress, temperatures, homed axes, the filaments it has loaded, and "sent": the commands this add-on sent it lately and whether each finished, failed (and why) or is still running. ' +
+      'Problems, as the site\'s Device tab shows them: attention (one line saying where to look; absent when all is well), errors (the printer\'s own, in its maker\'s words with the error code), ' +
+      'problem (the firmware is not ready), message (why the print stopped or paused), consoleErrors (Klipper\'s error lines, with minutesAgo, including ones from before you looked), activity (what it is busy with). ' +
+      'Call it when a print pauses, stops or anything looks wrong, and tell the person what the printer says. ' +
       'Each filament slot has material (PLA), subType (Matte, Basic, Silk...), brand, colour, loaded, tagged (read from the spool\'s tag), nozzle, ' +
       'name (brand + material + subType, e.g. "Snapmaker PLA Matte") and preset: the filament preset the slicer would use for it, matched like desktop OrcaSlicer\'s Sync filaments ' +
       '(the preset of that name, else Generic <material>, else the closest of that material) for the printer chosen in the slicer (presetsFor). ' +

@@ -149,7 +149,7 @@ a tool needs it and closes a minute after the last use: no streaming in the back
 | Tool | What it does | Asks first |
 |---|---|---|
 | `printers` | The account's printers | |
-| `printer_status` | Printing or not, progress, temperatures, each head's filament (with its preset, below), errors | |
+| `printer_status` | Printing or not, progress, temperatures, each head's filament (with its preset, below), the printer's errors and Klipper's error lines (below) | |
 | `printer_files` | Files on the printer, newest first | |
 | `printer_camera` | Still pictures, one per camera (at most 4; or one named camera): Moonraker's cameras, else the add-on's (the U1's own, woken with `camera.start_monitor` first); through the bridge as `bridge.snapshot`. No video | |
 | `send_to_printer` | Uploads the newest slice (the `.gcode.3mf` when the printer takes one) or a file; with `print`, starts it with the Send window's own plan (`device/print-plan.ts`: slot per filament, the printer's options, checks, start calls) | `print` only |
@@ -181,6 +181,22 @@ a tool needs it and closes a minute after the last use: no streaming in the back
   printer's own preset differs). An AI app passes those presets and colours to
   tell PLA Matte from PLA Basic (2026-11-15). The engine starts for this; when it can't,
   the status comes back without presets.
+- **Errors while printing**: `printer_status` reports what the Device tab shows. `errors`:
+  the printer's own (a U1's exceptions in Snapmaker's words, a Bambu's HMS codes) with
+  the code its maker's app shows, `[announced once]` for one-off ones; `problem`: Klipper
+  not ready (`webhooks.state_message`); `message`: the print's own (`print_stats.message`);
+  `consoleErrors`: Klipper's `!!` lines (the console's red ones, "Move out of range"),
+  each with `minutesAgo`, the 10 newest from the last 2 hours; `activity`: what the
+  printer is busy with (a U1 loading filament); `attention`: one line saying which of
+  those to read. The connection opens only when a tool needs it, so each look is often a
+  fresh connection: it waits (at most 5 s) for the errors the printer holds and reads
+  the console's recent lines (`server.gcode_store`, 200 lines), so an error from before
+  the add-on looked still shows. Before 2026-11-19 a fresh look answered before the U1's
+  errors arrived (they take one more round trip after the status), so Claude was told
+  there were none, and Klipper's error lines were dropped; `PrinterSession.errorsRead()`
+  now says when the held errors are in. A bridge from before then refuses `server.gcode_store`: only lines from while
+  the add-on was connected show until it updates. One-off announcements made while no
+  connection was open are not kept anywhere (the printer doesn't hold them).
 - **Sync filaments in one step**: `choose_presets` with `fromPrinter` does the matching
   itself (the AI app asked for it: it can't get it wrong then). It takes the printer's own
   preset unless `printer` is given, then runs the site's Sync filaments

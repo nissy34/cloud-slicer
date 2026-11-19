@@ -19,7 +19,7 @@ import { DirectLink } from '../../web/src/device/link/direct';
 import type { UploadStage } from '../../web/src/device/link/types';
 import { printPlan } from '../../web/src/device/print-plan';
 import { printerFromDevice, runCalls, type SavedPrinter } from '../../web/src/device/saved';
-import { PrinterSession, RpcError, type ConnState } from '../../web/src/device/session';
+import { PrinterSession, RpcError, type ConnState, type ConsoleLine } from '../../web/src/device/session';
 import { fans, heaters, job, klippyMessage, klippyState, lights, motion, type KlipperObjects } from '../../web/src/device/status';
 import type { PrinterError } from '../../web/src/device/addons';
 import { isLoaded, printerFilaments, type PrinterFilament } from '../../web/src/lib/filament-sync';
@@ -34,6 +34,15 @@ class Declined extends Error {}
 
 /** Pictures at most per camera call without a name, so a printer with many cameras can't flood the chat. */
 const MAX_CAMERAS = 4;
+
+/** How long a look right after connecting waits for the errors the printer holds. */
+const ERRORS_MS = 5_000;
+
+/** Klipper's error lines kept for printer_status: how many, and for how long. */
+const CONSOLE_KEPT = 10;
+const CONSOLE_MS = 2 * 60 * 60_000;
+/** Lines of the printer's console history read on connecting (server.gcode_store), for errors from before the add-on looked. */
+const CONSOLE_HISTORY = 200;
 
 /** How long a control waits for the printer before answering that it is still running. */
 const WAIT_MS = Number(process.env.CLOUD_SLICER_WAIT_MS) || 20_000;
@@ -69,6 +78,8 @@ interface Live {
   message: string;
   objects: KlipperObjects;
   errors: PrinterError[];
+  /** Klipper's error lines ("!!"), newest last, from the console history and while connected. */
+  consoleErrors: ConsoleLine[];
   ready: Promise<void>;
   timer?: NodeJS.Timeout;
   /** Commands still waiting for the printer's answer: the connection stays open meanwhile. */
@@ -139,6 +150,7 @@ export class Printers {
       message: '',
       objects: {},
       errors: [],
+      consoleErrors: [],
       busy: 0,
       ready: new Promise<void>((ok, fail) => (settle = (e) => (e ? fail(e) : ok()))),
       session: null as unknown as PrinterSession,
@@ -155,7 +167,7 @@ export class Printers {
       },
       onObjects: (o) => (live.objects = o),
       onFacts: () => {},
-      onConsole: () => {},
+      onConsole: (line) => line.kind === 'error' && keepConsoleError(live, line),
       onFilesChanged: () => {},
       onErrors: (e) => (live.errors = e),
     });
@@ -167,10 +179,31 @@ export class Printers {
       this.drop(p.id);
       throw e;
     }
-    // The first status arrives just after the handshake.
+    // The first status arrives just after the handshake; the errors the printer holds (a U1's
+    // exceptions) and its console history take one more round trip: a look straight after
+    // connecting must not say "no errors" before they are in.
     for (let i = 0; i < 20 && !Object.keys(live.objects).length; i++) await new Promise((r) => setTimeout(r, 100));
+    await Promise.race([Promise.all([live.session.errorsRead(), this.consoleHistory(live)]), new Promise((r) => setTimeout(r, ERRORS_MS))]);
     this.keep(live);
     return live;
+  }
+
+  /**
+   * Klipper's error lines from the printer's console history (Moonraker's server.gcode_store),
+   * so an error from before the add-on connected (a print stopped by "Move out of range")
+   * still shows. A bridge from before it passed the call on refuses it: then only lines
+   * from while connected show.
+   */
+  private async consoleHistory(live: Live) {
+    try {
+      const r = await live.session.rpc<{ gcode_store?: { message?: string; time?: number; type?: string }[] }>('server.gcode_store', { count: CONSOLE_HISTORY });
+      for (const g of r?.gcode_store ?? []) {
+        if (g.type !== 'response' || typeof g.message !== 'string' || !/^!!/.test(g.message)) continue;
+        keepConsoleError(live, { at: typeof g.time === 'number' ? g.time * 1000 : Date.now(), kind: 'error', text: g.message.replace(/^!!\s?/, '') });
+      }
+    } catch {
+      /* not passed on by an older bridge, or not a Moonraker printer */
+    }
   }
 
   /** The site's relay ticket for the bridge; null when the site uses none (as the Device tab: state/device.ts). */
@@ -551,11 +584,33 @@ export class Printers {
   }
 }
 
+/** Keeps one of Klipper's error lines (once, in time order, the newest few). */
+function keepConsoleError(l: Live, line: ConsoleLine) {
+  const now = Date.now();
+  if (l.consoleErrors.some((e) => e.text === line.text && Math.abs(e.at - line.at) < 5_000)) return;
+  l.consoleErrors = [...l.consoleErrors, line]
+    .filter((e) => now - e.at < CONSOLE_MS)
+    .sort((a, b) => a.at - b.at)
+    .slice(-CONSOLE_KEPT);
+}
+
 function describe(l: Live, presetFor?: (f: PrinterFilament) => string) {
   const j = job(l.objects);
   const fil = l.session.addons.find((a) => a.filaments)?.filaments;
   const slots = fil?.read(l.objects) ?? [];
   const round = (n: number) => Math.round(n);
+  const now = Date.now();
+  const problem = klippyState(l.objects) && klippyState(l.objects) !== 'ready' ? klippyMessage(l.objects) || klippyState(l.objects) : '';
+  const activity = l.session.addons.map((a) => a.activity?.(l.objects)).find(Boolean) ?? '';
+  const consoleErrors = l.consoleErrors.map((e) => ({ minutesAgo: Math.floor((now - e.at) / 60_000), text: e.text }));
+  // One line saying where to look, so a problem isn't missed among the temperatures and filaments.
+  const attention = problem
+    ? 'The printer\'s firmware is not ready: see problem.'
+    : l.errors.length
+      ? 'The printer reports a problem: see errors.'
+      : j.state === 'error'
+        ? `The print stopped with an error${j.message ? ': see message' : consoleErrors.length ? ': see consoleErrors' : ''}.`
+        : '';
   return {
     printer: l.printer.name,
     connection: l.state,
@@ -566,8 +621,10 @@ function describe(l: Live, presetFor?: (f: PrinterFilament) => string) {
       ...(j.layer != null && { layer: `${j.layer}${j.totalLayers ? ` of ${j.totalLayers}` : ''}` }),
       printedMinutes: round(j.printSeconds / 60),
     }),
+    ...(activity && { activity }),
+    ...(attention && { attention }),
     ...(j.message && { message: j.message }),
-    ...(klippyState(l.objects) && klippyState(l.objects) !== 'ready' && { problem: klippyMessage(l.objects) || klippyState(l.objects) }),
+    ...(problem && { problem }),
     ...(motion(l.objects).homed !== undefined && { homedAxes: motion(l.objects).homed || 'none' }),
     temperatures: heaters(l.objects).map((h) => ({ name: h.label, now: round(h.temp), target: round(h.target) })),
     ...(slots.length && {
@@ -589,6 +646,9 @@ function describe(l: Live, presetFor?: (f: PrinterFilament) => string) {
         };
       }),
     }),
-    ...(l.errors.length && { errors: l.errors.map((e) => `${e.title}: ${e.text}`) }),
+    // The printer's own errors in its maker's words, as the Device tab's Print card shows them.
+    ...(l.errors.length && { errors: l.errors.map((e) => `${e.title}: ${e.text} (error code ${e.code})${e.once ? ' [announced once]' : ''}`) }),
+    // Klipper's own error lines, as the Device tab's console shows them in red.
+    ...(consoleErrors.length && { consoleErrors }),
   };
 }
