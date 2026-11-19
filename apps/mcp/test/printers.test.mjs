@@ -148,6 +148,30 @@ test('lists the account\'s printers, and how one is doing through its bridge', a
   assert.equal(s.presetsNote, undefined);
 });
 
+test('errors while printing: the U1\'s own errors on the first look, and Klipper\'s error lines, even from before the add-on looked', async () => {
+  // A fresh add-on (its own connection): the very first status must already carry what the printer holds.
+  const fresh = await connect({});
+  try {
+    u1.setExceptions([{ id: 523, index: 1, code: 0, level: 2, message: 'runout' }]);
+    u1.say('!! Move out of range: 300.000 10.000 0.300 [0.000]');
+    const s = await tool(fresh, 'printer_status', { printer: 'My U1' });
+    assert.deepEqual(s.errors, ['Filament Anomaly: Filament runout detected in Toolhead 2. Try reloading filament, then tap the play button to resume the print job. (error code 0002 0523 0001 0000)'], JSON.stringify(s));
+    assert.equal(s.attention, 'The printer reports a problem: see errors.');
+    assert.deepEqual(s.consoleErrors?.map((e) => e.text), ['Move out of range: 300.000 10.000 0.300 [0.000]'], JSON.stringify(s));
+    // While the connection is open: a new error line and a one-off announcement show on the next look.
+    u1.say('!! Must home axis first: 0.000 0.000 10.000 [0.000]');
+    u1.announceException({ id: 999, index: 0, code: 3, level: 3, message: 'Mock printer says no' });
+    await until('the new errors', async () => {
+      const n = await tool(fresh, 'printer_status', { printer: 'My U1' });
+      return n.consoleErrors?.length === 2 && n.errors?.some((e) => /Mock printer says no/.test(e));
+    });
+    u1.setExceptions([]);
+    await until('errors cleared', async () => !(await tool(fresh, 'printer_status', { printer: 'My U1' })).errors?.some((e) => /runout/.test(e)));
+  } finally {
+    await fresh.close();
+  }
+});
+
 test('a still picture from the camera: the U1\'s own camera through the bridge; directly, every camera or a named one', async () => {
   const shot = async (args) => {
     const r = await client.callTool({ name: 'printer_camera', arguments: args }, undefined, { timeout: 60_000 });

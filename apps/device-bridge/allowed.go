@@ -29,6 +29,9 @@ var allowed = map[string]bool{
 	"server.files.delete_file":  true,
 	"server.webcams.list":       true,
 	"server.exception.query":    true,
+	// The console's recent lines (read only): an AI app's printer status shows Klipper's
+	// errors from before it looked.
+	"server.gcode_store": true,
 	// The U1's own camera: turns the monitor picture on for a while.
 	"camera.start_monitor": true,
 	// The U1's own print start (firmware 1.3.0+), as Snapmaker Orca sends it:

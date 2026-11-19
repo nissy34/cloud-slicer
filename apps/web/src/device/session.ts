@@ -235,18 +235,27 @@ export class PrinterSession {
     this.ev.onObjects(this.objects);
     this.objectErrors();
     this.ev.onState('online', '');
-    for (const a of this.addons) {
+    const first = this.addons.flatMap((a) => {
       const source = a.errors;
-      if (!source) continue;
+      if (!source) return [];
       // Older firmware may not have the call: then there is nothing to show.
-      void this.rpc(source.query)
-        .then((r) => this.updateErrors(source.read(r).then((current) => ({ current }))))
-        .catch(() => undefined);
-    }
+      return [
+        this.rpc(source.query)
+          .then((r) => this.updateErrors(source.read(r).then((current) => ({ current }))))
+          .catch(() => undefined),
+      ];
+    });
+    this.firstErrors = Promise.all(first).then(() => undefined);
   }
 
-  private updateErrors(change: Promise<{ current?: PrinterError[]; once?: PrinterError[] }>) {
-    this.errorQueue = this.errorQueue
+  /** Settles once the errors the printer held when it came online are read (a look right after connecting needs them). */
+  private firstErrors: Promise<void> = Promise.resolve();
+  errorsRead(): Promise<void> {
+    return this.firstErrors.then(() => this.errorQueue);
+  }
+
+  private updateErrors(change: Promise<{ current?: PrinterError[]; once?: PrinterError[] }>): Promise<void> {
+    return (this.errorQueue = this.errorQueue
       .then(() => change)
       .then(({ current, once }) => {
         const shown = new Set((current ?? this.errors.current).map((e) => e.id));
@@ -256,7 +265,7 @@ export class PrinterSession {
         };
         this.ev.onErrors?.([...this.errors.current, ...this.errors.once]);
       })
-      .catch(() => undefined);
+      .catch(() => undefined));
   }
 
   /** Hides an error the printer announced once; ones it still reports stay. */

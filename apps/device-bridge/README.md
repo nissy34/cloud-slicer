@@ -159,8 +159,9 @@ R2 bucket on every push to main. Tests: `go test ./...`; the Device tab's end
 to end tests (`apps/web/test/device-smoke.mjs`, `relay-live.mjs`) run the real
 program too.
 
-The bridge passes on only the Moonraker calls the Device tab uses
-(`allowed.go`) and deletes files only in the G-code folder. Uploads stream
+The bridge passes on only the Moonraker calls the Device tab and the AI app
+add-on use (`allowed.go`; the add-on adds only `server.gcode_store`, the console's
+recent lines, read only) and deletes files only in the G-code folder. Uploads stream
 straight into Moonraker instead of going through a temp folder, which on a
 printer is often in memory.
 

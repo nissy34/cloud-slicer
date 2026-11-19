@@ -177,6 +177,8 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
   const streams = new Set();
   // Snapmaker's Moonraker keeps the U1's current errors ("exceptions").
   let exceptions = [];
+  // Moonraker's console history (server.gcode_store): what Klipper said, newest last.
+  const gcodeStore = [];
 
   const broadcast = (method, params) => {
     const text = JSON.stringify({ jsonrpc: '2.0', method, params });
@@ -480,6 +482,8 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
               ]
             : [],
         };
+      case 'server.gcode_store':
+        return { gcode_store: gcodeStore.slice(-(params.count ?? 100)) };
       case 'server.exception.query':
         if (generic) throw Object.assign(new Error(`Method not found: ${method}`), { code: -32601 });
         return { exceptions };
@@ -703,6 +707,11 @@ document.addEventListener('pointerdown', async (e) => {
       exceptions = list;
       broadcast('notify_exception_status', [{ exceptions }]);
     },
+    /** Klipper says a console line ("!! ..." for an error), kept in Moonraker's console history too. */
+    say(line) {
+      gcodeStore.push({ message: line, time: Date.now() / 1000, type: 'response' });
+      broadcast('notify_gcode_response', [line]);
+    },
     /** A one-off error announcement, like a U1 refusing a command. */
     announceException(e) {
       broadcast('notify_exception_notification', [e]);
@@ -711,6 +720,7 @@ document.addEventListener('pointerdown', async (e) => {
       state = fresh();
       scripts.length = 0;
       exceptions = [];
+      gcodeStore.length = 0;
     },
     async close() {
       clearInterval(drift);
